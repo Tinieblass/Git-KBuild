@@ -94,7 +94,7 @@ jobs:
   prepare_clang:
     runs-on: ubuntu-latest
     env:
-      COMPILER: ${{ github.event.inputs.COMPILER || 'r614150' }}
+      COMPILER: ${{ github.event.inputs.COMPILER || 'neutron' }}
     steps:
       - name: Restore Clang cache
         id: clang-cache
@@ -173,7 +173,7 @@ jobs:
       CODENAME: ${{ github.event.inputs.CODENAME || 'alioth' }}
       ANYKERNEL_URL: ${{ github.event.inputs.ANYKERNEL_URL || 'https://github.com/re-noroi/anykernel3-test' }}
       CUSTOM_SED: ${{ github.event.inputs.CUSTOM_SED || '-FakeDreamer' }}
-      COMPILER: ${{ github.event.inputs.COMPILER || 'r614150' }}
+      COMPILER: ${{ github.event.inputs.COMPILER || 'neutron' }}
       VARIANT: ${{ github.event.inputs.VARIANT || 'W-variant' }}
       LTO_CHOICE: ${{ github.event.inputs.LTO_CHOICE || 'full_lto' }}
       REMOVE_CYCLE_COUNT: ${{ github.event.inputs.REMOVE_CYCLE_COUNT || 'no' }}
