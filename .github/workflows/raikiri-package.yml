@@ -1,0 +1,101 @@
+name: Package Raikiri v1.7 - alioth MIUI5K
+
+on:
+  push:
+    branches:
+      - Raikiri-Midori-NM
+    paths:
+      - '.github/workflows/raikiri-package.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout builder
+        uses: actions/checkout@v4
+
+      - name: Download verified raw kernel build
+        uses: actions/download-artifact@v4
+        with:
+          name: raikiri-v17-alioth-j3s-raw
+          path: raw
+          run-id: 41157301398
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify raw build manifest
+        run: |
+          set -euo pipefail
+          cd raw
+          sha256sum -c SHA256SUMS.txt
+          test -s Image.gz
+          test -s dtbo.img
+          grep -q 'J3S Sun 5000 mAh' BUILD-REPORT.md
+          grep -qx 'CONFIG_KSU=y' <(grep '^CONFIG_KSU=' config-report.txt)
+          grep -qx 'CONFIG_KSU_MANUAL_HOOK=y' <(grep '^CONFIG_KSU_MANUAL_HOOK=' config-report.txt)
+
+      - name: Fetch pinned AnyKernel3 template
+        run: |
+          set -euo pipefail
+          git clone https://github.com/osm0sis/AnyKernel3.git anykernel
+          git -C anykernel checkout --detach 41f04bdb4ee30a44e429c2c1131d5e8bb32b15f1
+          test "$(git -C anykernel rev-parse HEAD)" = '41f04bdb4ee30a44e429c2c1131d5e8bb32b15f1'
+          test -f anykernel/LICENSE
+          test -f anykernel/tools/ak3-core.sh
+          rm -rf anykernel/.git anykernel/.github anykernel/README.md
+
+      - name: Assemble alioth MIUI5K installer
+        run: |
+          set -euo pipefail
+          cp raw/Image.gz anykernel/Image.gz
+          cp raw/dtbo.img anykernel/dtbo.img
+          cat > anykernel/anykernel.sh <<'AK3'
+          ### Raikiri v1.7 - POCO F3 / alioth - MIUI5K
+          ## Unofficial package; built from pinned Raikiri v1.7 source.
+
+          properties() { '
+          kernel.string=Raikiri v1.7 J3S Sun 5000mAh -miui5k (unofficial)
+          do.devicecheck=1
+          do.modules=0
+          do.systemless=0
+          do.cleanup=1
+          do.cleanuponabort=0
+          device.name1=alioth
+          supported.versions=16
+          '; }
+
+          BLOCK=boot;
+          IS_SLOT_DEVICE=1;
+          RAMDISK_COMPRESSION=auto;
+          PATCH_VBMETA_FLAG=auto;
+
+          . tools/ak3-core.sh;
+
+          # Preserve the existing boot ramdisk and replace only the kernel.
+          dump_boot;
+          # write_boot also flashes dtbo.img to the active dtbo slot.
+          write_boot;
+          AK3
+          (cd anykernel && zip -qr9 ../Raikiri-v1.7-alioth-miui5k.zip . -x '.git/*' '.github/*' 'README.md')
+
+      - name: Validate installer package (no device flashing)
+        run: |
+          set -euo pipefail
+          unzip -t Raikiri-v1.7-alioth-miui5k.zip
+          unzip -l Raikiri-v1.7-alioth-miui5k.zip | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|LICENSE'
+          unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'device.name1=alioth'
+          unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'IS_SLOT_DEVICE=1'
+          unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'write_boot'
+          sha256sum Raikiri-v1.7-alioth-miui5k.zip
+
+      - name: Upload MIUI5K installer candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: Raikiri-v1.7-alioth-miui5k-candidate
+          path: Raikiri-v1.7-alioth-miui5k.zip
+          if-no-files-found: error
+          compression-level: 0
