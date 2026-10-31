@@ -253,38 +253,6 @@ jobs:
           print("PASS: bundled NoMount 2.1 source is present.")
           PY
 
-      # FLOS wakeup.c calls this SRCU-aware iterator but omits its local definition.
-      # Restore the upstream Linux definition; the caller holds wakeup_srcu.
-      - name: Restore SRCU-aware wakeup RCU iterator
-        working-directory: kernel_tree
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("drivers/base/power/wakeup.c")
-          text = path.read_text()
-          macro = (
-              "#define list_for_each_entry_rcu_locked(pos, head, member) \\\n"
-              "\tlist_for_each_entry_rcu(pos, head, member, \\\n"
-              "\t\tsrcu_read_lock_held(&wakeup_srcu))\n"
-          )
-          if text.count("#define list_for_each_entry_rcu_locked") > 1:
-              raise SystemExit("Unexpected multiple definitions/usages of the wakeup RCU iterator")
-          if "#define list_for_each_entry_rcu_locked" in text:
-              print("PASS: SRCU-aware wakeup iterator already defined; no change needed.")
-          else:
-              anchor = '#include "power.h"\n'
-              if text.count(anchor) != 1:
-                  raise SystemExit('Cannot safely locate the unique #include "power.h" anchor')
-              text = text.replace(anchor, anchor + "\n" + macro, 1)
-              path.write_text(text)
-              print("PASS: restored list_for_each_entry_rcu_locked() using srcu_read_lock_held(&wakeup_srcu).")
-          PY
-          grep -q '^#define list_for_each_entry_rcu_locked(pos, head, member)' drivers/base/power/wakeup.c
-          grep -q 'srcu_read_lock_held(&wakeup_srcu)' drivers/base/power/wakeup.c
-          git diff --check
-
       - name: Kernel Version
         run: |
           cd kernel_tree
