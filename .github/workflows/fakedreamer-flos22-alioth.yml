@@ -28,11 +28,15 @@ jobs:
         run: |
           set -euo pipefail
           git clone --no-checkout https://github.com/re-noroi/kernel_sm8250.git kernel
-          git -C kernel fetch --depth=1 origin be837cd0f654f78f41cb3b4b65db56294e61dfa7
-          git -C kernel checkout --detach be837cd0f654f78f41cb3b4b65db56294e61dfa7
-          test "$(git -C kernel rev-parse HEAD)" = 'be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+          git -C kernel fetch --depth=1 origin 1088c7141c6039cc2238798fdc13e6f1d7c9411c
+          git -C kernel checkout --detach 1088c7141c6039cc2238798fdc13e6f1d7c9411c
+          test "$(git -C kernel rev-parse HEAD)" = '1088c7141c6039cc2238798fdc13e6f1d7c9411c'
           grep -q 'CONFIG_BOARD_ALIOTH=y' kernel/arch/arm64/configs/vendor/alioth_defconfig
-          echo 'FakeDreamer FLOS commit: be837cd0f654f78f41cb3b4b65db56294e61dfa7' | tee source-version.txt
+          grep -q 'CONFIG_LOCALVERSION="-FakeDreamer-flos-W"' kernel/arch/arm64/configs/vendor/alioth_defconfig
+          grep -q 'CONFIG_CGROUP_BPF=y' kernel/arch/arm64/configs/vendor/alioth_defconfig
+          grep -q 'CONFIG_BPF_SYSCALL=y' kernel/arch/arm64/configs/vendor/alioth_defconfig
+          grep -q 'CONFIG_KSU=y' kernel/arch/arm64/configs/vendor/alioth_defconfig
+          echo 'FakeDreamer FLOS W commit: 1088c7141c6039cc2238798fdc13e6f1d7c9411c' | tee source-version.txt
 
       - name: Update bundled NoMount 2.1 to NoMount v2.2.0
         run: |
@@ -81,7 +85,7 @@ jobs:
           export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
           make O=out vendor/alioth_defconfig
           scripts/config --file out/.config \
-            --set-str LOCALVERSION '-FakeDreamer-FLOS2.2-W-J3S5000-NM2.2-KSU-bpf' \
+            --set-str LOCALVERSION '-FakeDreamer-flos-W-J3S5000-NM2.2-KSU-bpf' \
             -e NOMOUNT -e KSU -e BPF -e BPF_SYSCALL -e BPF_JIT -e BPF_JIT_ALWAYS_ON
           make O=out olddefconfig
           grep -qx 'CONFIG_BOARD_ALIOTH=y' out/.config
@@ -91,7 +95,7 @@ jobs:
           grep -qx 'CONFIG_BPF_SYSCALL=y' out/.config
           grep -qx 'CONFIG_BPF_JIT=y' out/.config
           grep -qx 'CONFIG_BPF_JIT_ALWAYS_ON=y' out/.config
-          grep -Fqx 'CONFIG_LOCALVERSION="-FakeDreamer-FLOS2.2-W-J3S5000-NM2.2-KSU-bpf"' out/.config
+          grep -Fqx 'CONFIG_LOCALVERSION="-FakeDreamer-flos-W-J3S5000-NM2.2-KSU-bpf"' out/.config
           grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_KSU=|CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_BPF_JIT=|CONFIG_BPF_JIT_ALWAYS_ON=|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
 
       - name: Build Image.gz, DTBs and DTBO
@@ -119,10 +123,10 @@ jobs:
             echo '# FakeDreamer FLOS 2.2-rc2 - alioth'
             echo
             echo '- Device: POCO F3 / alioth'
-            echo '- Source: re-noroi/kernel_sm8250 @ be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+            echo '- Source: re-noroi/kernel_sm8250 @ 1088c7141c6039cc2238798fdc13e6f1d7c9411c (FakeDreamer v2.1 FLOS W variant)'
             echo '- NoMount: v2.2.0, built-in and enabled (protocol v22)'
             echo '- Root: KernelSU driver enabled (CONFIG_KSU=y)'
-            echo '- ROM variant: W (Android 16+)'
+            echo '- ROM variant: W (Android 16+, with upstream W BPF backport)'
             echo '- BPF: enabled and verified (BPF, syscall, JIT, JIT_ALWAYS_ON)'
             echo '- Battery: J3S Sun 5000mAh profile'
             echo '- Outputs: Image.gz and dtbo.img'
