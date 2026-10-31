@@ -90,11 +90,12 @@ jobs:
           export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
           make O=out vendor/alioth_defconfig
           scripts/config --file out/.config \
-            --set-str LOCALVERSION '-FakeDreamer-FLOS2.2-VoWiFi-NM2.2-J3S5000-miui-bpf' \
-            -e NOMOUNT -e BPF -e BPF_SYSCALL -e BPF_JIT -e BPF_JIT_ALWAYS_ON
+            --set-str LOCALVERSION '-FakeDreamer-FLOS2.2-W-VoWiFi-J3S5000-NM2.2-KSU-bpf' \
+            -e NOMOUNT -e KSU -e BPF -e BPF_SYSCALL -e BPF_JIT -e BPF_JIT_ALWAYS_ON
           make O=out olddefconfig
           grep -qx 'CONFIG_BOARD_ALIOTH=y' out/.config
           grep -qx 'CONFIG_NOMOUNT=y' out/.config
+          grep -qx 'CONFIG_KSU=y' out/.config
           grep -qx 'CONFIG_RMNET=y' out/.config
           grep -qx 'CONFIG_BPF=y' out/.config
           grep -qx 'CONFIG_BPF_SYSCALL=y' out/.config
@@ -105,10 +106,10 @@ jobs:
           grep -qx 'CONFIG_CNSS2=y' out/.config
           grep -qx 'CONFIG_CNSS2_QMI=y' out/.config
           grep -qx 'CONFIG_IPA3=y' out/.config
-          grep -qx 'CONFIG_LOCALVERSION="-FakeDreamer-FLOS2.2-VoWiFi-NM2.2-J3S5000-miui-bpf"' out/.config
+          grep -qx 'CONFIG_LOCALVERSION="-FakeDreamer-FLOS2.2-W-VoWiFi-J3S5000-NM2.2-KSU-bpf' out/.config
           {
             echo '# FakeDreamer FLOS 2.2 alioth configuration'
-            grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_RMNET=|CONFIG_QRTR=|CONFIG_QRTR_MHI=|CONFIG_CNSS2=|CONFIG_CNSS2_QMI=|CONFIG_IPA3=|CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_BPF_JIT=|CONFIG_BPF_JIT_ALWAYS_ON=|CONFIG_LOCALVERSION=)' out/.config
+            grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_KSU=|CONFIG_RMNET=|CONFIG_QRTR=|CONFIG_QRTR_MHI=|CONFIG_CNSS2=|CONFIG_CNSS2_QMI=|CONFIG_IPA3=|CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_BPF_JIT=|CONFIG_BPF_JIT_ALWAYS_ON=|CONFIG_LOCALVERSION=)' out/.config
           } | tee "$GITHUB_WORKSPACE/config-report.txt"
 
       - name: Build Image.gz, DTBs and DTBO
@@ -148,7 +149,10 @@ jobs:
             echo '- Base: FakeDreamer FLOS 2.2 branch'
             echo '- Network profile: native FLOS RMNET + CNSS2/QMI + QRTR/MHI/IPA3; no Raikiri-only RMNET_PERF/RMNET_SHS symbols exist in this source revision'
             echo '- VoWiFi: compatibility candidate only; no proven VoWiFi-specific RMNET patch is applied, IMS/VoWiFi must be confirmed on-device'
-            echo '- NoMount: v2.2.0, built-in CONFIG_NOMOUNT=y\n            echo '- BPF: enabled and verified (BPF, syscall, JIT, JIT_ALWAYS_ON)''
+            echo '- NoMount: v2.2.0, built-in CONFIG_NOMOUNT=y'
+            echo '- Root: KernelSU driver enabled (CONFIG_KSU=y)'
+            echo '- ROM variant: W (Android 16+)'
+            echo '- BPF: enabled and verified (BPF, syscall, JIT, JIT_ALWAYS_ON)'
             echo '- Battery: existing J3S Sun 5000 mAh profile preserved'
             echo '- Target: alioth / Android 16 HyperOS 3 test'
             echo '- Artifacts are raw kernel/device-tree outputs; no device is flashed by CI'
@@ -167,7 +171,7 @@ jobs:
       - name: Upload FLOS kernel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: fakedreamer-flos22-alioth-vowifi-nomount22-j3s-miui-bpf-raw
+          name: fakedreamer-flos22-alioth-W-vowifi-j3s5000-ksu-nomount22-bpf-raw
           path: flos-output/
           if-no-files-found: error
           compression-level: 0
