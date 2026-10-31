@@ -7,7 +7,7 @@ on:
     branches:
       - Tiw-MidoriSU-NX-alioth-test
     paths:
-      - .github/workflows/tiw-midorisu-next-alioth.yml
+      - .github/workflows/tiw-backslashxx-alioth.yml
 
 permissions:
   contents: read
@@ -43,16 +43,16 @@ jobs:
 
           # Replace the Backslashxx KernelSU submodule with Backslashxx's in-tree legacy driver.
           git -C kernel submodule deinit -f --all || true
-          rm -rf kernel/Backslashxx KernelSU
-          git clone --no-checkout https://github.com/backslashxx/KernelSU.git kernel/Backslashxx KernelSU
-          git -C kernel/Backslashxx KernelSU checkout --detach 9b74de40162dea776d461c15946aae4064c85e5f
-          KSU_COMMIT="$(git -C kernel/Backslashxx KernelSU rev-parse HEAD)"
+          rm -rf kernel/KernelSU-Next
+          git clone --no-checkout https://github.com/backslashxx/KernelSU.git kernel/KernelSU-Next
+          git -C kernel/KernelSU-Next checkout --detach 9b74de40162dea776d461c15946aae4064c85e5f
+          KSU_COMMIT="$(git -C kernel/KernelSU-Next rev-parse HEAD)"
           test "$KSU_COMMIT" = '9b74de40162dea776d461c15946aae4064c85e5f'
-          test -f kernel/Backslashxx KernelSU/kernel/Kconfig
-          test -f kernel/Backslashxx KernelSU/kernel/Makefile
+          test -f kernel/KernelSU-Next/kernel/Kconfig
+          test -f kernel/KernelSU-Next/kernel/Makefile
           test -f kernel/drivers/kernelsu/Kconfig
-          grep -q 'config KSU' kernel/Backslashxx KernelSU/kernel/Kconfig
-          grep -q 'config KSU_HACK_ARM64_BRANCH_LINK' kernel/Backslashxx KernelSU/kernel/Kconfig
+          grep -q 'config KSU' kernel/KernelSU-Next/kernel/Kconfig
+          grep -q 'config KSU_HACK_ARM64_BRANCH_LINK' kernel/KernelSU-Next/kernel/Kconfig
           echo "$KSU_COMMIT" | tee ksu-commit.txt
           echo "Backslashxx KernelSU commit: $KSU_COMMIT"
 
@@ -145,7 +145,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: tiw-ksunext-legacy-alioth-build-log
+          name: tiw-backslashxx-alioth-build-log
           path: kernel-build.log
           if-no-files-found: ignore
           compression-level: 6
@@ -182,7 +182,7 @@ jobs:
             echo '- Hook/config path: KSU_HACK_ARM64_BRANCH_LINK + KSU_LSM_SECURITY_HOOKS (Backslashxx legacy 4.19 mode)'
             echo '- NoMount source commit: bf1847f98fed382369c43bfd652cd93774b9b8e3'
             echo '- Battery profile: J3S Sun 5000 mAh; CP5 is not modified or included'
-            echo '- Output is raw build material only; no flashable ZIP is generated and no device is flashed.'
+            echo '- Raw build material and an AnyKernel3 ZIP candidate are generated; no device is flashed by CI.'
             echo '- Build success does not establish boot, root-manager, module-mount or IMS/VoWiFi compatibility.'
           } > tiw-backslashxx-output/BUILD-REPORT.md
           (cd tiw-backslashxx-output && sha256sum * > SHA256SUMS.txt)
