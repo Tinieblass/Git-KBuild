@@ -51,38 +51,18 @@ jobs:
           grep -q 'default y' kernel/fs/nomount/Kconfig
           echo "NoMount v2.2.0 commit: $(git -C NoMount rev-parse HEAD)" | tee nomount-version.txt
 
-      - name: Select J3S Sun 5000mAh battery profile
+      - name: Verify native J3S Sun 5000mAh battery profile
+        working-directory: kernel
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          root = Path("kernel")
-          common = root / "arch/arm64/boot/dts/vendor/qcom/xiaomi-sm8250-common.dtsi"
-          profile = root / "arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-sun-5000mah.dtsi"
-          s = common.read_text()
-          if not profile.is_file():
-              raise SystemExit("Missing native Alioth Sun 5000mAh battery profile")
-          inc = '#include "fg-gen4-batterydata-alioth-sun-5000mah.dtsi"'
-          if inc not in s:
-              marker = '#include "fg-gen4-batterydata-alium-3600mah.dtsi"'
-              if s.count(marker) != 1:
-                  raise SystemExit("Cannot locate Alioth battery profile include point")
-              s = s.replace(marker, inc + "\n\t\t" + marker, 1)
-          start = s.find("&pm8150b_fg {")
-          if start < 0:
-              raise SystemExit("Cannot locate pm8150b_fg node")
-          end = s.find("\n};", start)
-          if end < 0:
-              raise SystemExit("Cannot parse pm8150b_fg node")
-          node = s[start:end]
-          flag = "qcom,j3s-batt-profile;"
-          if flag not in node:
-              s = s[:end] + "\n\t" + flag + s[end:]
-          common.write_text(s)
-          if s.count(inc) != 1 or s.count(flag) != 1:
-              raise SystemExit("J3S 5000mAh selection did not validate")
-          print("J3S Sun 5000mAh profile selected.")
-          PY
+          DTS=arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+          BAT=arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-apollo-sun-5000mah.dtsi
+          grep -Fq 'qcom,j3s-batt-profile;' "$DTS"
+          grep -Fq 'fg-gen4-batterydata-apollo-sun-5000mah.dtsi' "$DTS"
+          grep -Fq 'qcom,nom-batt-capacity-mah = <5000>;' "$BAT"
+          grep -Fq 'qcom,battery-type = "j3ssun_5000mah";' "$BAT"
+          git diff --check
+          echo 'Native J3S Sun 5000mAh profile verified; DTS left unchanged.'
 
       - name: Download matching Clang toolchain
         run: |
@@ -99,12 +79,19 @@ jobs:
           set -euo pipefail
           export ARCH=arm64
           export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
-          make O=out alioth_defconfig
-          scripts/config --file out/.config -e NOMOUNT
+          make O=out vendor/alioth_defconfig
+          scripts/config --file out/.config \
+            --set-str LOCALVERSION '-FakeDreamer-FLOS2.2-J3S5000-NM2.2-bpf' \
+            -e NOMOUNT -e BPF -e BPF_SYSCALL -e BPF_JIT -e BPF_JIT_ALWAYS_ON
           make O=out olddefconfig
           grep -qx 'CONFIG_BOARD_ALIOTH=y' out/.config
           grep -qx 'CONFIG_NOMOUNT=y' out/.config
-          grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
+          grep -qx 'CONFIG_BPF=y' out/.config
+          grep -qx 'CONFIG_BPF_SYSCALL=y' out/.config
+          grep -qx 'CONFIG_BPF_JIT=y' out/.config
+          grep -qx 'CONFIG_BPF_JIT_ALWAYS_ON=y' out/.config
+          grep -qx 'CONFIG_LOCALVERSION="-FakeDreamer-FLOS2.2-J3S5000-NM2.2-bpf"' out/.config
+          grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_BPF_JIT=|CONFIG_BPF_JIT_ALWAYS_ON=|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
 
       - name: Build Image.gz, DTBs and DTBO
         working-directory: kernel
@@ -132,7 +119,7 @@ jobs:
             echo
             echo '- Device: POCO F3 / alioth'
             echo '- Source: re-noroi/kernel_sm8250 @ be837cd0f654f78f41cb3b4b65db56294e61dfa7'
-            echo '- NoMount: v2.2.0, built-in and enabled (protocol v22)'
+            echo '- NoMount: v2.2.0, built-in and enabled (protocol v22)\n            echo '- BPF: enabled and verified (BPF, syscall, JIT, JIT_ALWAYS_ON)''
             echo '- Battery: J3S Sun 5000mAh profile'
             echo '- Outputs: Image.gz and dtbo.img'
             echo '- VoWiFi: Raikiri-specific patch not yet included; no matching patch was present in the Raikiri build workflow/config inspected.'
@@ -142,7 +129,7 @@ jobs:
       - name: Upload FakeDreamer FLOS 2.2 artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: fakedreamer-flos22-alioth-j3s-nomount22-raw
+          name: fakedreamer-flos22-alioth-j3s-nomount22-bpf-raw
           path: fakedreamer-flos22-output/
           if-no-files-found: error
           compression-level: 0
