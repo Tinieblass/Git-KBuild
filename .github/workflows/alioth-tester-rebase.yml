@@ -393,16 +393,16 @@ jobs:
 
           text = path.read_text()
           old = re.compile(
-              r"(?m)^void[ \\t]*\\r?\\nrmnet_perf_free_hash_table\\(\\)[ \\t]*\\r?\\n\\{"
+              r"(?m)^void[ \t]*\r?\nrmnet_perf_free_hash_table\(\)[ \t]*\r?\n\{"
           )
           new = re.compile(
-              r"(?m)^void[ \\t]*\\r?\\nrmnet_perf_free_hash_table\\(void\\)[ \\t]*\\r?\\n\\{"
+              r"(?m)^void[ \t]*\r?\nrmnet_perf_free_hash_table\(void\)[ \t]*\r?\n\{"
           )
 
           old_count = len(old.findall(text))
           new_count = len(new.findall(text))
           if old_count == 1 and new_count == 0:
-              text = old.sub("void\\nrmnet_perf_free_hash_table(void)\\n{", text, count=1)
+              text = old.sub("void\nrmnet_perf_free_hash_table(void)\n{", text, count=1)
               path.write_text(text)
               print("PASS: corrected the RMNET function definition to an explicit void prototype.")
           elif old_count == 0 and new_count == 1:
