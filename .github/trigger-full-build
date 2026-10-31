@@ -4,3 +4,5 @@ Re-run isolated IPA wake-source candidate build after correcting AnyKernel packa
 # Rebuild after separating AnyKernel vendor_boot validation commands.
 
 # 2026-10-31: run exact 29-Oct FakeDreamer profile with isolated IPA wake-source correction; compiler Neutron 06092026.
+
+# Retry after fixing the unterminated vendor_boot validation quote.
