@@ -204,12 +204,19 @@ jobs:
           for entry in ("obj-y += drivers/rmnet/perf/", "obj-y += drivers/rmnet/shs/"):
               if entry not in data_make:
                   raise SystemExit("techpack/data/Makefile is missing " + entry)
+          import re
+
           for folder, symbol, target in (
               (perf, "CONFIG_RMNET_PERF", "rmnet_perf.o"),
               (shs, "CONFIG_RMNET_SHS", "rmnet_shs.o"),
           ):
-              if f"obj-$(${symbol}) += {target}" not in (folder / "Kbuild").read_text():
-                  raise SystemExit(f"{symbol} Kbuild target missing")
+              kbuild = (folder / "Kbuild").read_text()
+              pattern = rf"obj-\\$\\(\\s*{re.escape(symbol)}\\s*\\)\\s*\\+=\\s*{re.escape(target)}"
+              if not re.search(pattern, kbuild):
+                  raise SystemExit(
+                      f"{symbol} Kbuild target missing or malformed; "
+                      f"expected obj-\\$({symbol}) += {target}; got: {kbuild!r}"
+                  )
           print("PASS: both RMNET_PERF and RMNET_SHS Kconfig/Kbuild paths are available.")
           PY
           git diff --check
