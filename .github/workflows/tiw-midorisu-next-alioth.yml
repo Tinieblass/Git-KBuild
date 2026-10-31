@@ -2,6 +2,11 @@ name: Tiw MidoriSU (next) - alioth J3S 5000 mAh test
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - Tiw-MidoriSU-NX-alioth-test
+    paths:
+      - .github/workflows/tiw-midorisu-next-alioth.yml
 
 permissions:
   contents: read
