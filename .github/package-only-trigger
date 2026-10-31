@@ -1,2 +1,2 @@
 41203187437
-# Repackage verified four kernel artifacts; canonical AnyKernel write_boot, no compiler or rebuild.
+# Repackage verified four kernel artifacts; canonical AnyKernel write_boot, no compiler or rebuild. Correct j3s-miui-eff-uv marker.
