@@ -6,6 +6,7 @@ on:
       - Raikiri-Midori-NM
     paths:
       - '.github/workflows/raikiri-preflight.yml'
+      - 'scripts/prepare_raikiri_j3s.py'
   workflow_dispatch:
 
 permissions:
@@ -28,15 +29,22 @@ jobs:
           git -C kernel checkout --detach "$PIN"
           test "$(git -C kernel rev-parse HEAD)" = "$PIN"
 
+          echo "## J3S battery DTS preparation" | tee preflight-report.md
+          python3 scripts/prepare_raikiri_j3s.py kernel | tee -a preflight-report.md
+          git -C kernel diff -- arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi > j3s-dts.patch
+          test -s j3s-dts.patch
+
           {
+            echo
             echo "# Raikiri v1.7 compatibility preflight"
             echo
             echo "- Source: Sayemx18/kernel_xiaomi_sm8250"
             echo "- Pinned commit: $PIN"
             echo "- Kernel version: $(sed -n 's/^SUBLEVEL = /4.19./p' kernel/Makefile)"
             echo
-            echo "## Device and battery"
-            grep -nE 'alioth_batterydata:|fg-gen4-batterydata-alioth-|fg-gen4-batterydata-apollo-sun-5000mah|qcom,battery-data' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi || true
+            echo "## Device and battery after isolated J3S preparation"
+            grep -nE 'alioth_batterydata:|fg-gen4-batterydata-(apollo-sun-5000mah|alioth-)|qcom,battery-data' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi || true
+            grep -nE 'qcom,(j3s-batt-profile|k11a-batt-profile|sun-profile-only|five-pin-battery)' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi || true
             grep -nE 'nom-batt-capacity-mah|battery-type|six-pin|five-pin' kernel/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-apollo-sun-5000mah.dtsi || true
             echo
             echo "## Kernel config fragments"
@@ -50,11 +58,13 @@ jobs:
             fi
             echo
             echo "## Build safety"
-            echo "This job is a read-only preflight. It does not modify DTS/DTBO, change battery identification, or produce a flashable ZIP."
-          } | tee preflight-report.md
+            echo "This job only prepares and diffs the J3S DTS in a disposable checkout. It does not build a kernel/DTBO or produce a flashable ZIP."
+          } | tee -a preflight-report.md
 
-      - name: Upload preflight report
+      - name: Upload preflight report and DTS patch
         uses: actions/upload-artifact@v4
         with:
           name: raikiri-v17-preflight
-          path: preflight-report.md
+          path: |
+            preflight-report.md
+            j3s-dts.patch
