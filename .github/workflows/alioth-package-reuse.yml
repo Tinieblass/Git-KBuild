@@ -89,44 +89,41 @@ jobs:
           test -s AnyKernel3-1/alioth-j3s-dtbo-miui.img
           test -s AnyKernel3-1/alioth-effcpu-gpustk-dtb
 
-      # Alioth / HyperOS safety fix:
-      # The upstream AnyKernel3 template's write_boot() also writes vendor_boot,
-      # vendor_kernel_boot and vendor_dlkm. For this 4.19 alioth package we only
-      # replace boot (kernel + selected DTB) and the active-slot DTBO. Do not
-      # repack or flash vendor_boot from this package.
-      - name: Restrict AnyKernel installer to boot and active-slot DTBO
+      # Preserve the canonical AnyKernel boot install. Remove only the upstream's
+      # second vendor_boot cycle, which would incorrectly write Image.gz to vendor_boot.
+      - name: Remove duplicate vendor_boot kernel flash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
 
           path = Path("AnyKernel3-1/anykernel.sh")
-          text = path.read_text()
-          marker = "## AnyKernel install"
-          if text.count(marker) != 1:
-              raise SystemExit("Expected exactly one AnyKernel install section; refusing unsafe rewrite.")
-          prefix = text.split(marker, 1)[0]
-          install = """## AnyKernel install - alioth safe path (boot + active-slot DTBO only)
-          dump_boot;
-          # Repack the existing boot ramdisk with the selected kernel and DTB.
-          repack_ramdisk;
-          flash_boot;
-          # Flash only the DTBO matching the currently active A/B slot.
-          test -s dtbo.img || abort "Selected DTBO image is missing. Aborting...";
-          cp -f dtbo.img "dtbo$slot.img";
-          flash_generic "dtbo$slot";
-          ## end install
-          """
-          path.write_text(prefix + install)
+          script = path.read_text()
+          start = "## vendor_boot shell variables"
+          end = "## end vendor_boot install"
+
+          if script.count(start) == 1 and script.count(end) == 1:
+              begin = script.index(start)
+              finish = script.index(end, begin) + len(end)
+              script = (
+                  script[:begin]
+                  + "# Removed duplicate vendor_boot cycle; canonical write_boot() handles the install.\\n"
+                  + script[finish:]
+              )
+              path.write_text(script)
+              print("PATCHED: removed only the second vendor_boot dump/write cycle.")
+          elif start not in script and end not in script:
+              print("PASS: duplicate vendor_boot cycle is already absent.")
+          else:
+              raise SystemExit("Unexpected AnyKernel3 vendor_boot block; refusing unsafe patch.")
+
+          if script.count("write_boot;") != 1:
+              raise SystemExit("Expected exactly one canonical write_boot call after patch.")
           PY
           sh -n AnyKernel3-1/anykernel.sh
-          grep -q 'dump_boot;' AnyKernel3-1/anykernel.sh
-          grep -q 'repack_ramdisk;' AnyKernel3-1/anykernel.sh
-          grep -q 'flash_boot;' AnyKernel3-1/anykernel.sh
-          grep -q 'flash_generic "dtbo\$slot"' AnyKernel3-1/anykernel.sh
-          ! grep -Eq 'block=.*/vendor_boot|flash_generic vendor_boot|flash_generic vendor_kernel_boot|flash_generic vendor_dlkm' AnyKernel3-1/anykernel.sh
-          test "$(grep -c 'dump_boot;' AnyKernel3-1/anykernel.sh)" -eq 1
-          test "$(grep -c 'flash_boot;' AnyKernel3-1/anykernel.sh)" -eq 1
+          grep -q '^write_boot;' AnyKernel3-1/anykernel.sh
+          test "$(grep -c '^write_boot;' AnyKernel3-1/anykernel.sh)" -eq 1
+          ! grep -q 'vendor_boot shell variables' AnyKernel3-1/anykernel.sh
 
       - name: Create requested W-variant ZIP
         id: zip
