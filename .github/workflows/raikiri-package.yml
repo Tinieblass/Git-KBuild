@@ -82,7 +82,9 @@ jobs:
           # This package updates only boot and the matching alioth DTBO slot.
           repack_ramdisk;
           flash_boot;
-          flash_generic dtbo;
+          # Bind the DTBO image to the detected active slot; never fall back to an unsuffixed partition.
+          cp -f dtbo.img dtbo$SLOT.img;
+          flash_generic dtbo$SLOT;
           AK3
           (cd anykernel && zip -qr9 ../Raikiri-v1.7-alioth-miui5k.zip . -x '.git/*' '.github/*' 'README.md')
 
@@ -94,7 +96,7 @@ jobs:
           unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'device.name1=alioth'
           unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'IS_SLOT_DEVICE=1'
           unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'flash_boot'
-          unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'flash_generic dtbo'
+          unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
           if unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -Eq 'write_boot|flash_generic (vendor_dlkm|system_dlkm)'; then
             echo 'ERROR: installer attempts to flash unrelated partitions' >&2
             exit 1
