@@ -168,7 +168,7 @@ jobs:
             echo '- Device: POCO F3 / alioth'
             echo '- Kernel source: Sayemx18/kernel_xiaomi_sm8250'
             echo '- Kernel source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d'
-            echo '- MidoriSU source: midori01/KernelSU, branch next (resolved commit in ksu-commit.txt)'
+            echo '- KernelSU source: KernelSU-Next/KernelSU-Next, branch legacy (resolved commit in ksu-commit.txt)'
             echo '- Hook/config path: KSU_MANUAL_HOOK (Raikiri 4.19-compatible mode)'
             echo '- NoMount source commit: bf1847f98fed382369c43bfd652cd93774b9b8e3'
             echo '- Battery profile: J3S Sun 5000 mAh; CP5 is not modified or included'
