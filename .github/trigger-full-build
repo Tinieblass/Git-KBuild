@@ -1,10 +1,6 @@
-Re-run isolated IPA wake-source candidate build after correcting AnyKernel packaging validation. Keep RMNET_PERF disabled; preserve both boot and vendor_boot write cycles; J3S 5000mAh, HyperOS/MIUI, efficient CPU + UV GPU.
-# Trigger rebuild after correcting AnyKernel vendor_boot marker validation.
-# Trigger rebuild after repairing malformed workflow YAML.
-# Rebuild after separating AnyKernel vendor_boot validation commands.
-
-# 2026-10-31: run exact 29-Oct FakeDreamer profile with isolated IPA wake-source correction; compiler Neutron 06092026.
-
-# Retry after fixing the unterminated vendor_boot validation quote.
-
-# Retry: clean AnyKernel packaging job, retaining original installer semantics.
+Rebuild controlled diagnostic from known FakeDreamer baseline.
+Source: f7030790d0ac6545920528ffd22d79f4d37a5f1f.
+Matrix: builds 1 and 2 only (J3S MIUI 5000mAh package).
+IPA wake-source patch: disabled for this isolation run.
+SRCU iterator compatibility fix: retained.
+Do not flash before reviewing build and ZIP.
