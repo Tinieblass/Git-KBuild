@@ -81,7 +81,7 @@ jobs:
           export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
           make O=out vendor/alioth_defconfig
           scripts/config --file out/.config \
-            --set-str LOCALVERSION '-FakeDreamer-FLOS2.2-J3S5000-NM2.2-bpf' \
+            --set-str LOCALVERSION '-FakeDreamer-FLOS2.2-J3S-miui-NM2.2-bpf' \
             -e NOMOUNT -e BPF -e BPF_SYSCALL -e BPF_JIT -e BPF_JIT_ALWAYS_ON
           make O=out olddefconfig
           grep -qx 'CONFIG_BOARD_ALIOTH=y' out/.config
@@ -90,7 +90,7 @@ jobs:
           grep -qx 'CONFIG_BPF_SYSCALL=y' out/.config
           grep -qx 'CONFIG_BPF_JIT=y' out/.config
           grep -qx 'CONFIG_BPF_JIT_ALWAYS_ON=y' out/.config
-          grep -qx 'CONFIG_LOCALVERSION="-FakeDreamer-FLOS2.2-J3S5000-NM2.2-bpf"' out/.config
+          grep -qx 'CONFIG_LOCALVERSION="-FakeDreamer-FLOS2.2-J3S-miui-NM2.2-bpf"' out/.config
           grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_BPF_JIT=|CONFIG_BPF_JIT_ALWAYS_ON=|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
 
       - name: Build Image.gz, DTBs and DTBO
@@ -129,7 +129,7 @@ jobs:
       - name: Upload FakeDreamer FLOS 2.2 artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: fakedreamer-flos22-alioth-j3s-nomount22-bpf-raw
+          name: fakedreamer-flos22-alioth-j3s-miui-nomount22-bpf-raw
           path: fakedreamer-flos22-output/
           if-no-files-found: error
           compression-level: 0
