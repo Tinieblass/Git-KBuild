@@ -75,7 +75,7 @@ on:
         type: boolean
         default: true
       ENABLE_RAIKIRI_VOWIFI:
-        description: 'Enable Raikiri-compatible Qualcomm RMNET/CNSS2/QRTR/IPA modem stack for VoWiFi testing'
+        description: 'Enable RMNET_PERF and verify Qualcomm network dependencies; this is not a complete VoWiFi/IMS port'
         required: false
         type: boolean
         default: true
@@ -251,8 +251,9 @@ jobs:
           grep -q 'srcu_read_lock_held(&wakeup_srcu)' drivers/base/power/wakeup.c
           git diff --check
 
-      # Keep Raikiri-compatible RMNET_PERF only. FLOS SHS requires cpu_isolated()
-      # and __cpu_isolated_mask, which this alioth FLOS tree does not provide.
+      # Enable RMNET_PERF only. This is not a complete VoWiFi/IMS integration.
+      # IMS/VoWiFi also depends on modem firmware, vendor userspace and device configuration.
+      # FLOS SHS requires cpu_isolated() and __cpu_isolated_mask, which this tree lacks.
       - name: Wire Raikiri RMNET_PERF into FLOS Kconfig
         if: ${{ env.ENABLE_RAIKIRI_VOWIFI == 'true' }}
         working-directory: kernel_tree
@@ -392,7 +393,7 @@ jobs:
           toggle_config "CONFIG_NOMOUNT" "${{ env.ENABLE_NOMOUNT }}"
           toggle_config "CONFIG_RW_SWAPPINESS" "${{ env.ENABLE_RW_SWAPPINESS }}"
           if [[ "${{ env.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
-            echo '==== Applying Raikiri-compatible Qualcomm modem/network profile ===='
+            echo '==== Enabling RMNET_PERF network performance option (not full VoWiFi) ===='
             # The remaining Qualcomm modem/network stack is already enabled by
             # alioth_defconfig. Enable only the compatible RMNET_PERF option.
             toggle_config "CONFIG_RMNET_PERF" 'true'
@@ -477,7 +478,7 @@ jobs:
               grep -qx "${cfg}=y" out/.config || { echo "ERROR: Raikiri-compatible network option ${cfg} did not survive Kconfig"; exit 1; }
             done
             grep -qx 'CONFIG_RMNET_PERF=y' out/.config || { echo 'ERROR: RMNET_PERF did not survive Kconfig'; exit 1; }
-            echo 'PASS: Qualcomm modem/network stack + RMNET_PERF enabled; unsupported RMNET_SHS excluded.'
+            echo 'PASS: Qualcomm network dependencies verified and RMNET_PERF enabled. VoWiFi/IMS is not certified by this build.'
           fi
           make O=out CC=clang HOSTCC=gcc HOSTCXX=g++ -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
