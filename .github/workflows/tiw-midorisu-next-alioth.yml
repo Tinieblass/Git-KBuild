@@ -134,12 +134,12 @@ jobs:
           export KBUILD_BUILD_HOST='GitHub-Actions'
           BUILD_LOG="$GITHUB_WORKSPACE/kernel-build.log"
           echo "Build started with 2 parallel jobs; full output: $BUILD_LOG"
-          if ! make O=out CC=clang LLVM=1 LLVM_IAS=1 -j2 Image.gz dtbs dtbo.img >"$BUILD_LOG" 2>&1; then
+          make O=out CC=clang LLVM=1 LLVM_IAS=1 -j2 Image.gz dtbs dtbo.img >"$BUILD_LOG" 2>&1 || {
             rc=$?
             echo "Kernel build failed; last 250 log lines follow:"
             tail -n 250 "$BUILD_LOG" || true
             exit "$rc"
-          fi
+          }
           echo "Kernel build completed successfully."
           tail -n 80 "$BUILD_LOG"
 
