@@ -66,7 +66,7 @@ jobs:
           set -euo pipefail
           DTS=arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
           BAT=arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-apollo-sun-5000mah.dtsi
-          grep -q 'qcom,j3s-batt-profile;' "$DTS"
+          grep -q 'qcom,fg-force-load-profile;' "$DTS"
           grep -q 'fg-gen4-batterydata-apollo-sun-5000mah.dtsi' "$DTS"
           grep -q 'qcom,nom-batt-capacity-mah = <5000>;' "$BAT"
           # This FakeDreamer revision has RMNET, but does not define Raikiri-only
@@ -78,6 +78,7 @@ jobs:
           grep -qx 'CONFIG_QRTR=y' "$DEF"
           grep -qx 'CONFIG_QRTR_MHI=y' "$DEF"
           grep -qx 'CONFIG_IPA3=y' "$DEF"
+          grep -qx 'CONFIG_CGROUP_BPF=y' "$DEF"
           grep -qx 'CONFIG_BPF=y' "$DEF"
           grep -qx 'CONFIG_BPF_SYSCALL=y' "$DEF"
           git diff --check
@@ -97,6 +98,7 @@ jobs:
           grep -qx 'CONFIG_NOMOUNT=y' out/.config
           grep -qx 'CONFIG_KSU=y' out/.config
           grep -qx 'CONFIG_RMNET=y' out/.config
+          grep -qx 'CONFIG_CGROUP_BPF=y' out/.config
           grep -qx 'CONFIG_BPF=y' out/.config
           grep -qx 'CONFIG_BPF_SYSCALL=y' out/.config
           grep -qx 'CONFIG_BPF_JIT=y' out/.config
