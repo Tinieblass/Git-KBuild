@@ -424,6 +424,8 @@ jobs:
           echo "==== Applying Extra Features ===="
           toggle_config "CONFIG_NTSYNC" "${{ env.ENABLE_NTSYNC }}"
           toggle_config "CONFIG_NOMOUNT" "${{ env.ENABLE_NOMOUNT }}"
+          # IPA wakelocks must remain enabled; this symbol disables them when set.
+          toggle_config "CONFIG_DISABLE_IPA_WAKELOCKS" "false"
           toggle_config "CONFIG_RW_SWAPPINESS" "${{ env.ENABLE_RW_SWAPPINESS }}"
           if [[ "${{ env.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
             echo '==== Enabling RMNET_PERF network performance option (not full VoWiFi) ===='
