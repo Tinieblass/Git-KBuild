@@ -24,7 +24,7 @@ jobs:
         with:
           name: raikiri-v17-alioth-j3s-raw
           path: raw
-          run-id: 41157301398
+          run-id: 41160583371
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify raw build manifest
@@ -37,6 +37,7 @@ jobs:
           grep -q 'J3S Sun 5000 mAh' BUILD-REPORT.md
           grep -qx 'CONFIG_KSU=y' <(grep '^CONFIG_KSU=' config-report.txt)
           grep -qx 'CONFIG_KSU_MANUAL_HOOK=y' <(grep '^CONFIG_KSU_MANUAL_HOOK=' config-report.txt)
+          grep -qx 'CONFIG_NOMOUNT=y' <(grep '^CONFIG_NOMOUNT=' config-report.txt)
 
       - name: Fetch pinned AnyKernel3 template
         run: |
@@ -77,8 +78,11 @@ jobs:
 
           # Preserve the existing boot ramdisk and replace only the kernel.
           dump_boot;
-          # write_boot also flashes dtbo.img to the active dtbo slot.
-          write_boot;
+          # Deliberately avoid write_boot: it also flashes vendor_dlkm and system_dlkm.
+          # This package updates only boot and the matching alioth DTBO slot.
+          repack_ramdisk;
+          flash_boot;
+          flash_generic dtbo;
           AK3
           (cd anykernel && zip -qr9 ../Raikiri-v1.7-alioth-miui5k.zip . -x '.git/*' '.github/*' 'README.md')
 
@@ -89,7 +93,12 @@ jobs:
           unzip -l Raikiri-v1.7-alioth-miui5k.zip | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|LICENSE'
           unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'device.name1=alioth'
           unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'IS_SLOT_DEVICE=1'
-          unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'write_boot'
+          unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'flash_boot'
+          unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'flash_generic dtbo'
+          if unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -Eq 'write_boot|flash_generic (vendor_dlkm|system_dlkm)'; then
+            echo 'ERROR: installer attempts to flash unrelated partitions' >&2
+            exit 1
+          fi
           sha256sum Raikiri-v1.7-alioth-miui5k.zip
 
       - name: Upload MIUI5K installer candidate
