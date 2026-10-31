@@ -49,6 +49,35 @@ jobs:
           test -f kernel/drivers/kernelsu/Makefile
           git -C kernel submodule status --recursive
 
+      - name: Integrate pinned NoMount source (legacy 4.19 built-in test)
+        run: |
+          set -euo pipefail
+          NOMOUNT_COMMIT='bf1847f98fed382369c43bfd652cd93774b9b8e3'
+          git clone --no-checkout https://github.com/maxsteeel/nomount.git NoMount
+          git -C NoMount fetch --depth=1 origin "$NOMOUNT_COMMIT"
+          git -C NoMount checkout --detach "$NOMOUNT_COMMIT"
+          test "$(git -C NoMount rev-parse HEAD)" = "$NOMOUNT_COMMIT"
+          test -s NoMount/kernel/src/nomount.c
+          test -s NoMount/kernel/src/Kconfig
+          test -s NoMount/kernel/src/Makefile
+          ln -s "$GITHUB_WORKSPACE/NoMount/kernel/src" "$GITHUB_WORKSPACE/kernel/fs/nomount"
+          grep -qF 'obj-$(CONFIG_NOMOUNT) += nomount/' kernel/fs/Makefile || \
+            printf '\nobj-$(CONFIG_NOMOUNT) += nomount/\n' >> kernel/fs/Makefile
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("kernel/fs/Kconfig")
+          s = p.read_text()
+          entry = 'source "fs/nomount/Kconfig"'
+          if entry not in s:
+              pos = s.rfind("\\nendmenu")
+              if pos < 0:
+                  raise SystemExit("ERROR: fs/Kconfig has no endmenu insertion point")
+              s = s[:pos] + "\\n" + entry + s[pos:]
+              p.write_text(s)
+          PY
+          git -C kernel diff --check
+          echo "NoMount commit: $NOMOUNT_COMMIT"
+
       - name: Prepare and verify J3S 5000 mAh DTS
         run: |
           set -euo pipefail
@@ -72,10 +101,13 @@ jobs:
           grep -qx 'CONFIG_BUILD_ARM64_DT_OVERLAY=y' out/.config
           grep -qx 'CONFIG_KSU=y' out/.config
           grep -qx 'CONFIG_KSU_MANUAL_HOOK=y' out/.config
+          scripts/config --file out/.config -e NOMOUNT
+          make O=out olddefconfig
+          grep -qx 'CONFIG_NOMOUNT=y' out/.config
           grep -qx 'CONFIG_LOCALVERSION="-Raikiri-v1.7"' out/.config
           {
             echo '## Final kernel configuration checks'
-            grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_KSU=|CONFIG_KSU_MANUAL_HOOK=|CONFIG_LOCALVERSION=)' out/.config
+            grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_KSU=|CONFIG_KSU_MANUAL_HOOK=|CONFIG_NOMOUNT=|CONFIG_LOCALVERSION=)' out/.config
           } | tee "$GITHUB_WORKSPACE/config-report.txt"
 
       - name: Build Image.gz, DTBs and DTBO
@@ -117,6 +149,7 @@ jobs:
             echo '- Battery profile selected in alioth overlay: J3S Sun 5000 mAh'
             echo '- Kernel config: alioth_defconfig + sm8250-common + alioth + raikiri fragments'
             echo '- KSU and manual hook: enabled and verified'
+            echo '- NoMount: built-in CONFIG_NOMOUNT=y from pinned commit bf1847f98fed382369c43bfd652cd93774b9b8e3'
             echo '- Outputs: Image.gz, combined dtbo.img, alioth overlay DTBO, Kona base DTBs'
             echo '- Not a flashable ZIP; no AnyKernel packaging or device-side testing has been performed.'
           } > "$GITHUB_WORKSPACE/raikiri-output/BUILD-REPORT.md"
