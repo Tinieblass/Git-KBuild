@@ -91,35 +91,21 @@ on:
         default: false
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        kernel: [1, 2, 3, 4]
+  prepare_clang:
     runs-on: ubuntu-latest
     env:
-      UPLOAD_TO_RELEASE: false
-      KERNEL_TREE_1: ${{ github.event.inputs.KERNEL_TREE_1 || 'https://github.com/re-noroi/kernel_sm8250' }}
-      # Keep workflow_dispatch and push builds on the same FLOS source branch.
-      KERNEL_TREE_BRANCH_1: ${{ github.event.inputs.KERNEL_TREE_BRANCH_1 || 'flos' }}
-      CODENAME: ${{ github.event.inputs.CODENAME || 'alioth' }}
-      ANYKERNEL_URL: ${{ github.event.inputs.ANYKERNEL_URL || 'https://github.com/re-noroi/anykernel3-test' }}
-      CUSTOM_SED: ${{ github.event.inputs.CUSTOM_SED || '-FakeDreamer' }}
       COMPILER: ${{ github.event.inputs.COMPILER || 'r614150' }}
-      VARIANT: ${{ github.event.inputs.VARIANT || 'W-variant' }}
-      LTO_CHOICE: ${{ github.event.inputs.LTO_CHOICE || 'full_lto' }}
-      REMOVE_CYCLE_COUNT: ${{ github.event.inputs.REMOVE_CYCLE_COUNT || 'no' }}
-      ENABLE_NTSYNC: ${{ github.event.inputs.ENABLE_NTSYNC || 'true' }}
-      ENABLE_NOMOUNT: ${{ github.event.inputs.ENABLE_NOMOUNT || 'true' }}
-      ENABLE_RAIKIRI_VOWIFI: ${{ github.event.inputs.ENABLE_RAIKIRI_VOWIFI || 'true' }}
-      ENABLE_RW_SWAPPINESS: ${{ github.event.inputs.ENABLE_RW_SWAPPINESS || 'false' }}
-      ENABLE_BYPASS_CHARGING: ${{ github.event.inputs.ENABLE_BYPASS_CHARGING || 'false' }}
-
     steps:
-      - name: Install Dependencies
-        run: sudo apt install flex libncurses6
+      - name: Restore Clang cache
+        id: clang-cache
+        uses: actions/cache@v4
+        with:
+          path: clang
+          key: alioth-clang-${{ env.COMPILER }}-v1
 
       - name: Download & Extract Clang
-        run: |
+        if: steps.clang-cache.outputs.cache-hit != 'true'
+  run: |
           set -euo pipefail
           download_with_retry() {
             local url="$1"
@@ -158,6 +144,55 @@ jobs:
             mkdir clang
             tar -xf clang.tar -C clang
           fi
+
+
+      - name: Verify Clang toolchain
+        run: |
+          set -euo pipefail
+          test -x clang/bin/clang
+          clang/bin/clang --version
+
+      - name: Upload Clang toolchain for matrix jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-${{ env.COMPILER }}
+          path: clang/
+          if-no-files-found: error
+
+  build:
+    needs: prepare_clang
+    strategy:
+      matrix:
+        kernel: [1, 2, 3, 4]
+    runs-on: ubuntu-latest
+    env:
+      UPLOAD_TO_RELEASE: false
+      KERNEL_TREE_1: ${{ github.event.inputs.KERNEL_TREE_1 || 'https://github.com/re-noroi/kernel_sm8250' }}
+      # Keep workflow_dispatch and push builds on the same FLOS source branch.
+      KERNEL_TREE_BRANCH_1: ${{ github.event.inputs.KERNEL_TREE_BRANCH_1 || 'flos' }}
+      CODENAME: ${{ github.event.inputs.CODENAME || 'alioth' }}
+      ANYKERNEL_URL: ${{ github.event.inputs.ANYKERNEL_URL || 'https://github.com/re-noroi/anykernel3-test' }}
+      CUSTOM_SED: ${{ github.event.inputs.CUSTOM_SED || '-FakeDreamer' }}
+      COMPILER: ${{ github.event.inputs.COMPILER || 'r614150' }}
+      VARIANT: ${{ github.event.inputs.VARIANT || 'W-variant' }}
+      LTO_CHOICE: ${{ github.event.inputs.LTO_CHOICE || 'full_lto' }}
+      REMOVE_CYCLE_COUNT: ${{ github.event.inputs.REMOVE_CYCLE_COUNT || 'no' }}
+      ENABLE_NTSYNC: ${{ github.event.inputs.ENABLE_NTSYNC || 'true' }}
+      ENABLE_NOMOUNT: ${{ github.event.inputs.ENABLE_NOMOUNT || 'true' }}
+      ENABLE_RAIKIRI_VOWIFI: ${{ github.event.inputs.ENABLE_RAIKIRI_VOWIFI || 'true' }}
+      ENABLE_RW_SWAPPINESS: ${{ github.event.inputs.ENABLE_RW_SWAPPINESS || 'false' }}
+      ENABLE_BYPASS_CHARGING: ${{ github.event.inputs.ENABLE_BYPASS_CHARGING || 'false' }}
+
+    steps:
+      - name: Install Dependencies
+        run: sudo apt install flex libncurses6
+
+      - name: Download shared Clang toolchain
+        uses: actions/download-artifact@v4
+        with:
+          name: clang-${{ env.COMPILER }}
+          path: clang
+
 
       - name: Set Kernel Environment Variables
         run: |
@@ -462,6 +497,10 @@ jobs:
   package_anykernel:
     needs: build
     runs-on: ubuntu-latest
+    env:
+      ANYKERNEL_URL: ${{ github.event.inputs.ANYKERNEL_URL || 'https://github.com/re-noroi/anykernel3-test' }}
+      CODENAME: ${{ github.event.inputs.CODENAME || 'alioth' }}
+      VARIANT: ${{ github.event.inputs.VARIANT || 'W-variant' }}
 
     steps:
       - name: Download Kernel Build Original
