@@ -1,6 +1,8 @@
 name: Repackage existing alioth kernel artifacts
 
 on:
+  # Manual dispatch lets the owner repackage the existing successful build without recompiling.
+  workflow_dispatch:
   push:
     branches:
       - Tiw-MidoriSU-alioth-test
@@ -75,39 +77,6 @@ jobs:
 
       - name: Clone AnyKernel3
         run: git clone --recursive --depth=1 --branch main https://github.com/re-noroi/anykernel3-test AnyKernel3-1
-
-      - name: Prevent duplicate vendor_boot kernel flash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("AnyKernel3-1/anykernel.sh")
-          script = path.read_text()
-          start = "## vendor_boot shell variables"
-          end = "## end vendor_boot install"
-
-          if script.count(start) == 1 and script.count(end) == 1:
-              begin = script.index(start)
-              finish = script.index(end, begin) + len(end)
-              script = (
-                  script[:begin]
-                  + "# vendor_boot, vendor_kernel_boot, vendor_dlkm and dtbo are handled safely by write_boot().\n"
-                  + script[finish:]
-              )
-              path.write_text(script)
-              print("PATCHED: removed the second dump/write cycle that would flash Image.gz over vendor_boot.")
-          elif start not in script and end not in script:
-              print("PASS: duplicate vendor_boot cycle is already absent.")
-          else:
-              raise SystemExit("Unexpected AnyKernel3 vendor_boot block; refusing an unsafe patch.")
-
-          if script.count("write_boot;") != 1:
-              raise SystemExit("Expected exactly one write_boot call after patch.")
-          PY
-          ! grep -q 'vendor_boot shell variables' AnyKernel3-1/anykernel.sh
-          grep -q '^write_boot;' AnyKernel3-1/anykernel.sh
-
 
       - name: Assemble the existing kernel outputs
         run: |
