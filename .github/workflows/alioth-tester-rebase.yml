@@ -35,14 +35,14 @@ on:
           - r614150
         default: neutron
       VARIANT:
-        description: '-W is only for rename'
+        description: 'FakeDreamer W variant: Android 16+ optimized build (HyperOS 3)'
         required: true
         type: choice
         options:
           - stock
           - W-variant
           - oplus-variant
-        default: stock
+        default: W-variant
       LTO_CHOICE:
         required: true
         type: choice
