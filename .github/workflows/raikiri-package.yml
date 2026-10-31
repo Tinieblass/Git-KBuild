@@ -78,7 +78,7 @@ jobs:
 
           # Preserve the existing boot ramdisk and replace only the kernel.
           dump_boot;
-          # Deliberately avoid write_boot: it also flashes vendor_dlkm and system_dlkm.
+          # Use explicit partition writes; skip the broad combined installer routine.
           # This package updates only boot and the matching alioth DTBO slot.
           repack_ramdisk;
           flash_boot;
