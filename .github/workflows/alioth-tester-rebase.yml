@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - Tiw-MidoriSU-alioth-test
+      - FD-baseline-ipa-isolation-alioth
     paths:
       - .github/trigger-full-build
   workflow_dispatch:
@@ -382,7 +383,7 @@ jobs:
           sed -i -e 's/qcom,mdss-pan-physical-width-dimension = <70>;/qcom,mdss-pan-physical-width-dimension = <695>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-k11a-38-08-0a-dsc-cmd.dtsi
           sed -i -e 's/qcom,mdss-pan-physical-height-dimension = <155>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-k11a-38-08-0a-dsc-cmd.dtsi
       
-            - name: Build Kernel
+      - name: Build Kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
           export ARCH=arm64
