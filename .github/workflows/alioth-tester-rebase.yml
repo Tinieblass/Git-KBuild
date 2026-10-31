@@ -13,6 +13,7 @@ on:
         description: 'Kernel Tree'
         default: 'https://github.com/re-noroi/kernel_sm8250'
         required: true
+      # FD Tester Alioth Builder: use the FakeDreamer FLOS source by default.
       KERNEL_TREE_BRANCH_1:
         description: 'Kernel Tree Branch 1'
         default: 'flos'
@@ -98,6 +99,7 @@ jobs:
     env:
       UPLOAD_TO_RELEASE: false
       KERNEL_TREE_1: ${{ github.event.inputs.KERNEL_TREE_1 || 'https://github.com/re-noroi/kernel_sm8250' }}
+      # Keep workflow_dispatch and push builds on the same FLOS source branch.
       KERNEL_TREE_BRANCH_1: ${{ github.event.inputs.KERNEL_TREE_BRANCH_1 || 'flos' }}
       CODENAME: ${{ github.event.inputs.CODENAME || 'alioth' }}
       ANYKERNEL_URL: ${{ github.event.inputs.ANYKERNEL_URL || 'https://github.com/re-noroi/anykernel3-test' }}
