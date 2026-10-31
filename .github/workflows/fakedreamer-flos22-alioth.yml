@@ -37,12 +37,12 @@ jobs:
         run: |
           set -euo pipefail
           git clone --no-checkout https://github.com/re-noroi/kernel_sm8250.git kernel
-          git -C kernel fetch --depth=1 origin be837cd0f654f78f41cb3b4b65db56294e61dfa7
-          git -C kernel checkout --detach be837cd0f654f78f41cb3b4b65db56294e61dfa7
-          test "$(git -C kernel rev-parse HEAD)" = 'be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+          git -C kernel fetch --depth=1 origin 1088c7141c6039cc2238798fdc13e6f1d7c9411c
+          git -C kernel checkout --detach 1088c7141c6039cc2238798fdc13e6f1d7c9411c
+          test "$(git -C kernel rev-parse HEAD)" = '1088c7141c6039cc2238798fdc13e6f1d7c9411c'
           test -s kernel/arch/arm64/configs/vendor/alioth_defconfig
           test -s kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
-          echo 'FakeDreamer source: re-noroi/kernel_sm8250 @ be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+          echo 'FakeDreamer source: re-noroi/kernel_sm8250 @ 1088c7141c6039cc2238798fdc13e6f1d7c9411c'
 
       - name: Upgrade in-tree NoMount driver to v2.2.0
         run: |
@@ -90,7 +90,7 @@ jobs:
           export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
           make O=out vendor/alioth_defconfig
           scripts/config --file out/.config \
-            --set-str LOCALVERSION '-FakeDreamer-FLOS2.2-W-VoWiFi-J3S5000-NM2.2-KSU-bpf' \
+            --set-str LOCALVERSION '-FakeDreamer-flos-W-VoWiFi-J3S5000-NM2.2-KSU-bpf' \
             -e NOMOUNT -e KSU -e BPF -e BPF_SYSCALL -e BPF_JIT -e BPF_JIT_ALWAYS_ON
           make O=out olddefconfig
           grep -qx 'CONFIG_BOARD_ALIOTH=y' out/.config
@@ -106,7 +106,7 @@ jobs:
           grep -qx 'CONFIG_CNSS2=y' out/.config
           grep -qx 'CONFIG_CNSS2_QMI=y' out/.config
           grep -qx 'CONFIG_IPA3=y' out/.config
-          grep -Fqx 'CONFIG_LOCALVERSION="-FakeDreamer-FLOS2.2-W-VoWiFi-J3S5000-NM2.2-KSU-bpf"' out/.config
+          grep -Fqx 'CONFIG_LOCALVERSION="-FakeDreamer-flos-W-VoWiFi-J3S5000-NM2.2-KSU-bpf"' out/.config
           {
             echo '# FakeDreamer FLOS 2.2 alioth configuration'
             grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_KSU=|CONFIG_RMNET=|CONFIG_QRTR=|CONFIG_QRTR_MHI=|CONFIG_CNSS2=|CONFIG_CNSS2_QMI=|CONFIG_IPA3=|CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_BPF_JIT=|CONFIG_BPF_JIT_ALWAYS_ON=|CONFIG_LOCALVERSION=)' out/.config
@@ -145,13 +145,13 @@ jobs:
           {
             echo '# FakeDreamer FLOS 2.2 - POCO F3 / alioth'
             echo
-            echo '- Source: re-noroi/kernel_sm8250 @ be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+            echo '- Source: re-noroi/kernel_sm8250 @ 1088c7141c6039cc2238798fdc13e6f1d7c9411c (FakeDreamer v2.1 FLOS W variant)'
             echo '- Base: FakeDreamer FLOS 2.2 branch'
             echo '- Network profile: native FLOS RMNET + CNSS2/QMI + QRTR/MHI/IPA3; no Raikiri-only RMNET_PERF/RMNET_SHS symbols exist in this source revision'
             echo '- VoWiFi: compatibility candidate only; no proven VoWiFi-specific RMNET patch is applied, IMS/VoWiFi must be confirmed on-device'
             echo '- NoMount: v2.2.0, built-in CONFIG_NOMOUNT=y'
             echo '- Root: KernelSU driver enabled (CONFIG_KSU=y)'
-            echo '- ROM variant: W (Android 16+)'
+            echo '- ROM variant: W (Android 16+, with upstream W BPF backport)'
             echo '- BPF: enabled and verified (BPF, syscall, JIT, JIT_ALWAYS_ON)'
             echo '- Battery: existing J3S Sun 5000 mAh profile preserved'
             echo '- Target: alioth / Android 16 HyperOS 3 test'
