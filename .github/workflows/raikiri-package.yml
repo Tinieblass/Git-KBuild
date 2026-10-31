@@ -79,12 +79,11 @@ jobs:
           # Preserve the existing boot ramdisk and replace only the kernel.
           dump_boot;
           # Use explicit partition writes; skip the broad combined installer routine.
-          # This package updates only boot and the matching alioth DTBO slot.
-          repack_ramdisk;
-          flash_boot;
-          # Bind the DTBO image to the detected active slot; never fall back to an unsuffixed partition.
+          # Write the exact active-slot DTBO first, so a missing/mismatched DTBO aborts before boot changes.
           cp -f dtbo.img dtbo$SLOT.img;
           flash_generic dtbo$SLOT;
+          repack_ramdisk;
+          flash_boot;
           AK3
           (cd anykernel && zip -qr9 ../Raikiri-v1.7-alioth-miui5k.zip . -x '.git/*' '.github/*' 'README.md')
 
