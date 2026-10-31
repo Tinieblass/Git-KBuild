@@ -75,7 +75,7 @@ on:
         type: boolean
         default: true
       ENABLE_RAIKIRI_VOWIFI:
-        description: 'Enable RMNET_PERF and verify Qualcomm network dependencies; this is not a complete VoWiFi/IMS port'
+        description: 'Apply the IPA wake-source correction used by the VoWiFi-related fix; IMS still depends on vendor/modem support'
         required: false
         type: boolean
         default: true
@@ -284,66 +284,6 @@ jobs:
           grep -q 'srcu_read_lock_held(&wakeup_srcu)' drivers/base/power/wakeup.c
           git diff --check
 
-      # Enable RMNET_PERF only. This is not a complete VoWiFi/IMS integration.
-      # IMS/VoWiFi also depends on modem firmware, vendor userspace and device configuration.
-      # FLOS SHS requires cpu_isolated() and __cpu_isolated_mask, which this tree lacks.
-      - name: Wire Raikiri RMNET_PERF into FLOS Kconfig
-        if: ${{ env.ENABLE_RAIKIRI_VOWIFI == 'true' }}
-        working-directory: kernel_tree
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          root = Path("Kconfig")
-          perf = Path("techpack/data/drivers/rmnet/perf")
-          required = [
-              root, Path("techpack/Kbuild"), Path("techpack/data/Makefile"),
-              perf / "Kconfig", perf / "Kbuild",
-              perf / "rmnet_perf_config.c", perf / "rmnet_perf_core.c",
-              perf / "rmnet_perf_opt.c", perf / "rmnet_perf_tcp_opt.c",
-              perf / "rmnet_perf_udp_opt.c",
-          ]
-          missing = [str(p) for p in required if not p.is_file()]
-          if missing:
-              raise SystemExit("Cannot integrate Raikiri RMNET modules; missing: " + ", ".join(missing))
-
-          text = root.read_text()
-          anchor = 'source "drivers/Kconfig"'
-          if anchor not in text:
-              raise SystemExit('Cannot locate source "drivers/Kconfig" in top-level Kconfig')
-          entries = [
-              'source "techpack/data/drivers/rmnet/perf/Kconfig"',
-          ]
-          for entry in entries:
-              if entry not in text:
-                  text = text.replace(
-                      anchor,
-                      anchor + '\n\n# Raikiri-compatible Qualcomm RMNET performance.\n' + entry,
-                      1,
-                  )
-          root.write_text(text)
-
-          data_make = Path("techpack/data/Makefile").read_text()
-          for entry in ("obj-y += drivers/rmnet/perf/",):
-              if entry not in data_make:
-                  raise SystemExit("techpack/data/Makefile is missing " + entry)
-          import re
-
-          for folder, symbol, target in (
-              (perf, "CONFIG_RMNET_PERF", "rmnet_perf.o"),
-          ):
-              kbuild = (folder / "Kbuild").read_text()
-              pattern = rf"obj-\$\(\s*{re.escape(symbol)}\s*\)\s*\+=\s*{re.escape(target)}"
-              if not re.search(pattern, kbuild):
-                  raise SystemExit(
-                      f"{symbol} Kbuild target missing or malformed; "
-                      f"expected obj-\$({symbol}) += {target}; got: {kbuild!r}"
-                  )
-          print("PASS: RMNET_PERF Kconfig/Kbuild path is available; unsupported FLOS SHS is excluded.")
-          PY
-          git diff --check
-
       - name: Kernel Version
         run: |
           cd kernel_tree
@@ -427,12 +367,6 @@ jobs:
           # IPA wakelocks must remain enabled; this symbol disables them when set.
           toggle_config "CONFIG_DISABLE_IPA_WAKELOCKS" "false"
           toggle_config "CONFIG_RW_SWAPPINESS" "${{ env.ENABLE_RW_SWAPPINESS }}"
-          if [[ "${{ env.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
-            echo '==== Enabling RMNET_PERF network performance option (not full VoWiFi) ===='
-            # The remaining Qualcomm modem/network stack is already enabled by
-            # alioth_defconfig. Enable only the compatible RMNET_PERF option.
-            toggle_config "CONFIG_RMNET_PERF" 'true'
-          fi
           toggle_config "CONFIG_BYPASS_CHARGING" "${{ env.ENABLE_BYPASS_CHARGING }}"
           echo "================================="
 
@@ -448,49 +382,6 @@ jobs:
           sed -i -e 's/qcom,mdss-pan-physical-width-dimension = <70>;/qcom,mdss-pan-physical-width-dimension = <695>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-k11a-38-08-0a-dsc-cmd.dtsi
           sed -i -e 's/qcom,mdss-pan-physical-height-dimension = <155>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-k11a-38-08-0a-dsc-cmd.dtsi
       
-      # FLOS RMNET source has an old-style empty parameter list rejected by Clang -Wstrict-prototypes.
-      # Limit this compatibility fix to the exact function definition; do not alter call sites.
-      - name: Fix RMNET perf strict prototype for Clang
-        if: ${{ env.ENABLE_RAIKIRI_VOWIFI == 'true' }}
-        working-directory: kernel_tree
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          path = Path("techpack/data/drivers/rmnet/perf/rmnet_perf_opt.c")
-          if not path.is_file():
-              raise SystemExit(f"Missing expected FLOS RMNET source: {path}")
-
-          text = path.read_text()
-          old = re.compile(
-              r"(?m)^void[ \t]*\r?\nrmnet_perf_free_hash_table\(\)[ \t]*\r?\n\{"
-          )
-          new = re.compile(
-              r"(?m)^void[ \t]*\r?\nrmnet_perf_free_hash_table\(void\)[ \t]*\r?\n\{"
-          )
-
-          old_count = len(old.findall(text))
-          new_count = len(new.findall(text))
-          if old_count == 1 and new_count == 0:
-              text = old.sub("void\nrmnet_perf_free_hash_table(void)\n{", text, count=1)
-              path.write_text(text)
-              print("PASS: corrected the RMNET function definition to an explicit void prototype.")
-          elif old_count == 0 and new_count == 1:
-              print("PASS: RMNET function definition already has an explicit void prototype.")
-          else:
-              raise SystemExit(
-                  "Unsafe RMNET prototype patch state: "
-                  f"old definitions={old_count}, corrected definitions={new_count}"
-              )
-
-          verified = path.read_text()
-          if len(new.findall(verified)) != 1 or old.search(verified):
-              raise SystemExit("RMNET strict-prototype verification failed.")
-          PY
-          git diff --check
-
       # Minimal IPA wake-source fix copied from the working Raikiri 1.7 implementation.
       # The FakeDreamer counter previously changed without holding/releasing the wake source.
       - name: Restore IPA wake-source acquire and release
@@ -560,20 +451,6 @@ jobs:
           grep -qx 'CONFIG_KSU=y' out/.config || { echo 'ERROR: in-tree KernelSU is not enabled'; exit 1; }
           grep -qx 'CONFIG_NOMOUNT=y' out/.config || { echo 'ERROR: bundled NoMount 2.1 is not enabled'; exit 1; }
           ! grep -qx 'CONFIG_DISABLE_IPA_WAKELOCKS=y' out/.config || { echo 'ERROR: IPA wake locks are disabled; VoWiFi power fix would be inactive.'; exit 1; }
-          if [[ "${{ env.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
-            for cfg in \
-              CONFIG_RMNET CONFIG_RMNET_PERF \
-              CONFIG_CNSS2 CONFIG_CNSS2_QMI CONFIG_CNSS_ASYNC CONFIG_CNSS_GENL \
-              CONFIG_QRTR CONFIG_QRTR_SMD CONFIG_QRTR_MHI \
-              CONFIG_MHI_BUS CONFIG_MHI_QCOM CONFIG_MHI_NETDEV CONFIG_MHI_UCI CONFIG_MHI_SATELLITE \
-              CONFIG_IPA3 CONFIG_IPA_WDI_UNIFIED_API CONFIG_RMNET_IPA3 CONFIG_IPA3_MHI_PRIME_MANAGER \
-              CONFIG_QCOM_QMI_HELPERS CONFIG_QCOM_QMI_RMNET CONFIG_QCOM_QMI_DFC \
-              CONFIG_RMNET_CTL CONFIG_QCOM_QMI_POWER_COLLAPSE CONFIG_QCA_CLD_WLAN; do
-              grep -qx "${cfg}=y" out/.config || { echo "ERROR: Raikiri-compatible network option ${cfg} did not survive Kconfig"; exit 1; }
-            done
-            grep -qx 'CONFIG_RMNET_PERF=y' out/.config || { echo 'ERROR: RMNET_PERF did not survive Kconfig'; exit 1; }
-            echo 'PASS: Qualcomm network dependencies verified and RMNET_PERF enabled. VoWiFi/IMS is not certified by this build.'
-          fi
           make O=out CC=clang HOSTCC=gcc HOSTCXX=g++ -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
             cp out/arch/arm64/boot/Image.gz ../Image.gz
@@ -635,38 +512,13 @@ jobs:
       - name: Clone AnyKernel3
         run: git clone --recursive --depth=1 ${{ env.ANYKERNEL_URL }} -b main AnyKernel3-1
 
-      - name: Prevent duplicate vendor_boot kernel flash
+      - name: Verify AnyKernel vendor_boot ramdisk installation is preserved
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("AnyKernel3-1/anykernel.sh")
-          script = path.read_text()
-          start = "## vendor_boot shell variables"
-          end = "## end vendor_boot install"
-
-          if script.count(start) == 1 and script.count(end) == 1:
-              begin = script.index(start)
-              finish = script.index(end, begin) + len(end)
-              script = (
-                  script[:begin]
-                  + "# vendor_boot, vendor_kernel_boot, vendor_dlkm and dtbo are handled safely by write_boot().\n"
-                  + script[finish:]
-              )
-              path.write_text(script)
-              print("PATCHED: removed the second dump/write cycle that would flash Image.gz over vendor_boot.")
-          elif start not in script and end not in script:
-              print("PASS: duplicate vendor_boot cycle is already absent.")
-          else:
-              raise SystemExit("Unexpected AnyKernel3 vendor_boot block; refusing an unsafe patch.")
-
-          if script.count("write_boot;") != 1:
-              raise SystemExit("Expected exactly one write_boot call after patch.")
-          PY
-          ! grep -q 'vendor_boot shell variables' AnyKernel3-1/anykernel.sh
-          grep -q '^write_boot;' AnyKernel3-1/anykernel.sh
-
+          grep -q '^## vendor_boot shell variables$' AnyKernel3-1/anykernel.sh
+          grep -q '^## vendor_boot install$' AnyKernel3-1/anykernel.sh
+          test "$(grep -c '^write_boot;' AnyKernel3-1/anykernel.sh)" -eq 2
+          echo "PASS: boot and vendor_boot each retain their own dump/write cycle."
 
       - name: Move Kernel Files to AnyKernel3
         run: |
@@ -703,8 +555,33 @@ jobs:
           unzip -l "$ZIP_NAME" | grep -q 'j3s-miui-eff-uv.dreamless'
           unzip -p "$ZIP_NAME" anykernel.sh | grep -q 'device.name1=alioth'
           unzip -p "$ZIP_NAME" anykernel.sh | grep -q '^write_boot;'
-          test "$(unzip -p "$ZIP_NAME" anykernel.sh | grep -c '^write_boot;')" -eq 1
-          ! unzip -p "$ZIP_NAME" anykernel.sh | grep -q 'vendor_boot shell variables'
+          test "$(unzip -p "$ZIP_NAME" anykernel.sh | grep -c '^write_boot;')" -eq 2
+          unzip -p "$ZIP_NAME" anykernel.sh | grep -q '^## vendor_boot shell variables
+          ! unzip -l "$ZIP_NAME" | grep -q '\.git/'
+          sha256sum "$ZIP_NAME"
+          echo "name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload final recovery-flashable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: FakeDreamer-alioth-W-j3s-miui-eff-uv
+          path: ${{ steps.zip.outputs.name }}
+          if-no-files-found: error
+          compression-level: 0
+
+          unzip -p "$ZIP_NAME" anykernel.sh | grep -q '^## vendor_boot install
+          ! unzip -l "$ZIP_NAME" | grep -q '\.git/'
+          sha256sum "$ZIP_NAME"
+          echo "name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload final recovery-flashable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: FakeDreamer-alioth-W-j3s-miui-eff-uv
+          path: ${{ steps.zip.outputs.name }}
+          if-no-files-found: error
+          compression-level: 0
+
           ! unzip -l "$ZIP_NAME" | grep -q '\.git/'
           sha256sum "$ZIP_NAME"
           echo "name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
