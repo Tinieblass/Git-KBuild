@@ -124,7 +124,9 @@ jobs:
           export KBUILD_BUILD_USER='Tinieblass'
           export KBUILD_BUILD_HOST='GitHub-Actions'
           BUILD_LOG="$GITHUB_WORKSPACE/flos-build.log"
-          make O=out CC=clang LLVM=1 LLVM_IAS=1 -j"$(nproc)" Image.gz dtbs dtbo.img >"$BUILD_LOG" 2>&1 || {
+          # Keep host utilities on the runner GCC: LLVM=1 is for the ARM64 target,
+          # and this 4.19 tree otherwise sends x86_64 host objects to clang with -mcpu=.
+          make O=out HOSTCC=gcc HOSTCXX=g++ HOSTLD=ld CC=clang LLVM=1 LLVM_IAS=1 -j"$(nproc)" Image.gz dtbs dtbo.img >"$BUILD_LOG" 2>&1 || {
             rc=$?
             echo "Build failed; last 250 lines:"
             tail -n 250 "$BUILD_LOG" || true
