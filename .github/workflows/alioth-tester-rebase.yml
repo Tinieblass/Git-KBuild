@@ -464,6 +464,7 @@ jobs:
           test -s AnyKernel3-1/alioth-j3s-dtbo-miui.img
           test -s AnyKernel3-1/alioth-effcpu-dtb
 
+      - name: Set J3S MIUI efficient CPU + UV marker
         run: |
           set -euo pipefail
           python3 - <<'PY'
