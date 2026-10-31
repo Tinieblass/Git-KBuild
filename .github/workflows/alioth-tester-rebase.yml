@@ -16,7 +16,7 @@ on:
       # FD Tester Alioth Builder: use the FakeDreamer FLOS source by default.
       KERNEL_TREE_BRANCH_1:
         description: 'Kernel Tree Branch 1'
-        default: 'flos'
+        default: 'bpf-testing'
         required: true
       CODENAME:
         description: 'Codename (do not change)'
@@ -169,7 +169,7 @@ jobs:
       UPLOAD_TO_RELEASE: false
       KERNEL_TREE_1: ${{ github.event.inputs.KERNEL_TREE_1 || 'https://github.com/re-noroi/kernel_sm8250' }}
       # Keep workflow_dispatch and push builds on the same FLOS source branch.
-      KERNEL_TREE_BRANCH_1: ${{ github.event.inputs.KERNEL_TREE_BRANCH_1 || 'flos' }}
+      KERNEL_TREE_BRANCH_1: ${{ github.event.inputs.KERNEL_TREE_BRANCH_1 || 'bpf-testing' }}
       CODENAME: ${{ github.event.inputs.CODENAME || 'alioth' }}
       ANYKERNEL_URL: ${{ github.event.inputs.ANYKERNEL_URL || 'https://github.com/re-noroi/anykernel3-test' }}
       CUSTOM_SED: ${{ github.event.inputs.CUSTOM_SED || '-FakeDreamer' }}
@@ -217,7 +217,11 @@ jobs:
           else
             REPO_URL="${{ env.KERNEL_TREE_1 }}"
           fi
-          git clone --depth=1 --branch "${{ env.KERNEL_TREE_BRANCH }}" "${REPO_URL}" kernel_tree
+          git clone --no-checkout "${REPO_URL}" kernel_tree
+          git -C kernel_tree fetch --depth=1 origin f7030790d0ac6545920528ffd22d79f4d37a5f1f
+          git -C kernel_tree checkout --detach f7030790d0ac6545920528ffd22d79f4d37a5f1f
+          test "$(git -C kernel_tree rev-parse HEAD)" = 'f7030790d0ac6545920528ffd22d79f4d37a5f1f'
+          echo "Pinned known-bootable bpf-testing base: f7030790d0ac6545920528ffd22d79f4d37a5f1f" | tee "$GITHUB_WORKSPACE/source-version.txt"
 
       # Record the exact source revision and verify FLOS root-manager compatibility.
       - name: Verify FLOS source, KSU managers and NoMount 2.1
@@ -485,6 +489,56 @@ jobs:
           PY
           git diff --check
 
+      # Minimal IPA wake-source fix copied from the working Raikiri 1.7 implementation.
+      # The FakeDreamer counter previously changed without holding/releasing the wake source.
+      - name: Restore IPA wake-source acquire and release
+        working-directory: kernel_tree
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("drivers/platform/msm/ipa/ipa_v3/ipa.c")
+          text = path.read_text()
+          inc = "ipa3_ctx->wakelock_ref_cnt.cnt++;"
+          dec = "ipa3_ctx->wakelock_ref_cnt.cnt--;"
+
+          inc_fix = inc + """
+          \tif (ipa3_ctx->wakelock_ref_cnt.cnt == 1)
+          \t\t__pm_stay_awake(ipa3_ctx->w_lock);"""
+          dec_fix = dec + """
+          \tif (ipa3_ctx->wakelock_ref_cnt.cnt == 0)
+          \t\t__pm_relax(ipa3_ctx->w_lock);"""
+
+          if text.count(inc_fix) == 1 and text.count(dec_fix) == 1:
+              print("PASS: IPA wake-source fix is already present.")
+          elif text.count(inc) == 1 and text.count(dec) == 1:
+              if "__pm_stay_awake(ipa3_ctx->w_lock)" in text or "__pm_relax(ipa3_ctx->w_lock)" in text:
+                  raise SystemExit("Partial IPA wake-source patch detected; refusing to guess.")
+              if '#include <linux/pm_wakeup.h>' not in text:
+                  raise SystemExit("IPA wakeup header is missing; refusing to add unresolved calls.")
+              text = text.replace(inc, inc_fix, 1).replace(dec, dec_fix, 1)
+              path.write_text(text)
+              print("PATCHED: first IPA client now calls __pm_stay_awake(); last client calls __pm_relax().")
+          else:
+              raise SystemExit(
+                  "Unexpected IPA wakelock source state: "
+                  f"inc={text.count(inc)}, dec={text.count(dec)}, "
+                  f"inc_fix={text.count(inc_fix)}, dec_fix={text.count(dec_fix)}"
+              )
+
+          verify = path.read_text()
+          if verify.count("__pm_stay_awake(ipa3_ctx->w_lock)") != 1:
+              raise SystemExit("IPA acquire verification failed.")
+          if verify.count("__pm_relax(ipa3_ctx->w_lock)") != 1:
+              raise SystemExit("IPA release verification failed.")
+          if verify.count('wakeup_source_register(&ipa_pdev->dev, "IPA_WS")') != 1:
+              raise SystemExit("Expected existing IPA wake-source registration was not found.")
+          PY
+          git diff --check
+          grep -n -A3 -B2 '__pm_stay_awake(ipa3_ctx->w_lock)' drivers/platform/msm/ipa/ipa_v3/ipa.c
+          grep -n -A3 -B2 '__pm_relax(ipa3_ctx->w_lock)' drivers/platform/msm/ipa/ipa_v3/ipa.c
+
       - name: Build Kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
@@ -495,7 +549,9 @@ jobs:
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           cd kernel_tree
           make O=out vendor/alioth_defconfig
-          grep -qx 'CONFIG_KSU=y' out/.config || { echo 'ERROR: in-tree KernelSU is not enabled'; exit 1; }
+          grep -qx 'CONFIG_KSU=y' out/.config
+          grep -qx 'CONFIG_NOMOUNT=y' out/.config
+          ! grep -qx 'CONFIG_DISABLE_IPA_WAKELOCKS=y' out/.config || { echo 'ERROR: IPA wake locks are disabled; VoWiFi power fix would be inactive.'; exit 1; } || { echo 'ERROR: in-tree KernelSU is not enabled'; exit 1; }
           grep -qx 'CONFIG_NOMOUNT=y' out/.config || { echo 'ERROR: bundled NoMount 2.1 is not enabled'; exit 1; }
           if [[ "${{ env.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
             for cfg in \
@@ -612,22 +668,44 @@ jobs:
           mv kernel-1-3/* AnyKernel3-1/
           mv kernel-1-4/* AnyKernel3-1/
 
-      - name: Define ZIP Name
+      - name: Set exact J3S MIUI efficient CPU + UV marker
         run: |
-          COMPILED_DATE=$(date +%Y%m%d)
-          EXTRA2="-j3s-miui-eff-uv"
-          if [[ "${{ env.VARIANT }}" == "W-variant" ]]; then
-            EXTRA2="-W-j3s-miui-eff-uv"
-          elif [[ "${{ env.VARIANT }}" == "oplus-variant" ]]; then
-            EXTRA2="-OPLUS-j3s-miui-eff-uv"
-          fi
-          echo "ZIP_NAME=[FD-][TEST-${{ env.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("AnyKernel3-1")
+          for p in root.glob("*.dreamless"):
+              p.unlink()
+          marker = root / "j3s-miui-eff-uv.dreamless"
+          marker.touch()
+          assert marker.is_file() and marker.stat().st_size == 0
+          print("PASS: j3s-miui-eff-uv.dreamless")
+          PY
 
-      - name: Upload Flashable Kernel Zip
+      - name: Create and validate recovery-flashable ZIP
+        id: zip
+        run: |
+          set -euo pipefail
+          ZIP_NAME="FakeDreamer-alioth-$(date -u +%Y%m%d)-W-j3s-miui-eff-uv.zip"
+          (cd AnyKernel3-1 && zip -qr9 "../$ZIP_NAME" . -x '.git/*' '.github/*')
+          test -s "$ZIP_NAME"
+          unzip -t "$ZIP_NAME"
+          unzip -l "$ZIP_NAME" | grep -q 'Image.gz'
+          unzip -l "$ZIP_NAME" | grep -q 'alioth-j3s-dtbo-miui.img'
+          unzip -l "$ZIP_NAME" | grep -q 'alioth-effcpu-dtb'
+          unzip -l "$ZIP_NAME" | grep -q 'j3s-miui-eff-uv.dreamless'
+          unzip -p "$ZIP_NAME" anykernel.sh | grep -q 'device.name1=alioth'
+          unzip -p "$ZIP_NAME" anykernel.sh | grep -q '^write_boot;'
+          test "$(unzip -p "$ZIP_NAME" anykernel.sh | grep -c '^write_boot;')" -eq 1
+          ! unzip -p "$ZIP_NAME" anykernel.sh | grep -q 'vendor_boot shell variables'
+          ! unzip -l "$ZIP_NAME" | grep -q '\.git/'
+          sha256sum "$ZIP_NAME"
+          echo "name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload final recovery-flashable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ZIP_NAME }}
-          path: |
-            AnyKernel3-1/
-            !AnyKernel3-1/.git
-            !AnyKernel3-1/.github
+          name: FakeDreamer-alioth-W-j3s-miui-eff-uv
+          path: \${{ steps.zip.outputs.name }}
+          if-no-files-found: error
+          compression-level: 0
