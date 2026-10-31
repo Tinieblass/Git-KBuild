@@ -1,0 +1,241 @@
+name: FakeDreamer FLOS 2.2 + Raikiri VoWiFi - alioth J3S 5000 mAh
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - FakeDreamer-FLOS2.2-VoWiFi-alioth
+    paths:
+      - .github/workflows/fakedreamer-flos22-alioth.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - name: Checkout builder
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential flex libelf-dev libncurses-dev libssl-dev lz4 python3 rsync zip curl
+
+      - name: Download FakeDreamer Clang 21 toolchain
+        run: |
+          set -euo pipefail
+          wget -q 'https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/603a89415bbb04dff8bc577b95534479ec13fdc5/clang-r574158.tar.gz' -O clang.tar.gz
+          mkdir clang
+          tar -xzf clang.tar.gz -C clang
+          test -x clang/bin/clang
+          clang/bin/clang --version
+
+      - name: Checkout pinned FakeDreamer FLOS 2.2 source
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/re-noroi/kernel_sm8250.git kernel
+          git -C kernel fetch --depth=1 origin be837cd0f654f78f41cb3b4b65db56294e61dfa7
+          git -C kernel checkout --detach be837cd0f654f78f41cb3b4b65db56294e61dfa7
+          test "$(git -C kernel rev-parse HEAD)" = 'be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+          git -C kernel submodule update --init --recursive
+          test -s kernel/arch/arm64/configs/vendor/alioth_defconfig
+          test -s kernel/drivers/kernelsu/Kconfig
+          test -s kernel/drivers/kernelsu/Makefile
+          test -s kernel/drivers/platform/msm/ipa/ipa_v3/ipa_qmi_service.c
+          echo 'FakeDreamer FLOS source pinned: be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+
+      - name: Integrate NoMount 2.2-compatible source
+        run: |
+          set -euo pipefail
+          NOMOUNT_COMMIT='bf1847f98fed382369c43bfd652cd93774b9b8e3'
+          git clone --no-checkout https://github.com/maxsteeel/nomount.git NoMount
+          git -C NoMount fetch --depth=1 origin "$NOMOUNT_COMMIT"
+          git -C NoMount checkout --detach "$NOMOUNT_COMMIT"
+          test "$(git -C NoMount rev-parse HEAD)" = "$NOMOUNT_COMMIT"
+          test -s NoMount/kernel/src/nomount.c
+          test -s NoMount/kernel/src/Kconfig
+          test -s NoMount/kernel/src/Makefile
+          ln -s "$GITHUB_WORKSPACE/NoMount/kernel/src" "$GITHUB_WORKSPACE/kernel/fs/nomount"
+          grep -qF 'obj-$(CONFIG_NOMOUNT) += nomount/' kernel/fs/Makefile || \
+            printf '\nobj-$(CONFIG_NOMOUNT) += nomount/\n' >> kernel/fs/Makefile
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("kernel/fs/Kconfig")
+          s = p.read_text()
+          entry = 'source "fs/nomount/Kconfig"'
+          if entry not in s:
+              pos = s.rfind("\\nendmenu")
+              if pos < 0:
+                  raise SystemExit("ERROR: fs/Kconfig has no endmenu insertion point")
+              s = s[:pos] + "\\n" + entry + s[pos:]
+              p.write_text(s)
+          PY
+          git -C kernel diff --check
+
+      - name: Preserve and validate FLOS J3S 5000 mAh battery profile
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_raikiri_j3s.py kernel
+          git -C kernel diff --check
+          grep -q 'qcom,nom-batt-capacity-mah = <5000>;' kernel/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-apollo-sun-5000mah.dtsi
+          grep -q 'qcom,j3s-batt-profile;' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+
+      - name: Apply Raikiri VoWiFi RMNET configuration to FLOS
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          export ARCH=arm64
+          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+
+          make O=out vendor/alioth_defconfig
+          # The working Raikiri v1.7 config enables both RMNET performance layers.
+          # Keep FLOS CNSS/QCA6390, WLAN, IPA3, QRTR, MHI and QMI implementation intact.
+          scripts/config --file out/.config \
+            -e KSU -e KSU_HACK_ARM64_BRANCH_LINK -e KSU_LSM_SECURITY_HOOKS \
+            -e NOMOUNT -e RMNET_PERF -e RMNET_SHS
+          make O=out olddefconfig
+
+          grep -qx 'CONFIG_BOARD_ALIOTH=y' out/.config
+          grep -qx 'CONFIG_KSU=y' out/.config
+          grep -qx 'CONFIG_KSU_HACK_ARM64_BRANCH_LINK=y' out/.config
+          grep -qx 'CONFIG_KSU_LSM_SECURITY_HOOKS=y' out/.config
+          grep -qx 'CONFIG_NOMOUNT=y' out/.config
+          grep -qx 'CONFIG_RMNET=y' out/.config
+          grep -qx 'CONFIG_RMNET_PERF=y' out/.config
+          grep -qx 'CONFIG_RMNET_SHS=y' out/.config
+          grep -qx 'CONFIG_QRTR=y' out/.config
+          grep -qx 'CONFIG_QRTR_SMD=y' out/.config
+          grep -qx 'CONFIG_MHI_BUS=y' out/.config
+          grep -qx 'CONFIG_CNSS2=y' out/.config
+          grep -qx 'CONFIG_CNSS2_QMI=y' out/.config
+          grep -qx 'CONFIG_CNSS_QCA6390=y' out/.config
+          grep -qx 'CONFIG_IPA3=y' out/.config
+          grep -qx 'CONFIG_QCOM_QMI_RMNET=y' out/.config
+
+          {
+            echo '## FakeDreamer FLOS 2.2 + Raikiri VoWiFi configuration'
+            grep -E '^(CONFIG_BOARD_ALIOTH|CONFIG_KSU=|CONFIG_KSU_HACK_ARM64_BRANCH_LINK=|CONFIG_KSU_LSM_SECURITY_HOOKS=|CONFIG_NOMOUNT=|CONFIG_RMNET=|CONFIG_RMNET_PERF=|CONFIG_RMNET_SHS=|CONFIG_QRTR=|CONFIG_QRTR_SMD=|CONFIG_MHI_BUS=|CONFIG_CNSS2=|CONFIG_CNSS2_QMI=|CONFIG_CNSS_QCA6390=|CONFIG_IPA3=|CONFIG_QCOM_QMI_RMNET=)' out/.config
+          } | tee "$GITHUB_WORKSPACE/config-report.txt"
+
+          echo 'Raikiri IPA QMI service and FLOS IPA QMI service share the same source blob; no speculative IPA code edits applied.' | tee "$GITHUB_WORKSPACE/vowifi-port-report.txt"
+
+      - name: Build FakeDreamer Image.gz, DTBs and DTBO
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+          export KBUILD_BUILD_USER='Tinieblass'
+          export KBUILD_BUILD_HOST='GitHub-Actions'
+          BUILD_LOG="$GITHUB_WORKSPACE/fakedreamer-kernel-build.log"
+          make O=out CC=clang LLVM=1 LLVM_IAS=1 -j2 Image.gz dtbs dtbo.img >"$BUILD_LOG" 2>&1 || {
+            rc=$?
+            echo "Kernel build failed; last 250 log lines follow:"
+            tail -n 250 "$BUILD_LOG" || true
+            exit "$rc"
+          }
+          tail -n 80 "$BUILD_LOG"
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fakedreamer-flos22-vowifi-build-log
+          path: fakedreamer-kernel-build.log
+          if-no-files-found: ignore
+          compression-level: 6
+
+      - name: Verify outputs and create report
+        run: |
+          set -euo pipefail
+          BOOT=kernel/out/arch/arm64/boot
+          test -s "$BOOT/Image.gz"
+          test -s "$BOOT/dtbo.img"
+          test -s "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo"
+
+          mkdir -p fakedreamer-output
+          cp "$BOOT/Image.gz" "$BOOT/dtbo.img" "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo" fakedreamer-output/
+          cp config-report.txt vowifi-port-report.txt fakedreamer-output/
+          {
+            echo '# FakeDreamer FLOS 2.2 + Raikiri VoWiFi - alioth'
+            echo
+            echo '- Device: POCO F3 / alioth'
+            echo '- Source: re-noroi/kernel_sm8250, branch flos'
+            echo '- Pinned source commit: be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+            echo '- Kernel base: Linux 4.19.337'
+            echo '- VoWiFi/RMNET port test: CONFIG_RMNET_PERF=y and CONFIG_RMNET_SHS=y from the working Raikiri v1.7 config'
+            echo '- Kept FLOS WLAN, CNSS2/QCA6390, IPA3, QRTR, MHI and QMI drivers unchanged'
+            echo '- KSU: FLOS in-tree KernelSU, branch-link hook; KernelSU Next is not used'
+            echo '- NoMount source commit: bf1847f98fed382369c43bfd652cd93774b9b8e3'
+            echo '- Battery: J3S Sun 5000 mAh profile selected in the FLOS DTS'
+            echo '- Build success does not prove IMS registration or VoWiFi until tested on the device'
+          } > fakedreamer-output/BUILD-REPORT.md
+          (cd fakedreamer-output && sha256sum * > SHA256SUMS.txt)
+
+      - name: Upload raw FakeDreamer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: FakeDreamer-FLOS2.2-alioth-J3S-Raikiri-VoWiFi-raw
+          path: fakedreamer-output/
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Build AnyKernel3 flashable ZIP candidate
+        run: |
+          set -euo pipefail
+          git clone https://github.com/osm0sis/AnyKernel3.git anykernel
+          git -C anykernel checkout --detach 41f04bdb4ee30a44e429c2c1131d5e8bb32b15f1
+          test "$(git -C anykernel rev-parse HEAD)" = '41f04bdb4ee30a44e429c2c1131d5e8bb32b15f1'
+          rm -rf anykernel/.git anykernel/.github anykernel/README.md
+          cp fakedreamer-output/Image.gz anykernel/Image.gz
+          cp fakedreamer-output/dtbo.img anykernel/dtbo.img
+          cat > anykernel/anykernel.sh <<'AK3'
+          ### FakeDreamer FLOS 2.2 - POCO F3 / alioth - Raikiri VoWiFi RMNET port test
+          properties() { '
+          kernel.string=FakeDreamer FLOS 2.2 Raikiri-VoWiFi J3S Sun 5000mAh
+          do.devicecheck=1
+          do.modules=0
+          do.systemless=0
+          do.cleanup=1
+          do.cleanuponabort=0
+          device.name1=alioth
+          supported.versions=16
+          '; }
+
+          BLOCK=boot;
+          IS_SLOT_DEVICE=1;
+          RAMDISK_COMPRESSION=auto;
+          PATCH_VBMETA_FLAG=auto;
+
+          . tools/ak3-core.sh;
+
+          dump_boot;
+          cp -f dtbo.img dtbo$SLOT.img;
+          flash_generic dtbo$SLOT;
+          repack_ramdisk;
+          flash_boot;
+          AK3
+          (cd anykernel && zip -qr9 ../FakeDreamer-FLOS2.2-alioth-Raikiri-VoWiFi-5000mAh.zip . -x '.git/*' '.github/*' 'README.md')
+
+      - name: Validate ZIP structure
+        run: |
+          set -euo pipefail
+          unzip -t FakeDreamer-FLOS2.2-alioth-Raikiri-VoWiFi-5000mAh.zip
+          unzip -l FakeDreamer-FLOS2.2-alioth-Raikiri-VoWiFi-5000mAh.zip | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|LICENSE'
+          unzip -p FakeDreamer-FLOS2.2-alioth-Raikiri-VoWiFi-5000mAh.zip anykernel.sh | grep -q 'device.name1=alioth'
+          unzip -p FakeDreamer-FLOS2.2-alioth-Raikiri-VoWiFi-5000mAh.zip anykernel.sh | grep -q 'IS_SLOT_DEVICE=1'
+          unzip -p FakeDreamer-FLOS2.2-alioth-Raikiri-VoWiFi-5000mAh.zip anykernel.sh | grep -q 'flash_boot'
+          unzip -p FakeDreamer-FLOS2.2-alioth-Raikiri-VoWiFi-5000mAh.zip anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
+          sha256sum FakeDreamer-FLOS2.2-alioth-Raikiri-VoWiFi-5000mAh.zip
+
+      - name: Upload flashable ZIP candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: FakeDreamer-FLOS2.2-alioth-Raikiri-VoWiFi-5000mAh-candidate
+          path: FakeDreamer-FLOS2.2-alioth-Raikiri-VoWiFi-5000mAh.zip
+          if-no-files-found: error
+          compression-level: 0
