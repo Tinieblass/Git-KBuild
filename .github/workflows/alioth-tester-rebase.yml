@@ -219,6 +219,35 @@ jobs:
           fi
           git clone --depth=1 --branch "${{ env.KERNEL_TREE_BRANCH }}" "${REPO_URL}" kernel_tree
 
+      # Record the exact source revision and verify FLOS root-manager compatibility.
+      - name: Verify FLOS source, KSU managers and NoMount 2.1
+        working-directory: kernel_tree
+        run: |
+          set -euo pipefail
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          {
+            echo "### FLOS source revision"
+            echo "- Commit: $SOURCE_SHA"
+            git show -s --format="- Date: %cI%n- Subject: %s" HEAD
+          } >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'PY'
+          from pathlib import Path
+          sig = Path("drivers/kernelsu/manager/apk_sign.c").read_text()
+          checks = {
+              "XXKSU dummy.keystore certificate": 'check_v2_signature(path, 0x363, "4359c171f32543394cbc23ef908c4bb94cad7c8087002ba164c8230948c21549")',
+              "KOWX712 manager certificate": 'check_v2_signature(path, 0x375, "484fcba6e6c43b1fb09700633bf2fb4758f13cb0b2f4457b80d075084b26c588")',
+              "MidoriSU manager certificate": 'check_v2_signature(path, 0x0368, "b9ee6759de4794f954883458b722b97ae6527cb7709a051db9a2348c0eea1e42")',
+          }
+          missing = [name for name, needle in checks.items() if needle not in sig]
+          if missing:
+              raise SystemExit("FLOS KSU manager compatibility check failed: " + ", ".join(missing))
+          nomount = Path("fs/nomount/nomount.h").read_text()
+          if '#define NOMOUNT_BASE_VERSION "21"' not in nomount:
+              raise SystemExit("Expected bundled NoMount 2.1 source was not found.")
+          print("PASS: FLOS accepts XXKSU, KOWX712 and MidoriSU manager signatures.")
+          print("PASS: bundled NoMount 2.1 source is present.")
+          PY
+
       # FLOS wakeup.c calls this SRCU-aware iterator but omits its local definition.
       # Restore the upstream Linux definition; the caller holds wakeup_srcu.
       - name: Restore SRCU-aware wakeup RCU iterator
@@ -466,6 +495,8 @@ jobs:
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           cd kernel_tree
           make O=out vendor/alioth_defconfig
+          grep -qx 'CONFIG_KSU=y' out/.config || { echo 'ERROR: in-tree KernelSU is not enabled'; exit 1; }
+          grep -qx 'CONFIG_NOMOUNT=y' out/.config || { echo 'ERROR: bundled NoMount 2.1 is not enabled'; exit 1; }
           if [[ "${{ env.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
             for cfg in \
               CONFIG_RMNET CONFIG_RMNET_PERF \
