@@ -69,10 +69,10 @@ jobs:
           s = p.read_text()
           entry = 'source "fs/nomount/Kconfig"'
           if entry not in s:
-              pos = s.rfind("\\nendmenu")
+              pos = s.rfind("\nendmenu")
               if pos < 0:
                   raise SystemExit("ERROR: fs/Kconfig has no endmenu insertion point")
-              s = s[:pos] + "\\n" + entry + s[pos:]
+              s = s[:pos] + "\n" + entry + s[pos:]
               p.write_text(s)
           PY
           git -C kernel diff --check
