@@ -105,7 +105,7 @@ jobs:
 
       - name: Download & Extract Clang
         if: steps.clang-cache.outputs.cache-hit != 'true'
-  run: |
+        run: |
           set -euo pipefail
           download_with_retry() {
             local url="$1"
