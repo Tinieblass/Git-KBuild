@@ -517,10 +517,10 @@ jobs:
                   raise SystemExit("Partial IPA wake-source patch detected; refusing to guess.")
               # pm_wakeup.h requires linux/device.h to have been included first.
               if '#include <linux/pm_wakeup.h>' not in text:
-                  device_include = '#include <linux/device.h>\\n'
+                  device_include = '#include <linux/device.h>\n'
                   if text.count(device_include) != 1:
                       raise SystemExit("Cannot safely locate unique linux/device.h include.")
-                  text = text.replace(device_include, device_include + '#include <linux/pm_wakeup.h>\\n', 1)
+                  text = text.replace(device_include, device_include + '#include <linux/pm_wakeup.h>\n', 1)
               text = text.replace(inc, inc_fix, 1).replace(dec, dec_fix, 1)
               path.write_text(text)
               print("PATCHED: first IPA client now calls __pm_stay_awake(); last client calls __pm_relax().")
