@@ -175,10 +175,10 @@ jobs:
           if "#define list_for_each_entry_rcu_locked" in text:
               print("PASS: SRCU-aware wakeup iterator already defined; no change needed.")
           else:
-              anchor = '#include "power.h"\\n'
+              anchor = '#include "power.h"\n'
               if text.count(anchor) != 1:
                   raise SystemExit('Cannot safely locate the unique #include "power.h" anchor')
-              text = text.replace(anchor, anchor + "\\n" + macro, 1)
+              text = text.replace(anchor, anchor + "\n" + macro, 1)
               path.write_text(text)
               print("PASS: restored list_for_each_entry_rcu_locked() using srcu_read_lock_held(&wakeup_srcu).")
           PY
