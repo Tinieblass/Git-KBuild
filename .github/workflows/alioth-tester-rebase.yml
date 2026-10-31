@@ -97,20 +97,20 @@ jobs:
     runs-on: ubuntu-latest
     env:
       UPLOAD_TO_RELEASE: false
-      KERNEL_TREE_1: ${{ env.KERNEL_TREE_1 || 'https://github.com/re-noroi/kernel_sm8250' }}
-      KERNEL_TREE_BRANCH_1: ${{ env.KERNEL_TREE_BRANCH_1 || 'freesia' }}
-      CODENAME: ${{ env.CODENAME || 'alioth' }}
-      ANYKERNEL_URL: ${{ env.ANYKERNEL_URL || 'https://github.com/re-noroi/anykernel3-test' }}
-      CUSTOM_SED: ${{ env.CUSTOM_SED || '-FakeDreamer' }}
-      COMPILER: ${{ env.COMPILER || 'r614150' }}
-      VARIANT: ${{ env.VARIANT || 'W-variant' }}
-      LTO_CHOICE: ${{ env.LTO_CHOICE || 'full_lto' }}
-      REMOVE_CYCLE_COUNT: ${{ env.REMOVE_CYCLE_COUNT || 'no' }}
-      ENABLE_NTSYNC: ${{ env.ENABLE_NTSYNC || 'true' }}
-      ENABLE_NOMOUNT: ${{ env.ENABLE_NOMOUNT || 'true' }}
-      ENABLE_RAIKIRI_VOWIFI: ${{ env.ENABLE_RAIKIRI_VOWIFI || 'true' }}
-      ENABLE_RW_SWAPPINESS: ${{ env.ENABLE_RW_SWAPPINESS || 'false' }}
-      ENABLE_BYPASS_CHARGING: ${{ env.ENABLE_BYPASS_CHARGING || 'false' }}
+      KERNEL_TREE_1: ${{ github.event.inputs.KERNEL_TREE_1 || 'https://github.com/re-noroi/kernel_sm8250' }}
+      KERNEL_TREE_BRANCH_1: ${{ github.event.inputs.KERNEL_TREE_BRANCH_1 || 'freesia' }}
+      CODENAME: ${{ github.event.inputs.CODENAME || 'alioth' }}
+      ANYKERNEL_URL: ${{ github.event.inputs.ANYKERNEL_URL || 'https://github.com/re-noroi/anykernel3-test' }}
+      CUSTOM_SED: ${{ github.event.inputs.CUSTOM_SED || '-FakeDreamer' }}
+      COMPILER: ${{ github.event.inputs.COMPILER || 'r614150' }}
+      VARIANT: ${{ github.event.inputs.VARIANT || 'W-variant' }}
+      LTO_CHOICE: ${{ github.event.inputs.LTO_CHOICE || 'full_lto' }}
+      REMOVE_CYCLE_COUNT: ${{ github.event.inputs.REMOVE_CYCLE_COUNT || 'no' }}
+      ENABLE_NTSYNC: ${{ github.event.inputs.ENABLE_NTSYNC || 'true' }}
+      ENABLE_NOMOUNT: ${{ github.event.inputs.ENABLE_NOMOUNT || 'true' }}
+      ENABLE_RAIKIRI_VOWIFI: ${{ github.event.inputs.ENABLE_RAIKIRI_VOWIFI || 'true' }}
+      ENABLE_RW_SWAPPINESS: ${{ github.event.inputs.ENABLE_RW_SWAPPINESS || 'false' }}
+      ENABLE_BYPASS_CHARGING: ${{ github.event.inputs.ENABLE_BYPASS_CHARGING || 'false' }}
 
     steps:
       - name: Install Dependencies
