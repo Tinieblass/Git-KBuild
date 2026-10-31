@@ -133,6 +133,63 @@ jobs:
           fi
           git clone --depth=1 --branch "${{ env.KERNEL_TREE_BRANCH }}" "${REPO_URL}" kernel_tree
 
+      # Raikiri carries RMNET_PERF in its alioth profile. FakeDreamer has the
+      # implementation sources and Kbuild, but its Kconfig symbol is not exposed
+      # by the top-level Kconfig. Expose it only for this optional profile.
+      # RMNET_SHS is deliberately NOT enabled: this FLOS revision has no SHS .c
+      # implementation files, so toggling its Kconfig would not build the driver.
+      - name: Wire Raikiri RMNET_PERF into the FLOS Kconfig
+        if: ${{ github.event.inputs.ENABLE_RAIKIRI_VOWIFI == 'true' }}
+        working-directory: kernel_tree
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path("Kconfig")
+          perf_dir = Path("techpack/data/drivers/rmnet/perf")
+          required = [
+              root,
+              perf_dir / "Kconfig",
+              perf_dir / "Kbuild",
+              perf_dir / "rmnet_perf_config.c",
+              perf_dir / "rmnet_perf_core.c",
+              perf_dir / "rmnet_perf_opt.c",
+              perf_dir / "rmnet_perf_tcp_opt.c",
+              perf_dir / "rmnet_perf_udp_opt.c",
+              Path("techpack/data/Makefile"),
+              Path("techpack/Kbuild"),
+          ]
+          missing = [str(p) for p in required if not p.is_file()]
+          if missing:
+              raise SystemExit("Cannot integrate Raikiri RMNET_PERF; missing: " + ", ".join(missing))
+
+          text = root.read_text()
+          entry = 'source "techpack/data/drivers/rmnet/perf/Kconfig"'
+          anchor = 'source "drivers/Kconfig"'
+          if entry not in text:
+              if anchor not in text:
+                  raise SystemExit('Cannot locate source "drivers/Kconfig" in top-level Kconfig')
+              # RMNET is declared by drivers/Kconfig, so source the dependent
+              # RMNET_PERF option immediately after that Kconfig is loaded.
+              text = text.replace(
+                  anchor,
+                  anchor + '\n\n# Raikiri-compatible Qualcomm RMNET performance option.\n' + entry,
+                  1,
+              )
+              root.write_text(text)
+
+          # Verify the existing in-tree techpack descent will compile RMNET_PERF.
+          data_make = Path("techpack/data/Makefile").read_text()
+          perf_kbuild = (perf_dir / "Kbuild").read_text()
+          if "obj-y += drivers/rmnet/perf/" not in data_make:
+              raise SystemExit("techpack/data/Makefile does not descend into RMNET_PERF")
+          if "obj-$(CONFIG_RMNET_PERF) += rmnet_perf.o" not in perf_kbuild:
+              raise SystemExit("RMNET_PERF Kbuild target is missing")
+          print("PASS: RMNET_PERF Kconfig and in-tree Kbuild path are wired.")
+          print("NOTE: RMNET_SHS is not enabled because its implementation sources are absent.")
+          PY
+
       - name: Kernel Version
         run: |
           cd kernel_tree
@@ -220,7 +277,7 @@ jobs:
             # Do not force RMNET_PERF/RMNET_SHS: they are not part of the buildable
             # FLOS kernel Kconfig path (the SHS source directory is absent).
             for feature in \
-              CONFIG_RMNET \
+              CONFIG_RMNET CONFIG_RMNET_PERF \
               CONFIG_CNSS2 CONFIG_CNSS2_QMI CONFIG_CNSS_ASYNC CONFIG_CNSS_GENL \
               CONFIG_QRTR CONFIG_QRTR_SMD CONFIG_QRTR_MHI \
               CONFIG_MHI_BUS CONFIG_MHI_QCOM CONFIG_MHI_NETDEV CONFIG_MHI_UCI CONFIG_MHI_SATELLITE \
@@ -257,7 +314,7 @@ jobs:
           make O=out vendor/alioth_defconfig
           if [[ "${{ github.event.inputs.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
             for cfg in \
-              CONFIG_RMNET \
+              CONFIG_RMNET CONFIG_RMNET_PERF \
               CONFIG_CNSS2 CONFIG_CNSS2_QMI CONFIG_CNSS_ASYNC CONFIG_CNSS_GENL \
               CONFIG_QRTR CONFIG_QRTR_SMD CONFIG_QRTR_MHI \
               CONFIG_MHI_BUS CONFIG_MHI_QCOM CONFIG_MHI_NETDEV CONFIG_MHI_UCI CONFIG_MHI_SATELLITE \
@@ -266,7 +323,9 @@ jobs:
               CONFIG_RMNET_CTL CONFIG_QCOM_QMI_POWER_COLLAPSE CONFIG_QCA_CLD_WLAN; do
               grep -qx "${cfg}=y" out/.config || { echo "ERROR: Raikiri-compatible network option ${cfg} did not survive Kconfig"; exit 1; }
             done
-            echo 'PASS: Raikiri-compatible Qualcomm modem/network stack enabled and verified.'
+            grep -qx 'CONFIG_RMNET_PERF=y' out/.config || { echo 'ERROR: RMNET_PERF did not survive Kconfig'; exit 1; }
+            echo 'PASS: Raikiri-compatible Qualcomm modem/network stack + RMNET_PERF enabled and verified.'
+            echo 'NOTE: RMNET_SHS is intentionally omitted; this FLOS source revision lacks its implementation files.'
           fi
           make O=out CC=clang HOSTCC=gcc HOSTCXX=g++ -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
