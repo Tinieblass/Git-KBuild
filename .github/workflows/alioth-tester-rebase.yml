@@ -556,32 +556,8 @@ jobs:
           unzip -p "$ZIP_NAME" anykernel.sh | grep -q 'device.name1=alioth'
           unzip -p "$ZIP_NAME" anykernel.sh | grep -q '^write_boot;'
           test "$(unzip -p "$ZIP_NAME" anykernel.sh | grep -c '^write_boot;')" -eq 2
-          unzip -p "$ZIP_NAME" anykernel.sh | grep -q '^## vendor_boot shell variables
-          ! unzip -l "$ZIP_NAME" | grep -q '\.git/'
-          sha256sum "$ZIP_NAME"
-          echo "name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
-
-      - name: Upload final recovery-flashable ZIP
-        uses: actions/upload-artifact@v4
-        with:
-          name: FakeDreamer-alioth-W-j3s-miui-eff-uv
-          path: ${{ steps.zip.outputs.name }}
-          if-no-files-found: error
-          compression-level: 0
-
-          unzip -p "$ZIP_NAME" anykernel.sh | grep -q '^## vendor_boot install
-          ! unzip -l "$ZIP_NAME" | grep -q '\.git/'
-          sha256sum "$ZIP_NAME"
-          echo "name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
-
-      - name: Upload final recovery-flashable ZIP
-        uses: actions/upload-artifact@v4
-        with:
-          name: FakeDreamer-alioth-W-j3s-miui-eff-uv
-          path: ${{ steps.zip.outputs.name }}
-          if-no-files-found: error
-          compression-level: 0
-
+          unzip -p "$ZIP_NAME" anykernel.sh | grep -q '^## vendor_boot shell variables$'
+          unzip -p "$ZIP_NAME" anykernel.sh | grep -q '^## vendor_boot install$'
           ! unzip -l "$ZIP_NAME" | grep -q '\.git/'
           sha256sum "$ZIP_NAME"
           echo "name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
