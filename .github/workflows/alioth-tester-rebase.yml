@@ -206,10 +206,9 @@ jobs:
           grep -q 'srcu_read_lock_held(&wakeup_srcu)' drivers/base/power/wakeup.c
           git diff --check
 
-      # Raikiri enables RMNET_PERF and RMNET_SHS in its sm8250-common config.
-      # FakeDreamer has both source directories and build entries, but the two
-      # Kconfig files must be exposed from the top-level Kconfig.
-      - name: Wire Raikiri RMNET_PERF and RMNET_SHS into FLOS Kconfig
+      # Keep Raikiri-compatible RMNET_PERF only. FLOS SHS requires cpu_isolated()
+      # and __cpu_isolated_mask, which this alioth FLOS tree does not provide.
+      - name: Wire Raikiri RMNET_PERF into FLOS Kconfig
         if: ${{ env.ENABLE_RAIKIRI_VOWIFI == 'true' }}
         working-directory: kernel_tree
         run: |
@@ -219,17 +218,12 @@ jobs:
 
           root = Path("Kconfig")
           perf = Path("techpack/data/drivers/rmnet/perf")
-          shs = Path("techpack/data/drivers/rmnet/shs")
           required = [
               root, Path("techpack/Kbuild"), Path("techpack/data/Makefile"),
               perf / "Kconfig", perf / "Kbuild",
               perf / "rmnet_perf_config.c", perf / "rmnet_perf_core.c",
               perf / "rmnet_perf_opt.c", perf / "rmnet_perf_tcp_opt.c",
               perf / "rmnet_perf_udp_opt.c",
-              shs / "Kconfig", shs / "Kbuild",
-              shs / "rmnet_shs_config.c", shs / "rmnet_shs_main.c",
-              shs / "rmnet_shs_wq.c", shs / "rmnet_shs_freq.c",
-              shs / "rmnet_shs_wq_mem.c", shs / "rmnet_shs_wq_genl.c",
           ]
           missing = [str(p) for p in required if not p.is_file()]
           if missing:
@@ -241,26 +235,24 @@ jobs:
               raise SystemExit('Cannot locate source "drivers/Kconfig" in top-level Kconfig')
           entries = [
               'source "techpack/data/drivers/rmnet/perf/Kconfig"',
-              'source "techpack/data/drivers/rmnet/shs/Kconfig"',
           ]
           for entry in entries:
               if entry not in text:
                   text = text.replace(
                       anchor,
-                      anchor + '\n\n# Raikiri-compatible Qualcomm RMNET performance/SHS.\n' + entry,
+                      anchor + '\n\n# Raikiri-compatible Qualcomm RMNET performance.\n' + entry,
                       1,
                   )
           root.write_text(text)
 
           data_make = Path("techpack/data/Makefile").read_text()
-          for entry in ("obj-y += drivers/rmnet/perf/", "obj-y += drivers/rmnet/shs/"):
+          for entry in ("obj-y += drivers/rmnet/perf/",):
               if entry not in data_make:
                   raise SystemExit("techpack/data/Makefile is missing " + entry)
           import re
 
           for folder, symbol, target in (
               (perf, "CONFIG_RMNET_PERF", "rmnet_perf.o"),
-              (shs, "CONFIG_RMNET_SHS", "rmnet_shs.o"),
           ):
               kbuild = (folder / "Kbuild").read_text()
               pattern = rf"obj-\$\(\s*{re.escape(symbol)}\s*\)\s*\+=\s*{re.escape(target)}"
@@ -269,7 +261,7 @@ jobs:
                       f"{symbol} Kbuild target missing or malformed; "
                       f"expected obj-\$({symbol}) += {target}; got: {kbuild!r}"
                   )
-          print("PASS: both RMNET_PERF and RMNET_SHS Kconfig/Kbuild paths are available.")
+          print("PASS: RMNET_PERF Kconfig/Kbuild path is available; unsupported FLOS SHS is excluded.")
           PY
           git diff --check
 
@@ -357,9 +349,8 @@ jobs:
           if [[ "${{ env.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
             echo '==== Applying Raikiri-compatible Qualcomm modem/network profile ===='
             # The remaining Qualcomm modem/network stack is already enabled by
-            # alioth_defconfig. Match Raikiri's extra RMNET options only.
+            # alioth_defconfig. Enable only the compatible RMNET_PERF option.
             toggle_config "CONFIG_RMNET_PERF" 'true'
-            toggle_config "CONFIG_RMNET_SHS" 'true'
           fi
           toggle_config "CONFIG_BYPASS_CHARGING" "${{ env.ENABLE_BYPASS_CHARGING }}"
           echo "================================="
@@ -431,7 +422,7 @@ jobs:
           make O=out vendor/alioth_defconfig
           if [[ "${{ env.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
             for cfg in \
-              CONFIG_RMNET CONFIG_RMNET_PERF CONFIG_RMNET_SHS \
+              CONFIG_RMNET CONFIG_RMNET_PERF \
               CONFIG_CNSS2 CONFIG_CNSS2_QMI CONFIG_CNSS_ASYNC CONFIG_CNSS_GENL \
               CONFIG_QRTR CONFIG_QRTR_SMD CONFIG_QRTR_MHI \
               CONFIG_MHI_BUS CONFIG_MHI_QCOM CONFIG_MHI_NETDEV CONFIG_MHI_UCI CONFIG_MHI_SATELLITE \
@@ -441,8 +432,7 @@ jobs:
               grep -qx "${cfg}=y" out/.config || { echo "ERROR: Raikiri-compatible network option ${cfg} did not survive Kconfig"; exit 1; }
             done
             grep -qx 'CONFIG_RMNET_PERF=y' out/.config || { echo 'ERROR: RMNET_PERF did not survive Kconfig'; exit 1; }
-            grep -qx 'CONFIG_RMNET_SHS=y' out/.config || { echo 'ERROR: RMNET_SHS did not survive Kconfig'; exit 1; }
-            echo 'PASS: Raikiri-compatible Qualcomm modem/network stack + RMNET_PERF + RMNET_SHS enabled and verified.'
+            echo 'PASS: Qualcomm modem/network stack + RMNET_PERF enabled; unsupported RMNET_SHS excluded.'
           fi
           make O=out CC=clang HOSTCC=gcc HOSTCXX=g++ -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
