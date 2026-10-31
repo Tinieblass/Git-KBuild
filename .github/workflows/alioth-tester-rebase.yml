@@ -163,7 +163,7 @@ jobs:
     needs: prepare_clang
     strategy:
       matrix:
-        kernel: [1, 2, 3, 4]
+        kernel: [1, 2]
     runs-on: ubuntu-latest
     env:
       UPLOAD_TO_RELEASE: false
@@ -382,63 +382,7 @@ jobs:
           sed -i -e 's/qcom,mdss-pan-physical-width-dimension = <70>;/qcom,mdss-pan-physical-width-dimension = <695>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-k11a-38-08-0a-dsc-cmd.dtsi
           sed -i -e 's/qcom,mdss-pan-physical-height-dimension = <155>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-k11a-38-08-0a-dsc-cmd.dtsi
       
-      # Minimal IPA wake-source fix copied from the working Raikiri 1.7 implementation.
-      # The FakeDreamer counter previously changed without holding/releasing the wake source.
-      - name: Restore IPA wake-source acquire and release
-        working-directory: kernel_tree
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("drivers/platform/msm/ipa/ipa_v3/ipa.c")
-          text = path.read_text()
-          inc = "ipa3_ctx->wakelock_ref_cnt.cnt++;"
-          dec = "ipa3_ctx->wakelock_ref_cnt.cnt--;"
-
-          inc_fix = inc + """
-          \tif (ipa3_ctx->wakelock_ref_cnt.cnt == 1)
-          \t\t__pm_stay_awake(ipa3_ctx->w_lock);"""
-          dec_fix = dec + """
-          \tif (ipa3_ctx->wakelock_ref_cnt.cnt == 0)
-          \t\t__pm_relax(ipa3_ctx->w_lock);"""
-
-          if text.count(inc_fix) == 1 and text.count(dec_fix) == 1:
-              print("PASS: IPA wake-source fix is already present.")
-          elif text.count(inc) == 1 and text.count(dec) == 1:
-              if "__pm_stay_awake(ipa3_ctx->w_lock)" in text or "__pm_relax(ipa3_ctx->w_lock)" in text:
-                  raise SystemExit("Partial IPA wake-source patch detected; refusing to guess.")
-              # pm_wakeup.h requires linux/device.h to have been included first.
-              if '#include <linux/pm_wakeup.h>' not in text:
-                  device_include = '#include <linux/device.h>\n'
-                  if text.count(device_include) != 1:
-                      raise SystemExit("Cannot safely locate unique linux/device.h include.")
-                  text = text.replace(device_include, device_include + '#include <linux/pm_wakeup.h>\n', 1)
-              text = text.replace(inc, inc_fix, 1).replace(dec, dec_fix, 1)
-              path.write_text(text)
-              print("PATCHED: first IPA client now calls __pm_stay_awake(); last client calls __pm_relax().")
-          else:
-              raise SystemExit(
-                  "Unexpected IPA wakelock source state: "
-                  f"inc={text.count(inc)}, dec={text.count(dec)}, "
-                  f"inc_fix={text.count(inc_fix)}, dec_fix={text.count(dec_fix)}"
-              )
-
-          verify = path.read_text()
-          if '#include <linux/pm_wakeup.h>' not in verify:
-              raise SystemExit("IPA wakeup header include verification failed.")
-          if verify.count("__pm_stay_awake(ipa3_ctx->w_lock)") != 1:
-              raise SystemExit("IPA acquire verification failed.")
-          if verify.count("__pm_relax(ipa3_ctx->w_lock)") != 1:
-              raise SystemExit("IPA release verification failed.")
-          if verify.count('wakeup_source_register(&ipa_pdev->dev, "IPA_WS")') != 1:
-              raise SystemExit("Expected existing IPA wake-source registration was not found.")
-          PY
-          git diff --check
-          grep -n -A3 -B2 '__pm_stay_awake(ipa3_ctx->w_lock)' drivers/platform/msm/ipa/ipa_v3/ipa.c
-          grep -n -A3 -B2 '__pm_relax(ipa3_ctx->w_lock)' drivers/platform/msm/ipa/ipa_v3/ipa.c
-
-      - name: Build Kernel
+            - name: Build Kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
           export ARCH=arm64
@@ -497,18 +441,6 @@ jobs:
           name: kernel-1-2
           path: kernel-1-2
 
-      - name: Download Kernel Build Stock + Stock GPU
-        uses: actions/download-artifact@v4
-        with:
-          name: kernel-1-3
-          path: kernel-1-3
-
-      - name: Download Kernel Build Effcpu + Stock GPU
-        uses: actions/download-artifact@v4
-        with:
-          name: kernel-1-4
-          path: kernel-1-4
-
       - name: Clone AnyKernel3
         run: git clone --recursive --depth=1 "${{ env.ANYKERNEL_URL }}" -b main AnyKernel3-1
 
@@ -528,15 +460,10 @@ jobs:
           mv kernel-1-1/alioth-normal-dtb AnyKernel3-1/
           mv kernel-1-2/alioth-j3s-dtbo-miui.img AnyKernel3-1/
           mv kernel-1-2/alioth-effcpu-dtb AnyKernel3-1/
-          mv kernel-1-3/alioth-stock-dtbo-aosp.img AnyKernel3-1/
-          mv kernel-1-3/alioth-normal-gpustk-dtb AnyKernel3-1/
-          mv kernel-1-4/alioth-stock-dtbo-miui.img AnyKernel3-1/
-          mv kernel-1-4/alioth-effcpu-gpustk-dtb AnyKernel3-1/
           test -s AnyKernel3-1/Image.gz
           test -s AnyKernel3-1/alioth-j3s-dtbo-miui.img
           test -s AnyKernel3-1/alioth-effcpu-dtb
 
-      - name: Set J3S MIUI efficient CPU + UV marker
         run: |
           set -euo pipefail
           python3 - <<'PY'
