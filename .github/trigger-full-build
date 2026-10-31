@@ -6,3 +6,5 @@ SRCU iterator compatibility fix: retained.
 Do not flash before reviewing build and ZIP.
 
 Diagnostic workflow syntax fix: trigger 2026-10-31.
+
+Diagnostic rebuild: exact 29-Oct kernel source/config; SRCU patch removed; IPA wake-source patch absent; compare Image.gz against bootable reference.
