@@ -40,16 +40,14 @@ on:
           - r614150
         default: neutron
       VARIANT:
-        description: 'ROM variant: Standard; -W (A16+); -OPLUS (other OEM A11-A15); -W-Oplus (other OEM A16+); legacy (A11-A13)'
+        description: 'FakeDreamer ROM variant: stock, W-variant (Android 16+), or oplus-variant'
         required: true
         type: choice
         options:
-          - Standard
-          - -W
-          - -OPLUS
-          - -W-Oplus
-          - legacy
-        default: -W
+          - stock
+          - W-variant
+          - oplus-variant
+        default: W-variant
       LTO_CHOICE:
         required: true
         type: choice
@@ -105,7 +103,7 @@ jobs:
       ANYKERNEL_URL: ${{ github.event.inputs.ANYKERNEL_URL || 'https://github.com/re-noroi/anykernel3-test' }}
       CUSTOM_SED: ${{ github.event.inputs.CUSTOM_SED || '-FakeDreamer' }}
       COMPILER: ${{ github.event.inputs.COMPILER || 'r614150' }}
-      VARIANT: ${{ github.event.inputs.VARIANT || '-W' }}
+      VARIANT: ${{ github.event.inputs.VARIANT || 'W-variant' }}
       LTO_CHOICE: ${{ github.event.inputs.LTO_CHOICE || 'full_lto' }}
       REMOVE_CYCLE_COUNT: ${{ github.event.inputs.REMOVE_CYCLE_COUNT || 'no' }}
       ENABLE_NTSYNC: ${{ github.event.inputs.ENABLE_NTSYNC || 'true' }}
@@ -154,9 +152,9 @@ jobs:
           fi
           git clone --depth=1 --branch "${{ env.KERNEL_TREE_BRANCH }}" "${REPO_URL}" kernel_tree
 
-      # FakeDreamer already contains both Raikiri RMNET modules. Their Kconfig
-      # entries were not exposed at top level; techpack/Kbuild already descends
-      # into techpack/data, whose Makefile includes both RMNET directories.
+      # Raikiri enables RMNET_PERF and RMNET_SHS in its sm8250-common config.
+      # FakeDreamer has both source directories and build entries, but the two
+      # Kconfig files must be exposed from the top-level Kconfig.
       - name: Wire Raikiri RMNET_PERF and RMNET_SHS into FLOS Kconfig
         if: ${{ env.ENABLE_RAIKIRI_VOWIFI == 'true' }}
         working-directory: kernel_tree
@@ -218,14 +216,10 @@ jobs:
         run: |
           cd kernel_tree
           EXTRA=""
-          if [[ "${{ env.VARIANT }}" == "-W" ]]; then
+          if [[ "${{ env.VARIANT }}" == "W-variant" ]]; then
             EXTRA="-W"
-          elif [[ "${{ env.VARIANT }}" == "-OPLUS" ]]; then
-            EXTRA="-OPLUS"
-          elif [[ "${{ env.VARIANT }}" == "-W-Oplus" ]]; then
-            EXTRA="-W-Oplus"
-          elif [[ "${{ env.VARIANT }}" == "legacy" ]]; then
-            EXTRA="-legacy"
+          elif [[ "${{ env.VARIANT }}" == "oplus-variant" ]]; then
+            EXTRA="-oplus"
           fi
           sed -i -e "s/CONFIG_LOCALVERSION=\"-FakeDreamer\"/CONFIG_LOCALVERSION=\"${{ env.CUSTOM_SED }}${EXTRA}\"/" arch/arm64/configs/vendor/alioth_defconfig
 
@@ -269,7 +263,7 @@ jobs:
           sed -i -e '/CONFIG_LTO_CLANG_FULL=y/c\# CONFIG_LTO_CLANG_FULL is not set;' arch/arm64/configs/vendor/alioth_defconfig
 
       - name: Oplus Features
-        if: ${{ env.VARIANT == '-OPLUS' || env.VARIANT == '-W-Oplus' }}
+        if: ${{ env.VARIANT == 'oplus-variant' }}
         run: |
           cd kernel_tree
           sed -i -e '/# CONFIG_OPLUS_PORT is not set/c\CONFIG_OPLUS_PORT=y;' arch/arm64/configs/vendor/alioth_defconfig
@@ -301,19 +295,10 @@ jobs:
           toggle_config "CONFIG_RW_SWAPPINESS" "${{ env.ENABLE_RW_SWAPPINESS }}"
           if [[ "${{ env.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
             echo '==== Applying Raikiri-compatible Qualcomm modem/network profile ===='
-            # Match the network stack present in the working Raikiri alioth defconfig.
-            # Do not force RMNET_PERF/RMNET_SHS: they are not part of the buildable
-            # FLOS kernel Kconfig path (the SHS source directory is absent).
-            for feature in \
-              CONFIG_RMNET CONFIG_RMNET_PERF CONFIG_RMNET_SHS \
-              CONFIG_CNSS2 CONFIG_CNSS2_QMI CONFIG_CNSS_ASYNC CONFIG_CNSS_GENL \
-              CONFIG_QRTR CONFIG_QRTR_SMD CONFIG_QRTR_MHI \
-              CONFIG_MHI_BUS CONFIG_MHI_QCOM CONFIG_MHI_NETDEV CONFIG_MHI_UCI CONFIG_MHI_SATELLITE \
-              CONFIG_IPA3 CONFIG_IPA_WDI_UNIFIED_API CONFIG_RMNET_IPA3 CONFIG_IPA3_MHI_PRIME_MANAGER \
-              CONFIG_QCOM_QMI_HELPERS CONFIG_QCOM_QMI_RMNET CONFIG_QCOM_QMI_DFC \
-              CONFIG_RMNET_CTL CONFIG_QCOM_QMI_POWER_COLLAPSE CONFIG_QCA_CLD_WLAN; do
-              toggle_config "$feature" 'true'
-            done
+            # The remaining Qualcomm modem/network stack is already enabled by
+            # alioth_defconfig. Match Raikiri's extra RMNET options only.
+            toggle_config "CONFIG_RMNET_PERF" 'true'
+            toggle_config "CONFIG_RMNET_SHS" 'true'
           fi
           toggle_config "CONFIG_BYPASS_CHARGING" "${{ env.ENABLE_BYPASS_CHARGING }}"
           echo "================================="
@@ -423,14 +408,10 @@ jobs:
         run: |
           COMPILED_DATE=$(date +%Y%m%d)
           EXTRA2=""
-          if [[ "${{ env.VARIANT }}" == "-W" ]]; then
+          if [[ "${{ env.VARIANT }}" == "W-variant" ]]; then
             EXTRA2="-W"
-          elif [[ "${{ env.VARIANT }}" == "-OPLUS" ]]; then
+          elif [[ "${{ env.VARIANT }}" == "oplus-variant" ]]; then
             EXTRA2="-OPLUS"
-          elif [[ "${{ env.VARIANT }}" == "-W-Oplus" ]]; then
-            EXTRA2="-W-Oplus"
-          elif [[ "${{ env.VARIANT }}" == "legacy" ]]; then
-            EXTRA2="-legacy"
           fi
           echo "ZIP_NAME=[FD-][TEST-${{ env.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
 
