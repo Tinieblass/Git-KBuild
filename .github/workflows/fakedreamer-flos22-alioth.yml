@@ -61,7 +61,7 @@ jobs:
           set -euo pipefail
           DTS=arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
           BAT=arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-apollo-sun-5000mah.dtsi
-          grep -Fq 'qcom,j3s-batt-profile;' "$DTS"
+          grep -Fq 'qcom,fg-force-load-profile;' "$DTS"
           grep -Fq 'fg-gen4-batterydata-apollo-sun-5000mah.dtsi' "$DTS"
           grep -Fq 'qcom,nom-batt-capacity-mah = <5000>;' "$BAT"
           grep -Fq 'qcom,battery-type = "j3ssun_5000mah";' "$BAT"
@@ -71,7 +71,7 @@ jobs:
       - name: Download matching Clang toolchain
         run: |
           set -euo pipefail
-          wget -q 'https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/603a89415bbb04dff8bc577b95534479ec13fdc5/clang-r574158.tar.gz' -O clang.tar.gz
+          wget -q 'https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/747f0cceb48f48bf7cf497a3e01af1389266904b/clang-r614150.tar.gz' -O clang.tar.gz
           mkdir clang
           tar -xzf clang.tar.gz -C clang
           test -x clang/bin/clang
@@ -91,12 +91,13 @@ jobs:
           grep -qx 'CONFIG_BOARD_ALIOTH=y' out/.config
           grep -qx 'CONFIG_NOMOUNT=y' out/.config
           grep -qx 'CONFIG_KSU=y' out/.config
+          grep -qx 'CONFIG_CGROUP_BPF=y' out/.config
           grep -qx 'CONFIG_BPF=y' out/.config
           grep -qx 'CONFIG_BPF_SYSCALL=y' out/.config
           grep -qx 'CONFIG_BPF_JIT=y' out/.config
           grep -qx 'CONFIG_BPF_JIT_ALWAYS_ON=y' out/.config
           grep -Fqx 'CONFIG_LOCALVERSION="-FakeDreamer-flos-W-J3S5000-NM2.2-KSU-bpf"' out/.config
-          grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_KSU=|CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_BPF_JIT=|CONFIG_BPF_JIT_ALWAYS_ON=|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
+          grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_KSU=|CONFIG_CGROUP_BPF=|CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_BPF_JIT=|CONFIG_BPF_JIT_ALWAYS_ON=|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
 
       - name: Build Image.gz, DTBs and DTBO
         working-directory: kernel
