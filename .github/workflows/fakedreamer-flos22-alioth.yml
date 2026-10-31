@@ -1,0 +1,225 @@
+name: FakeDreamer FLOS 2.2 - alioth VoWiFi + NoMount 2.2.0
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - FakeDreamer-Flos22-alioth
+    paths:
+      - .github/workflows/fakedreamer-flos22-alioth.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential flex libelf-dev libncurses-dev libssl-dev lz4 python3 rsync zip
+
+      - name: Download FLOS-matched LLVM toolchain
+        run: |
+          set -euo pipefail
+          wget -q 'https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/603a89415bbb04dff8bc577b95534479ec13fdc5/clang-r574158.tar.gz' -O clang.tar.gz
+          mkdir clang
+          tar -xzf clang.tar.gz -C clang
+          test -x clang/bin/clang
+          clang/bin/clang --version
+
+      - name: Checkout FakeDreamer FLOS source for alioth
+        run: |
+          set -euo pipefail
+          git clone --no-checkout https://github.com/re-noroi/kernel_sm8250.git kernel
+          git -C kernel fetch --depth=1 origin be837cd0f654f78f41cb3b4b65db56294e61dfa7
+          git -C kernel checkout --detach be837cd0f654f78f41cb3b4b65db56294e61dfa7
+          test "$(git -C kernel rev-parse HEAD)" = 'be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+          grep -q 'Linux/arm64 4.19.337 Kernel Configuration' kernel/arch/arm64/configs/vendor/alioth_defconfig
+          grep -q 'CONFIG_KSU=y' kernel/arch/arm64/configs/vendor/alioth_defconfig
+          grep -q 'fg-gen4-batterydata-apollo-sun-5000mah.dtsi' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+          echo 'FakeDreamer FLOS source: be837cd0f654f78f41cb3b4b65db56294e61dfa7' | tee flos-source.txt
+
+      - name: Replace bundled NoMount 2.1 with NoMount 2.2.0
+        run: |
+          set -euo pipefail
+          NOMOUNT_COMMIT='bf1847f98fed382369c43bfd652cd93774b9b8e3'
+          git clone --no-checkout https://github.com/maxsteeel/nomount.git NoMount
+          git -C NoMount fetch --depth=1 origin "$NOMOUNT_COMMIT"
+          git -C NoMount checkout --detach "$NOMOUNT_COMMIT"
+          test "$(git -C NoMount rev-parse HEAD)" = "$NOMOUNT_COMMIT"
+          test -s NoMount/kernel/src/nomount.c
+          test -s NoMount/kernel/src/Kconfig
+          test -s NoMount/kernel/src/Makefile
+          rm -rf kernel/fs/nomount
+          ln -s "$GITHUB_WORKSPACE/NoMount/kernel/src" "$GITHUB_WORKSPACE/kernel/fs/nomount"
+          grep -qF 'obj-$(CONFIG_NOMOUNT) += nomount/' kernel/fs/Makefile
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("kernel/fs/Kconfig")
+          s = p.read_text()
+          entry = 'source "fs/nomount/Kconfig"'
+          if entry not in s:
+              pos = s.rfind("\\nendmenu")
+              if pos < 0:
+                  raise SystemExit("ERROR: fs/Kconfig has no endmenu insertion point")
+              s = s[:pos] + "\\n" + entry + s[pos:]
+              p.write_text(s)
+          PY
+          git -C kernel diff --check
+          echo "$NOMOUNT_COMMIT" | tee nomount-commit.txt
+          echo 'NoMount v2.2.0 protocol v22 source integrated.'
+
+      - name: Configure FLOS with Raikiri VoWiFi wakelock behavior and NoMount 2.2
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          export ARCH=arm64
+          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+          make O=out alioth_defconfig
+
+          # FLOS carries its own WLAN/CNSS stack; preserve it unchanged.
+          # Raikiri's working IPA behavior keeps the IPA wake locks active.
+          if grep -Rqs 'config DISABLE_IPA_WAKELOCKS' drivers; then
+            scripts/config --file out/.config -d DISABLE_IPA_WAKELOCKS
+          fi
+          scripts/config --file out/.config -e NOMOUNT
+          scripts/config --file out/.config --set-str LOCALVERSION "-FakeDreamer-FLOS2.2-VoWiFi-NM2.2.0-alioth-miui5k"
+          make O=out olddefconfig
+
+          grep -qx 'CONFIG_MACH_XIAOMI_ALIOTH=y' out/.config
+          grep -qx 'CONFIG_NOMOUNT=y' out/.config
+          grep -qx 'CONFIG_KSU=y' out/.config
+          grep -q 'CONFIG_WLAN=y' out/.config
+          grep -q 'CONFIG_CNSS_QCA6390=y' out/.config
+          grep -q 'CONFIG_CNSS_QMI_SVC=y' out/.config
+          if grep -Rqs 'config DISABLE_IPA_WAKELOCKS' drivers; then
+            ! grep -qx 'CONFIG_DISABLE_IPA_WAKELOCKS=y' out/.config
+          fi
+          {
+            echo '## FakeDreamer FLOS 2.2 - alioth'
+            grep -E '^(CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_KSU=|CONFIG_NOMOUNT=|CONFIG_DISABLE_IPA_WAKELOCKS=|CONFIG_WLAN=|CONFIG_CNSS_QCA6390=|CONFIG_CNSS_UTILS=|CONFIG_CNSS_QMI_SVC=|CONFIG_LOCALVERSION=)' out/.config
+            echo 'VoWiFi strategy: retain FLOS WLAN/CNSS and restore Raikiri IPA wake-lock behavior.'
+            echo 'NoMount: v2.2.0 protocol v22.'
+          } | tee "$GITHUB_WORKSPACE/config-report.txt"
+
+      - name: Build Image.gz, DTBs and DTBO
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+          export KBUILD_BUILD_USER='Tinieblass'
+          export KBUILD_BUILD_HOST='GitHub-Actions'
+          BUILD_LOG="$GITHUB_WORKSPACE/fakedreamer-build.log"
+          make O=out CC=clang LLVM=1 LLVM_IAS=1 -j2 Image.gz dtbs dtbo.img >"$BUILD_LOG" 2>&1 || {
+            rc=$?
+            tail -n 250 "$BUILD_LOG" || true
+            exit "$rc"
+          }
+          tail -n 80 "$BUILD_LOG"
+
+      - name: Upload build diagnostic log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fakedreamer-flos22-alioth-build-log
+          path: fakedreamer-build.log
+          if-no-files-found: ignore
+
+      - name: Collect raw kernel artifacts
+        run: |
+          set -euo pipefail
+          BOOT=kernel/out/arch/arm64/boot
+          test -s "$BOOT/Image.gz"
+          test -s "$BOOT/dtbo.img"
+          test -s "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo"
+          test -s "$BOOT/dts/vendor/qcom/kona.dtb"
+          test -s "$BOOT/dts/vendor/qcom/kona-v2.dtb"
+          test -s "$BOOT/dts/vendor/qcom/kona-v2.1.dtb"
+          mkdir -p fakedreamer-output
+          cp "$BOOT/Image.gz" "$BOOT/dtbo.img" "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo" fakedreamer-output/
+          cp "$BOOT/dts/vendor/qcom/kona.dtb" "$BOOT/dts/vendor/qcom/kona-v2.dtb" "$BOOT/dts/vendor/qcom/kona-v2.1.dtb" fakedreamer-output/
+          cp config-report.txt flos-source.txt nomount-commit.txt fakedreamer-output/
+          {
+            echo '# FakeDreamer FLOS 2.2 - alioth VoWiFi / NoMount 2.2.0'
+            echo '- Device: POCO F3 / alioth'
+            echo '- Source: re-noroi/kernel_sm8250 @ be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+            echo '- Kernel: Linux 4.19.337'
+            echo '- VoWiFi: FLOS WLAN/CNSS retained; IPA wake-lock disabling option turned off to match Raikiri behavior'
+            echo '- NoMount: maxsteeel/nomount @ bf1847f98fed382369c43bfd652cd93774b9b8e3 (v2.2.0, protocol v22)'
+            echo '- Battery: existing J3S Sun 5000 mAh profile retained'
+            echo '- Existing FLOS KernelSU configuration retained'
+            echo '- Build success is not proof of hardware VoWiFi or boot compatibility.'
+          } > fakedreamer-output/BUILD-REPORT.md
+          (cd fakedreamer-output && sha256sum * > SHA256SUMS.txt)
+
+      - name: Upload raw FakeDreamer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: FakeDreamer-FLOS2.2-alioth-VoWiFi-NoMount2.2-raw
+          path: fakedreamer-output/
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Build AnyKernel3 flashable ZIP candidate
+        run: |
+          set -euo pipefail
+          git clone https://github.com/osm0sis/AnyKernel3.git anykernel
+          git -C anykernel checkout --detach 41f04bdb4ee30a44e429c2c1131d5e8bb32b15f1
+          test "$(git -C anykernel rev-parse HEAD)" = '41f04bdb4ee30a44e429c2c1131d5e8bb32b15f1'
+          rm -rf anykernel/.git anykernel/.github anykernel/README.md
+          cp fakedreamer-output/Image.gz anykernel/Image.gz
+          cp fakedreamer-output/dtbo.img anykernel/dtbo.img
+          cat > anykernel/anykernel.sh <<'AK3'
+          ### FakeDreamer FLOS 2.2 - POCO F3 / alioth - VoWiFi + NoMount 2.2.0 - MIUI5K
+          ## Experimental package for HyperOS 3 / Android 16.
+
+          properties() { '
+          kernel.string=FakeDreamer FLOS 2.2 VoWiFi NoMount 2.2.0 J3S Sun 5000mAh -miui5k
+          do.devicecheck=1
+          do.modules=0
+          do.systemless=0
+          do.cleanup=1
+          do.cleanuponabort=0
+          device.name1=alioth
+          supported.versions=16
+          '; }
+
+          BLOCK=boot;
+          IS_SLOT_DEVICE=1;
+          RAMDISK_COMPRESSION=auto;
+
+          . tools/ak3-core.sh;
+
+          dump_boot;
+          cp -f dtbo.img dtbo$SLOT.img;
+          flash_generic dtbo$SLOT;
+          repack_ramdisk;
+          flash_boot;
+          AK3
+          (cd anykernel && zip -qr9 ../FakeDreamer-FLOS2.2-alioth-VoWiFi-NoMount2.2-miui5k.zip . -x '.git/*' '.github/*' 'README.md')
+
+      - name: Validate flashable ZIP candidate
+        run: |
+          set -euo pipefail
+          unzip -t FakeDreamer-FLOS2.2-alioth-VoWiFi-NoMount2.2-miui5k.zip
+          unzip -l FakeDreamer-FLOS2.2-alioth-VoWiFi-NoMount2.2-miui5k.zip | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|LICENSE'
+          unzip -p FakeDreamer-FLOS2.2-alioth-VoWiFi-NoMount2.2-miui5k.zip anykernel.sh | grep -q 'device.name1=alioth'
+          unzip -p FakeDreamer-FLOS2.2-alioth-VoWiFi-NoMount2.2-miui5k.zip anykernel.sh | grep -q 'IS_SLOT_DEVICE=1'
+          unzip -p FakeDreamer-FLOS2.2-alioth-VoWiFi-NoMount2.2-miui5k.zip anykernel.sh | grep -q 'flash_boot'
+          sha256sum FakeDreamer-FLOS2.2-alioth-VoWiFi-NoMount2.2-miui5k.zip
+
+      - name: Upload flashable ZIP candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: FakeDreamer-FLOS2.2-alioth-VoWiFi-NoMount2.2-miui5k-candidate
+          path: FakeDreamer-FLOS2.2-alioth-VoWiFi-NoMount2.2-miui5k.zip
+          if-no-files-found: error
+          compression-level: 0
