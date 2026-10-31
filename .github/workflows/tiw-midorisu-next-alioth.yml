@@ -35,7 +35,7 @@ jobs:
           git -C kernel checkout --detach 4d8105023e3d1474323f4118abc3b4ce6485070d
           test "$(git -C kernel rev-parse HEAD)" = '4d8105023e3d1474323f4118abc3b4ce6485070d'
           git -C kernel submodule update --init --recursive
-          test -d kernel/KernelSU-Next/.git
+          test -e kernel/KernelSU-Next/.git
           git -C kernel/KernelSU-Next remote set-url origin https://github.com/midori01/KernelSU.git
           git -C kernel/KernelSU-Next fetch --depth=1 origin refs/heads/next
           MIDORISU_COMMIT="$(git -C kernel/KernelSU-Next rev-parse FETCH_HEAD)"
