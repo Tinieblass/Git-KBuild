@@ -1,1 +1,2 @@
 Launch alioth W J3S 5000mAh build from pinned bpf-testing base f7030790. Explicitly disable CONFIG_DISABLE_IPA_WAKELOCKS in alioth_defconfig before generating .config; verify IPA stay_awake/relax patch. Reuse cached Clang r614150; do not redownload unless cache miss.
+PR-triggered rebuild after explicitly disabling CONFIG_DISABLE_IPA_WAKELOCKS; reuse cached Clang r614150.
