@@ -1,1 +1,1 @@
-Rebuild alioth FLOS artifacts with KSU manager signature and NoMount 2.1 preflight checks.
+Launch alioth W J3S 5000mAh build from pinned bpf-testing base f7030790 with IPA wake-source fix, RMNET_PERF, KSU manager compatibility and NoMount 2.1. Package one validated recovery ZIP.
