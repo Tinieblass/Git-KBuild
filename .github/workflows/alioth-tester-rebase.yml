@@ -376,6 +376,49 @@ jobs:
           sed -i -e 's/qcom,mdss-pan-physical-width-dimension = <70>;/qcom,mdss-pan-physical-width-dimension = <695>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-k11a-38-08-0a-dsc-cmd.dtsi
           sed -i -e 's/qcom,mdss-pan-physical-height-dimension = <155>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-k11a-38-08-0a-dsc-cmd.dtsi
       
+      # FLOS RMNET source has an old-style empty parameter list rejected by Clang -Wstrict-prototypes.
+      # Limit this compatibility fix to the exact function definition; do not alter call sites.
+      - name: Fix RMNET perf strict prototype for Clang
+        if: ${{ env.ENABLE_RAIKIRI_VOWIFI == 'true' }}
+        working-directory: kernel_tree
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("techpack/data/drivers/rmnet/perf/rmnet_perf_opt.c")
+          if not path.is_file():
+              raise SystemExit(f"Missing expected FLOS RMNET source: {path}")
+
+          text = path.read_text()
+          old = re.compile(
+              r"(?m)^void[ \\t]*\\r?\\nrmnet_perf_free_hash_table\\(\\)[ \\t]*\\r?\\n\\{"
+          )
+          new = re.compile(
+              r"(?m)^void[ \\t]*\\r?\\nrmnet_perf_free_hash_table\\(void\\)[ \\t]*\\r?\\n\\{"
+          )
+
+          old_count = len(old.findall(text))
+          new_count = len(new.findall(text))
+          if old_count == 1 and new_count == 0:
+              text = old.sub("void\\nrmnet_perf_free_hash_table(void)\\n{", text, count=1)
+              path.write_text(text)
+              print("PASS: corrected the RMNET function definition to an explicit void prototype.")
+          elif old_count == 0 and new_count == 1:
+              print("PASS: RMNET function definition already has an explicit void prototype.")
+          else:
+              raise SystemExit(
+                  "Unsafe RMNET prototype patch state: "
+                  f"old definitions={old_count}, corrected definitions={new_count}"
+              )
+
+          verified = path.read_text()
+          if len(new.findall(verified)) != 1 or old.search(verified):
+              raise SystemExit("RMNET strict-prototype verification failed.")
+          PY
+          git diff --check
+
       - name: Build Kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
