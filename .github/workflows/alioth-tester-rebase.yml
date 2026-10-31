@@ -149,7 +149,10 @@ jobs:
             tar -xzf clang.tar.gz -C clang
           else
             download_with_retry "https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/06092026/neutron-clang-06092026.tar.zst" clang.tar.zst
-            command -v unzstd >/dev/null || sudo apt-get update && sudo apt-get install -y zstd
+            if ! command -v unzstd >/dev/null; then
+              sudo apt-get update
+              sudo apt-get install -y zstd
+            fi
             unzstd -f clang.tar.zst
             tar -tf clang.tar >/dev/null
             mkdir clang
