@@ -40,14 +40,16 @@ on:
           - r614150
         default: neutron
       VARIANT:
-        description: 'FakeDreamer W variant: Android 16+ optimized build (HyperOS 3)'
+        description: 'ROM variant: Standard; -W (A16+); -OPLUS (other OEM A11-A15); -W-Oplus (other OEM A16+); legacy (A11-A13)'
         required: true
         type: choice
         options:
-          - stock
-          - W-variant
-          - oplus-variant
-        default: W-variant
+          - Standard
+          - -W
+          - -OPLUS
+          - -W-Oplus
+          - legacy
+        default: -W
       LTO_CHOICE:
         required: true
         type: choice
@@ -103,7 +105,7 @@ jobs:
       ANYKERNEL_URL: ${{ github.event.inputs.ANYKERNEL_URL || 'https://github.com/re-noroi/anykernel3-test' }}
       CUSTOM_SED: ${{ github.event.inputs.CUSTOM_SED || '-FakeDreamer' }}
       COMPILER: ${{ github.event.inputs.COMPILER || 'r614150' }}
-      VARIANT: ${{ github.event.inputs.VARIANT || 'W-variant' }}
+      VARIANT: ${{ github.event.inputs.VARIANT || '-W' }}
       LTO_CHOICE: ${{ github.event.inputs.LTO_CHOICE || 'full_lto' }}
       REMOVE_CYCLE_COUNT: ${{ github.event.inputs.REMOVE_CYCLE_COUNT || 'no' }}
       ENABLE_NTSYNC: ${{ github.event.inputs.ENABLE_NTSYNC || 'true' }}
@@ -216,10 +218,10 @@ jobs:
         run: |
           cd kernel_tree
           EXTRA=""
-          if [[ "${{ env.VARIANT }}" == "W-variant" ]]; then
+          if [[ "${{ env.VARIANT }}" == "-W" ]]; then
             EXTRA="-W"
-          elif [[ "${{ env.VARIANT }}" == "oplus-variant" ]]; then
-            EXTRA="-oplus"
+          elif [[ "${{ env.VARIANT }}" == "-OPLUS" ]]; then
+            EXTRA="-OPLUS"
           fi
           sed -i -e "s/CONFIG_LOCALVERSION=\"-FakeDreamer\"/CONFIG_LOCALVERSION=\"${{ env.CUSTOM_SED }}${EXTRA}\"/" arch/arm64/configs/vendor/alioth_defconfig
 
@@ -263,7 +265,7 @@ jobs:
           sed -i -e '/CONFIG_LTO_CLANG_FULL=y/c\# CONFIG_LTO_CLANG_FULL is not set;' arch/arm64/configs/vendor/alioth_defconfig
 
       - name: Oplus Features
-        if: ${{ env.VARIANT == 'oplus-variant' }}
+        if: ${{ env.VARIANT == '-OPLUS' }}
         run: |
           cd kernel_tree
           sed -i -e '/# CONFIG_OPLUS_PORT is not set/c\CONFIG_OPLUS_PORT=y;' arch/arm64/configs/vendor/alioth_defconfig
@@ -417,9 +419,9 @@ jobs:
         run: |
           COMPILED_DATE=$(date +%Y%m%d)
           EXTRA2=""
-          if [[ "${{ env.VARIANT }}" == "W-variant" ]]; then
+          if [[ "${{ env.VARIANT }}" == "-W" ]]; then
             EXTRA2="-W"
-          elif [[ "${{ env.VARIANT }}" == "oplus-variant" ]]; then
+          elif [[ "${{ env.VARIANT }}" == "-OPLUS" ]]; then
             EXTRA2="-OPLUS"
           fi
           echo "ZIP_NAME=[FD-][TEST-${{ env.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
