@@ -1,4 +1,5 @@
 name: Tiw MidoriSU (next) - alioth J3S 5000 mAh test
+# Diagnostic build: two jobs, captured output, and preserved exit status.
 
 on:
   workflow_dispatch:
