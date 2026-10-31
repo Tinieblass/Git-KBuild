@@ -549,10 +549,9 @@ jobs:
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           cd kernel_tree
           make O=out vendor/alioth_defconfig
-          grep -qx 'CONFIG_KSU=y' out/.config
-          grep -qx 'CONFIG_NOMOUNT=y' out/.config
-          ! grep -qx 'CONFIG_DISABLE_IPA_WAKELOCKS=y' out/.config || { echo 'ERROR: IPA wake locks are disabled; VoWiFi power fix would be inactive.'; exit 1; } || { echo 'ERROR: in-tree KernelSU is not enabled'; exit 1; }
+          grep -qx 'CONFIG_KSU=y' out/.config || { echo 'ERROR: in-tree KernelSU is not enabled'; exit 1; }
           grep -qx 'CONFIG_NOMOUNT=y' out/.config || { echo 'ERROR: bundled NoMount 2.1 is not enabled'; exit 1; }
+          ! grep -qx 'CONFIG_DISABLE_IPA_WAKELOCKS=y' out/.config || { echo 'ERROR: IPA wake locks are disabled; VoWiFi power fix would be inactive.'; exit 1; }
           if [[ "${{ env.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
             for cfg in \
               CONFIG_RMNET CONFIG_RMNET_PERF \
@@ -706,6 +705,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: FakeDreamer-alioth-W-j3s-miui-eff-uv
-          path: \${{ steps.zip.outputs.name }}
+          path: ${{ steps.zip.outputs.name }}
           if-no-files-found: error
           compression-level: 0
