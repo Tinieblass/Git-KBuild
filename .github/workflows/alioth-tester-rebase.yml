@@ -15,7 +15,7 @@ on:
         required: true
       KERNEL_TREE_BRANCH_1:
         description: 'Kernel Tree Branch 1'
-        default: 'freesia'
+        default: 'flos'
         required: true
       CODENAME:
         description: 'Codename (do not change)'
@@ -98,7 +98,7 @@ jobs:
     env:
       UPLOAD_TO_RELEASE: false
       KERNEL_TREE_1: ${{ github.event.inputs.KERNEL_TREE_1 || 'https://github.com/re-noroi/kernel_sm8250' }}
-      KERNEL_TREE_BRANCH_1: ${{ github.event.inputs.KERNEL_TREE_BRANCH_1 || 'freesia' }}
+      KERNEL_TREE_BRANCH_1: ${{ github.event.inputs.KERNEL_TREE_BRANCH_1 || 'flos' }}
       CODENAME: ${{ github.event.inputs.CODENAME || 'alioth' }}
       ANYKERNEL_URL: ${{ github.event.inputs.ANYKERNEL_URL || 'https://github.com/re-noroi/anykernel3-test' }}
       CUSTOM_SED: ${{ github.event.inputs.CUSTOM_SED || '-FakeDreamer' }}
