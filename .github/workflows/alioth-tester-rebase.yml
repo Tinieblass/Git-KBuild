@@ -516,7 +516,8 @@ jobs:
         run: |
           set -euo pipefail
           grep -q '^## vendor_boot shell variables$' AnyKernel3-1/anykernel.sh
-          grep -q '^# vendor_boot install          test "$(grep -c '^write_boot;' AnyKernel3-1/anykernel.sh)" -eq 2
+          grep -q '^# vendor_boot install$' AnyKernel3-1/anykernel.sh
+          test "$(grep -c '^write_boot;' AnyKernel3-1/anykernel.sh)" -eq 2
           echo "PASS: boot and vendor_boot each retain their own dump/write cycle."
 
       - name: Move Kernel Files to AnyKernel3
