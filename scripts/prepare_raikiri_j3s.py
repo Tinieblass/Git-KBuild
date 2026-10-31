@@ -34,7 +34,7 @@ require('"j3ssun_5000mah"' in driver,
         "the fuel-gauge driver does not request the J3S profile by name")
 
 battery_nodes = list(re.finditer(
-    r"(alioth_batterydata:\\s*qcom,battery-data\\s*\\{)(.*?)(\\n\\s*\\};)",
+    r"(alioth_batterydata:\s*qcom,battery-data\s*\{)(.*?)(\n\s*\};)",
     dts, re.S
 ))
 require(len(battery_nodes) == 1,
@@ -49,9 +49,9 @@ require(dts.count(include) <= 1,
         "the J3S profile include appears more than once")
 
 if include not in dts:
-    dts = dts.replace(fmt, include + "\\n\\t\\t" + fmt, 1)
+    dts = dts.replace(fmt, include + "\n\t\t" + fmt, 1)
 
-fg_nodes = list(re.finditer(r"(&pm8150b_fg\\s*\\{)(.*?)(\\n\\};)", dts, re.S))
+fg_nodes = list(re.finditer(r"(&pm8150b_fg\s*\{)(.*?)(\n\};)", dts, re.S))
 require(len(fg_nodes) == 1,
         f"expected one pm8150b_fg node, found {len(fg_nodes)}")
 
@@ -63,7 +63,7 @@ require(dts.count("qcom,j3s-batt-profile;") <= 1,
 if "qcom,j3s-batt-profile;" not in dts:
     dts = dts.replace(
         "qcom,k11a-batt-profile;",
-        "qcom,k11a-batt-profile;\\n\\tqcom,j3s-batt-profile;",
+        "qcom,k11a-batt-profile;\n\tqcom,j3s-batt-profile;",
         1,
     )
 
