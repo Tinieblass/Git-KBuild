@@ -4,9 +4,9 @@ on:
   pull_request:
   push:
     branches:
-      - Tiw-MidoriSU-NX-alioth-test
+      - Tiw-MidoriSU-alioth-test
     paths:
-      - .github/workflows/alioth-tester-rebase.yml
+      - .github/trigger-full-build
   workflow_dispatch:
     inputs:
       KERNEL_TREE_1:
@@ -192,6 +192,16 @@ jobs:
         with:
           name: clang-${{ env.COMPILER }}
           path: clang
+
+      # Artifact transfer does not preserve executable bits. Restore them locally.
+      - name: Restore Clang executable permissions
+        run: |
+          set -euo pipefail
+          test -d clang/bin
+          chmod -R a+x clang/bin
+          test -x clang/bin/clang
+          test -x clang/bin/ld.lld
+          clang/bin/clang --version
 
 
       - name: Set Kernel Environment Variables
