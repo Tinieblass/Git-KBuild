@@ -1,3 +1,4 @@
 Re-run isolated IPA wake-source candidate build after correcting AnyKernel packaging validation. Keep RMNET_PERF disabled; preserve both boot and vendor_boot write cycles; J3S 5000mAh, HyperOS/MIUI, efficient CPU + UV GPU.
 # Trigger rebuild after correcting AnyKernel vendor_boot marker validation.
 # Trigger rebuild after repairing malformed workflow YAML.
+# Rebuild after separating AnyKernel vendor_boot validation commands.
