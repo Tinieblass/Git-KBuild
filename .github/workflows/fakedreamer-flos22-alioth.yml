@@ -1,0 +1,148 @@
+name: FakeDreamer FLOS 2.2-rc2 - alioth J3S 5000mAh + NoMount 2.2
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - Tiw-MidoriSU-NX-alioth-test
+    paths:
+      - .github/workflows/fakedreamer-flos22-alioth.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout builder
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential flex libelf-dev libncurses-dev libssl-dev lz4 python3 rsync zip
+
+      - name: Download FakeDreamer FLOS 2.2-rc2 source
+        run: |
+          set -euo pipefail
+          git clone --no-checkout https://github.com/re-noroi/kernel_sm8250.git kernel
+          git -C kernel fetch --depth=1 origin be837cd0f654f78f41cb3b4b65db56294e61dfa7
+          git -C kernel checkout --detach be837cd0f654f78f41cb3b4b65db56294e61dfa7
+          test "$(git -C kernel rev-parse HEAD)" = 'be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+          grep -q 'CONFIG_BOARD_ALIOTH=y' kernel/arch/arm64/configs/vendor/alioth_defconfig
+          echo 'FakeDreamer FLOS commit: be837cd0f654f78f41cb3b4b65db56294e61dfa7' | tee source-version.txt
+
+      - name: Update bundled NoMount 2.1 to NoMount v2.2.0
+        run: |
+          set -euo pipefail
+          git clone --no-checkout https://github.com/maxsteeel/nomount.git NoMount
+          git -C NoMount fetch --depth=1 origin refs/tags/v2.2.0
+          git -C NoMount checkout --detach FETCH_HEAD
+          test -s NoMount/kernel/src/nomount.c
+          test -s NoMount/kernel/src/nomount.h
+          test -s NoMount/kernel/src/Kconfig
+          test -s NoMount/kernel/src/Makefile
+          rm -rf kernel/fs/nomount
+          mkdir -p kernel/fs/nomount
+          cp -a NoMount/kernel/src/. kernel/fs/nomount/
+          grep -q 'NOMOUNT_BASE_VERSION "22"' kernel/fs/nomount/nomount.h
+          grep -q 'default y' kernel/fs/nomount/Kconfig
+          echo "NoMount v2.2.0 commit: $(git -C NoMount rev-parse HEAD)" | tee nomount-version.txt
+
+      - name: Select J3S Sun 5000mAh battery profile
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("kernel")
+          common = root / "arch/arm64/boot/dts/vendor/qcom/xiaomi-sm8250-common.dtsi"
+          profile = root / "arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-sun-5000mah.dtsi"
+          s = common.read_text()
+          if not profile.is_file():
+              raise SystemExit("Missing native Alioth Sun 5000mAh battery profile")
+          inc = '#include "fg-gen4-batterydata-alioth-sun-5000mah.dtsi"'
+          if inc not in s:
+              marker = '#include "fg-gen4-batterydata-alium-3600mah.dtsi"'
+              if s.count(marker) != 1:
+                  raise SystemExit("Cannot locate Alioth battery profile include point")
+              s = s.replace(marker, inc + "\n\t\t" + marker, 1)
+          start = s.find("&pm8150b_fg {")
+          if start < 0:
+              raise SystemExit("Cannot locate pm8150b_fg node")
+          end = s.find("\n};", start)
+          if end < 0:
+              raise SystemExit("Cannot parse pm8150b_fg node")
+          node = s[start:end]
+          flag = "qcom,j3s-batt-profile;"
+          if flag not in node:
+              s = s[:end] + "\n\t" + flag + s[end:]
+          common.write_text(s)
+          if s.count(inc) != 1 or s.count(flag) != 1:
+              raise SystemExit("J3S 5000mAh selection did not validate")
+          print("J3S Sun 5000mAh profile selected.")
+          PY
+
+      - name: Download matching Clang toolchain
+        run: |
+          set -euo pipefail
+          wget -q 'https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/603a89415bbb04dff8bc577b95534479ec13fdc5/clang-r574158.tar.gz' -O clang.tar.gz
+          mkdir clang
+          tar -xzf clang.tar.gz -C clang
+          test -x clang/bin/clang
+          clang/bin/clang --version
+
+      - name: Configure FLOS with NoMount enabled
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          export ARCH=arm64
+          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+          make O=out alioth_defconfig
+          scripts/config --file out/.config -e NOMOUNT
+          make O=out olddefconfig
+          grep -qx 'CONFIG_BOARD_ALIOTH=y' out/.config
+          grep -qx 'CONFIG_NOMOUNT=y' out/.config
+          grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
+
+      - name: Build Image.gz, DTBs and DTBO
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+          export KBUILD_BUILD_USER='Tinieblass'
+          export KBUILD_BUILD_HOST='GitHub-Actions'
+          make O=out CC=clang LLVM=1 LLVM_IAS=1 -j2 Image.gz dtbs dtbo.img
+
+      - name: Collect build outputs
+        run: |
+          set -euo pipefail
+          BOOT=kernel/out/arch/arm64/boot
+          test -s "$BOOT/Image.gz"
+          test -s "$BOOT/dtbo.img"
+          mkdir -p fakedreamer-flos22-output
+          cp "$BOOT/Image.gz" "$BOOT/dtbo.img" fakedreamer-flos22-output/
+          cp config-report.txt source-version.txt nomount-version.txt fakedreamer-flos22-output/
+          (cd fakedreamer-flos22-output && sha256sum * > SHA256SUMS.txt)
+          {
+            echo '# FakeDreamer FLOS 2.2-rc2 - alioth'
+            echo
+            echo '- Device: POCO F3 / alioth'
+            echo '- Source: re-noroi/kernel_sm8250 @ be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+            echo '- NoMount: v2.2.0, built-in and enabled (protocol v22)'
+            echo '- Battery: J3S Sun 5000mAh profile'
+            echo '- Outputs: Image.gz and dtbo.img'
+            echo '- VoWiFi: Raikiri-specific patch not yet included; no matching patch was present in the Raikiri build workflow/config inspected.'
+            echo '- Raw build artifacts only; no device is flashed by CI.'
+          } > fakedreamer-flos22-output/BUILD-REPORT.md
+
+      - name: Upload FakeDreamer FLOS 2.2 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fakedreamer-flos22-alioth-j3s-nomount22-raw
+          path: fakedreamer-flos22-output/
+          if-no-files-found: error
+          compression-level: 0
