@@ -211,11 +211,11 @@ jobs:
               (shs, "CONFIG_RMNET_SHS", "rmnet_shs.o"),
           ):
               kbuild = (folder / "Kbuild").read_text()
-              pattern = rf"obj-\\$\\(\\s*{re.escape(symbol)}\\s*\\)\\s*\\+=\\s*{re.escape(target)}"
+              pattern = rf"obj-\$\(\s*{re.escape(symbol)}\s*\)\s*\+=\s*{re.escape(target)}"
               if not re.search(pattern, kbuild):
                   raise SystemExit(
                       f"{symbol} Kbuild target missing or malformed; "
-                      f"expected obj-\\$({symbol}) += {target}; got: {kbuild!r}"
+                      f"expected obj-\$({symbol}) += {target}; got: {kbuild!r}"
                   )
           print("PASS: both RMNET_PERF and RMNET_SHS Kconfig/Kbuild paths are available.")
           PY
