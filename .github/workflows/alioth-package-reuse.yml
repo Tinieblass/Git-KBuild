@@ -22,7 +22,7 @@ jobs:
         id: source
         run: |
           set -euo pipefail
-          RUN_ID="$(tr -d '[:space:]' < .github/package-only-trigger)"
+          RUN_ID="$(head -n1 .github/package-only-trigger | tr -d '[:space:]')"
           [[ "$RUN_ID" =~ ^[0-9]+$ ]] || { echo "Invalid source run ID: $RUN_ID"; exit 1; }
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
           echo "Reusing successful kernel artifacts from run $RUN_ID; no compiler download or kernel build."
