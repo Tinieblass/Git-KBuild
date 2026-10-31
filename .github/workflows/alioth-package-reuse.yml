@@ -15,6 +15,9 @@ jobs:
   package_anykernel:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository trigger file
+        uses: actions/checkout@v4
+
       - name: Read source build run ID
         id: source
         run: |
