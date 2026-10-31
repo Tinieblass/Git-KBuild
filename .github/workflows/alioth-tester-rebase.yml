@@ -516,7 +516,60 @@ jobs:
         run: |
           set -euo pipefail
           grep -q '^## vendor_boot shell variables$' AnyKernel3-1/anykernel.sh
-          grep -q '^## vendor_boot install$' AnyKernel3-1/anykernel.sh
+          grep -q '^# vendor_boot install
+          test "$(grep -c '^write_boot;' AnyKernel3-1/anykernel.sh)" -eq 2
+          echo "PASS: boot and vendor_boot each retain their own dump/write cycle."
+
+      - name: Move Kernel Files to AnyKernel3
+        run: |
+          mv kernel-1-1/* AnyKernel3-1/
+          mv kernel-1-2/* AnyKernel3-1/
+          mv kernel-1-3/* AnyKernel3-1/
+          mv kernel-1-4/* AnyKernel3-1/
+
+      - name: Set exact J3S MIUI efficient CPU + UV marker
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("AnyKernel3-1")
+          for p in root.glob("*.dreamless"):
+              p.unlink()
+          marker = root / "j3s-miui-eff-uv.dreamless"
+          marker.touch()
+          assert marker.is_file() and marker.stat().st_size == 0
+          print("PASS: j3s-miui-eff-uv.dreamless")
+          PY
+
+      - name: Create and validate recovery-flashable ZIP
+        id: zip
+        run: |
+          set -euo pipefail
+          ZIP_NAME="FakeDreamer-alioth-$(date -u +%Y%m%d)-W-j3s-miui-eff-uv.zip"
+          (cd AnyKernel3-1 && zip -qr9 "../$ZIP_NAME" . -x '.git/*' '.github/*')
+          test -s "$ZIP_NAME"
+          unzip -t "$ZIP_NAME"
+          unzip -l "$ZIP_NAME" | grep -q 'Image.gz'
+          unzip -l "$ZIP_NAME" | grep -q 'alioth-j3s-dtbo-miui.img'
+          unzip -l "$ZIP_NAME" | grep -q 'alioth-effcpu-dtb'
+          unzip -l "$ZIP_NAME" | grep -q 'j3s-miui-eff-uv.dreamless'
+          unzip -p "$ZIP_NAME" anykernel.sh | grep -q 'device.name1=alioth'
+          unzip -p "$ZIP_NAME" anykernel.sh | grep -q '^write_boot;'
+          test "$(unzip -p "$ZIP_NAME" anykernel.sh | grep -c '^write_boot;')" -eq 2
+          unzip -p "$ZIP_NAME" anykernel.sh | grep -q '^## vendor_boot shell variables$'
+          unzip -p "$ZIP_NAME" anykernel.sh | grep -q '^## vendor_boot install$'
+          ! unzip -l "$ZIP_NAME" | grep -q '\.git/'
+          sha256sum "$ZIP_NAME"
+          echo "name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload final recovery-flashable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: FakeDreamer-alioth-W-j3s-miui-eff-uv
+          path: ${{ steps.zip.outputs.name }}
+          if-no-files-found: error
+          compression-level: 0
+ AnyKernel3-1/anykernel.sh
           test "$(grep -c '^write_boot;' AnyKernel3-1/anykernel.sh)" -eq 2
           echo "PASS: boot and vendor_boot each retain their own dump/write cycle."
 
