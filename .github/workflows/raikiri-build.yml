@@ -1,0 +1,122 @@
+name: Raikiri v1.7 - alioth J3S build
+
+on:
+  push:
+    branches:
+      - Raikiri-Midori-NM
+    paths:
+      - '.github/workflows/raikiri-build.yml'
+      - 'scripts/prepare_raikiri_j3s.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout builder
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential flex libelf-dev libncurses-dev libssl-dev lz4 python3 rsync
+
+      - name: Download LLVM toolchain
+        run: |
+          set -euo pipefail
+          wget -q 'https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/747f0cceb48f48bf7cf497a3e01af1389266904b/clang-r614150.tar.gz' -O clang.tar.gz
+          mkdir clang
+          tar -xzf clang.tar.gz -C clang
+          test -x clang/bin/clang
+          clang/bin/clang --version
+
+      - name: Checkout pinned Raikiri v1.7 source
+        run: |
+          set -euo pipefail
+          git clone --no-checkout https://github.com/Sayemx18/kernel_xiaomi_sm8250.git kernel
+          git -C kernel checkout --detach 4d8105023e3d1474323f4118abc3b4ce6485070d
+          test "$(git -C kernel rev-parse HEAD)" = '4d8105023e3d1474323f4118abc3b4ce6485070d'
+
+      - name: Prepare and verify J3S 5000 mAh DTS
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_raikiri_j3s.py kernel
+          git -C kernel diff --check
+          git -C kernel diff -- arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+
+      - name: Configure alioth with Raikiri fragments
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          export ARCH=arm64
+          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+          make O=out alioth_defconfig
+          scripts/kconfig/merge_config.sh -m -O out out/.config \
+            arch/arm64/configs/vendor/xiaomi/sm8250-common.config \
+            arch/arm64/configs/vendor/xiaomi/alioth.config \
+            arch/arm64/configs/vendor/xiaomi/raikiri.config
+          make O=out olddefconfig
+          grep -qx 'CONFIG_MACH_XIAOMI_ALIOTH=y' out/.config
+          grep -qx 'CONFIG_BUILD_ARM64_DT_OVERLAY=y' out/.config
+          grep -qx 'CONFIG_KSU=y' out/.config
+          grep -qx 'CONFIG_KSU_MANUAL_HOOK=y' out/.config
+          grep -qx 'CONFIG_LOCALVERSION="-Raikiri-v1.7"' out/.config
+          {
+            echo '## Final kernel configuration checks'
+            grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_KSU=|CONFIG_KSU_MANUAL_HOOK=|CONFIG_LOCALVERSION=)' out/.config
+          } | tee "$GITHUB_WORKSPACE/config-report.txt"
+
+      - name: Build Image.gz, DTBs and DTBO
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+          export KBUILD_BUILD_USER='Tinieblass'
+          export KBUILD_BUILD_HOST='GitHub-Actions'
+          make O=out CC=clang LLVM=1 LLVM_IAS=1 -j"$(nproc)" Image.gz dtbs dtbo.img
+
+      - name: Verify alioth outputs and J3S overlay
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          BOOT=out/arch/arm64/boot
+          test -s "$BOOT/Image.gz"
+          test -s "$BOOT/dtbo.img"
+          test -s "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo"
+          test -s "$BOOT/dts/vendor/qcom/kona.dtb"
+          test -s "$BOOT/dts/vendor/qcom/kona-v2.dtb"
+          test -s "$BOOT/dts/vendor/qcom/kona-v2.1.dtb"
+          mkdir -p "$GITHUB_WORKSPACE/raikiri-output"
+          cp "$BOOT/Image.gz" "$GITHUB_WORKSPACE/raikiri-output/"
+          cp "$BOOT/dtbo.img" "$GITHUB_WORKSPACE/raikiri-output/"
+          cp "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo" "$GITHUB_WORKSPACE/raikiri-output/"
+          cp "$BOOT/dts/vendor/qcom/kona.dtb" "$GITHUB_WORKSPACE/raikiri-output/"
+          cp "$BOOT/dts/vendor/qcom/kona-v2.dtb" "$GITHUB_WORKSPACE/raikiri-output/"
+          cp "$BOOT/dts/vendor/qcom/kona-v2.1.dtb" "$GITHUB_WORKSPACE/raikiri-output/"
+          cp "$GITHUB_WORKSPACE/config-report.txt" "$GITHUB_WORKSPACE/raikiri-output/"
+          (cd "$GITHUB_WORKSPACE/raikiri-output" && sha256sum * > SHA256SUMS.txt)
+          {
+            echo '# Raikiri v1.7 alioth J3S build'
+            echo
+            echo '- Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d'
+            echo '- Target: POCO F3 / alioth'
+            echo '- Battery profile selected in alioth overlay: J3S Sun 5000 mAh'
+            echo '- Kernel config: alioth_defconfig + sm8250-common + alioth + raikiri fragments'
+            echo '- KSU and manual hook: enabled and verified'
+            echo '- Outputs: Image.gz, combined dtbo.img, alioth overlay DTBO, Kona base DTBs'
+            echo '- Not a flashable ZIP; no AnyKernel packaging or device-side testing has been performed.'
+          } > "$GITHUB_WORKSPACE/raikiri-output/BUILD-REPORT.md"
+
+      - name: Upload raw kernel and device-tree artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: raikiri-v17-alioth-j3s-raw
+          path: raikiri-output/
+          if-no-files-found: error
+          compression-level: 0
