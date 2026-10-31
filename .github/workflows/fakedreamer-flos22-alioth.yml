@@ -81,17 +81,18 @@ jobs:
           export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
           make O=out vendor/alioth_defconfig
           scripts/config --file out/.config \
-            --set-str LOCALVERSION '-FakeDreamer-FLOS2.2-J3S-miui-NM2.2-bpf' \
-            -e NOMOUNT -e BPF -e BPF_SYSCALL -e BPF_JIT -e BPF_JIT_ALWAYS_ON
+            --set-str LOCALVERSION '-FakeDreamer-FLOS2.2-W-J3S5000-NM2.2-KSU-bpf' \
+            -e NOMOUNT -e KSU -e BPF -e BPF_SYSCALL -e BPF_JIT -e BPF_JIT_ALWAYS_ON
           make O=out olddefconfig
           grep -qx 'CONFIG_BOARD_ALIOTH=y' out/.config
           grep -qx 'CONFIG_NOMOUNT=y' out/.config
+          grep -qx 'CONFIG_KSU=y' out/.config
           grep -qx 'CONFIG_BPF=y' out/.config
           grep -qx 'CONFIG_BPF_SYSCALL=y' out/.config
           grep -qx 'CONFIG_BPF_JIT=y' out/.config
           grep -qx 'CONFIG_BPF_JIT_ALWAYS_ON=y' out/.config
-          grep -qx 'CONFIG_LOCALVERSION="-FakeDreamer-FLOS2.2-J3S-miui-NM2.2-bpf"' out/.config
-          grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_BPF_JIT=|CONFIG_BPF_JIT_ALWAYS_ON=|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
+          grep -qx 'CONFIG_LOCALVERSION="-FakeDreamer-FLOS2.2-W-J3S5000-NM2.2-KSU-bpf' out/.config
+          grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_KSU=|CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_BPF_JIT=|CONFIG_BPF_JIT_ALWAYS_ON=|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
 
       - name: Build Image.gz, DTBs and DTBO
         working-directory: kernel
@@ -119,7 +120,10 @@ jobs:
             echo
             echo '- Device: POCO F3 / alioth'
             echo '- Source: re-noroi/kernel_sm8250 @ be837cd0f654f78f41cb3b4b65db56294e61dfa7'
-            echo '- NoMount: v2.2.0, built-in and enabled (protocol v22)\n            echo '- BPF: enabled and verified (BPF, syscall, JIT, JIT_ALWAYS_ON)''
+            echo '- NoMount: v2.2.0, built-in and enabled (protocol v22)'
+            echo '- Root: KernelSU driver enabled (CONFIG_KSU=y)'
+            echo '- ROM variant: W (Android 16+)'
+            echo '- BPF: enabled and verified (BPF, syscall, JIT, JIT_ALWAYS_ON)'
             echo '- Battery: J3S Sun 5000mAh profile'
             echo '- Outputs: Image.gz and dtbo.img'
             echo '- VoWiFi: Raikiri-specific patch not yet included; no matching patch was present in the Raikiri build workflow/config inspected.'
@@ -129,7 +133,7 @@ jobs:
       - name: Upload FakeDreamer FLOS 2.2 artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: fakedreamer-flos22-alioth-j3s-miui-nomount22-bpf-raw
+          name: fakedreamer-flos22-alioth-W-j3s5000-ksu-nomount22-bpf-raw
           path: fakedreamer-flos22-output/
           if-no-files-found: error
           compression-level: 0
