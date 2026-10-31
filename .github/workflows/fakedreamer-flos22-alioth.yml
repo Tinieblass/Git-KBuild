@@ -91,7 +91,7 @@ jobs:
           grep -qx 'CONFIG_BPF_SYSCALL=y' out/.config
           grep -qx 'CONFIG_BPF_JIT=y' out/.config
           grep -qx 'CONFIG_BPF_JIT_ALWAYS_ON=y' out/.config
-          grep -qx 'CONFIG_LOCALVERSION="-FakeDreamer-FLOS2.2-W-J3S5000-NM2.2-KSU-bpf' out/.config
+          grep -Fqx 'CONFIG_LOCALVERSION="-FakeDreamer-FLOS2.2-W-J3S5000-NM2.2-KSU-bpf"' out/.config
           grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_KSU=|CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_BPF_JIT=|CONFIG_BPF_JIT_ALWAYS_ON=|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
 
       - name: Build Image.gz, DTBs and DTBO
