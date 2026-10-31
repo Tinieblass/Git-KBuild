@@ -89,6 +89,30 @@ jobs:
           test -s AnyKernel3-1/alioth-j3s-dtbo-miui.img
           test -s AnyKernel3-1/alioth-effcpu-gpustk-dtb
 
+
+      - name: Set exact AnyKernel battery and UI variant marker
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path("AnyKernel3-1")
+          markers = list(root.glob("*.dreamless"))
+          target = root / "j3s-miui-eff-uv.dreamless"
+          if len(markers) != 1:
+              raise SystemExit(f"Expected exactly one .dreamless marker, found: {[p.name for p in markers]}")
+          if target.exists() and markers[0] != target:
+              raise SystemExit(f"Target marker already exists: {target.name}")
+          if markers[0] != target:
+              markers[0].rename(target)
+          if not target.is_file():
+              raise SystemExit("Correct variant marker was not created.")
+          parts = target.name.removesuffix(".dreamless").split("-")
+          if parts != ["j3s", "miui", "eff", "uv"]:
+              raise SystemExit(f"Unexpected variant marker fields: {parts}")
+          print(f"PASS: {target.name}")
+          PY
+
       # Preserve the canonical AnyKernel boot install. Remove only the upstream's
       # second vendor_boot cycle, which would incorrectly write Image.gz to vendor_boot.
       - name: Remove duplicate vendor_boot kernel flash
