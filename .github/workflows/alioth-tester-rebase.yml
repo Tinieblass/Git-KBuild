@@ -120,25 +120,42 @@ jobs:
 
       - name: Download & Extract Clang
         run: |
+          set -euo pipefail
+          download_with_retry() {
+            local url="$1"
+            local output="$2"
+            echo "Downloading: $url"
+            curl --fail --location --show-error \
+              --connect-timeout 30 --max-time 900 \
+              --retry 6 --retry-all-errors --retry-delay 5 --retry-max-time 420 \
+              --output "$output" "$url"
+            test -s "$output"
+          }
+
           if [[ "${{ env.COMPILER }}" == "r547379" ]]; then
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
+            download_with_retry "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz" clang.tar.gz
+            tar -tzf clang.tar.gz >/dev/null
             mkdir clang
-            tar -xf clang.tar.gz -C clang
+            tar -xzf clang.tar.gz -C clang
           elif [[ "${{ env.COMPILER }}" == "r574158" ]]; then
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/ebcc6c3bef363bc539ea39f45b6abae1dce6ff1a/clang-r574158.tar.gz -O clang.tar.gz
+            download_with_retry "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/ebcc6c3bef363bc539ea39f45b6abae1dce6ff1a/clang-r574158.tar.gz" clang.tar.gz
+            tar -tzf clang.tar.gz >/dev/null
             mkdir clang
-            tar -xf clang.tar.gz -C clang
+            tar -xzf clang.tar.gz -C clang
           elif [[ "${{ env.COMPILER }}" == "r614150" ]]; then
-            wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/747f0cceb48f48bf7cf497a3e01af1389266904b/clang-r614150.tar.gz -O clang.tar.gz
+            download_with_retry "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/747f0cceb48f48bf7cf497a3e01af1389266904b/clang-r614150.tar.gz" clang.tar.gz
+            tar -tzf clang.tar.gz >/dev/null
             mkdir clang
-            tar -xf clang.tar.gz -C clang
+            tar -xzf clang.tar.gz -C clang
           else
-            wget https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/06092026/neutron-clang-06092026.tar.zst -O clang.tar.zst
+            download_with_retry "https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/06092026/neutron-clang-06092026.tar.zst" clang.tar.zst
+            command -v unzstd >/dev/null || sudo apt-get update && sudo apt-get install -y zstd
+            unzstd -f clang.tar.zst
+            tar -tf clang.tar >/dev/null
             mkdir clang
-            unzstd -d clang.tar.zst
             tar -xf clang.tar -C clang
           fi
-          
+
       - name: Set Kernel Environment Variables
         run: |
           echo "KERNEL_TREE_BRANCH=${{ env.KERNEL_TREE_BRANCH_1 }}" >> $GITHUB_ENV
