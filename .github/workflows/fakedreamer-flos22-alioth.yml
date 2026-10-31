@@ -1,0 +1,162 @@
+name: FakeDreamer FLOS 2.2 - alioth VoWiFi + NoMount 2.2
+
+on:
+  push:
+    branches:
+      - Tiw-FLOS22-VoWiFi-NoMount22-alioth
+    paths:
+      - .github/workflows/fakedreamer-flos22-alioth.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - name: Checkout builder
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential flex gcc-aarch64-linux-gnu libelf-dev libncurses-dev libssl-dev lz4 python3 rsync
+
+      - name: Download LLVM toolchain
+        run: |
+          set -euo pipefail
+          wget -q 'https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/747f0cceb48f48bf7cf497a3e01af1389266904b/clang-r614150.tar.gz' -O clang.tar.gz
+          mkdir clang
+          tar -xzf clang.tar.gz -C clang
+          test -x clang/bin/clang
+          clang/bin/clang --version
+
+      - name: Checkout FakeDreamer FLOS 2.2 source
+        run: |
+          set -euo pipefail
+          git clone --no-checkout https://github.com/re-noroi/kernel_sm8250.git kernel
+          git -C kernel fetch --depth=1 origin be837cd0f654f78f41cb3b4b65db56294e61dfa7
+          git -C kernel checkout --detach be837cd0f654f78f41cb3b4b65db56294e61dfa7
+          test "$(git -C kernel rev-parse HEAD)" = 'be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+          test -s kernel/arch/arm64/configs/vendor/alioth_defconfig
+          test -s kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+          echo 'FakeDreamer source: re-noroi/kernel_sm8250 @ be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+
+      - name: Upgrade in-tree NoMount driver to v2.2.0
+        run: |
+          set -euo pipefail
+          git clone --no-checkout https://github.com/maxsteeel/nomount.git nomount-upstream
+          git -C nomount-upstream fetch --depth=1 origin refs/tags/v2.2.0
+          git -C nomount-upstream checkout --detach bf1847f98fed382369c43bfd652cd93774b9b8e3
+          test "$(git -C nomount-upstream rev-parse HEAD)" = 'bf1847f98fed382369c43bfd652cd93774b9b8e3'
+          test -s nomount-upstream/kernel/src/nomount.c
+          test -s nomount-upstream/kernel/src/Kconfig
+          test -s nomount-upstream/kernel/src/Makefile
+          rm -f kernel/fs/nomount/*
+          cp -a nomount-upstream/kernel/src/. kernel/fs/nomount/
+          grep -q 'obj-$(CONFIG_NOMOUNT) += nomount/' kernel/fs/Makefile
+          grep -q 'source "fs/nomount/Kconfig"' kernel/fs/Kconfig
+          echo 'NoMount v2.2.0 commit: bf1847f98fed382369c43bfd652cd93774b9b8e3'
+
+      - name: Preserve J3S 5000 mAh profile and apply Raikiri network settings
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          DTS=arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+          BAT=arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-apollo-sun-5000mah.dtsi
+          grep -q 'qcom,j3s-batt-profile;' "$DTS"
+          grep -q 'fg-gen4-batterydata-apollo-sun-5000mah.dtsi' "$DTS"
+          grep -q 'qcom,nom-batt-capacity-mah = <5000>;' "$BAT"
+          # Raikiri's alioth network profile enables RMNET performance and SHS.
+          grep -q 'config RMNET_PERF' drivers/net/ethernet/qualcomm/rmnet/Kconfig
+          grep -Rqs 'config RMNET_SHS' drivers/net/ethernet/qualcomm/rmnet
+          git diff --check
+
+      - name: Configure FLOS with NoMount 2.2 and Raikiri RMNET profile
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          export ARCH=arm64
+          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+          make O=out vendor/alioth_defconfig
+          scripts/config --file out/.config \
+            --set-str LOCALVERSION '-FakeDreamer-FLOS2.2-VoWiFi-NM2.2-miui5k' \
+            -e NOMOUNT -e RMNET_PERF -e RMNET_SHS
+          make O=out olddefconfig
+          grep -qx 'CONFIG_BOARD_ALIOTH=y' out/.config
+          grep -qx 'CONFIG_NOMOUNT=y' out/.config
+          grep -qx 'CONFIG_RMNET_PERF=y' out/.config
+          grep -qx 'CONFIG_RMNET_SHS=y' out/.config
+          grep -qx 'CONFIG_QRTR=y' out/.config
+          grep -qx 'CONFIG_QRTR_MHI=y' out/.config
+          grep -qx 'CONFIG_CNSS2=y' out/.config
+          grep -qx 'CONFIG_CNSS2_QMI=y' out/.config
+          grep -qx 'CONFIG_IPA3=y' out/.config
+          grep -qx 'CONFIG_LOCALVERSION="-FakeDreamer-FLOS2.2-VoWiFi-NM2.2-miui5k"' out/.config
+          {
+            echo '# FakeDreamer FLOS 2.2 alioth configuration'
+            grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_RMNET_PERF=|CONFIG_RMNET_SHS=|CONFIG_QRTR=|CONFIG_QRTR_MHI=|CONFIG_CNSS2=|CONFIG_CNSS2_QMI=|CONFIG_IPA3=|CONFIG_LOCALVERSION=)' out/.config
+          } | tee "$GITHUB_WORKSPACE/config-report.txt"
+
+      - name: Build Image.gz, DTBs and DTBO
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+          export KBUILD_BUILD_USER='Tinieblass'
+          export KBUILD_BUILD_HOST='GitHub-Actions'
+          BUILD_LOG="$GITHUB_WORKSPACE/flos-build.log"
+          make O=out CC=clang LLVM=1 LLVM_IAS=1 -j"$(nproc)" Image.gz dtbs dtbo.img >"$BUILD_LOG" 2>&1 || {
+            rc=$?
+            echo "Build failed; last 250 lines:"
+            tail -n 250 "$BUILD_LOG" || true
+            exit "$rc"
+          }
+          tail -n 80 "$BUILD_LOG"
+
+      - name: Collect and verify alioth outputs
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          BOOT=out/arch/arm64/boot
+          test -s "$BOOT/Image.gz"
+          test -s "$BOOT/dtbo.img"
+          test -s "$BOOT/dtb.img"
+          test -s "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo"
+          mkdir -p "$GITHUB_WORKSPACE/flos-output"
+          cp "$BOOT/Image.gz" "$BOOT/dtbo.img" "$BOOT/dtb.img" "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo" "$GITHUB_WORKSPACE/flos-output/"
+          cp "$GITHUB_WORKSPACE/config-report.txt" "$GITHUB_WORKSPACE/flos-output/"
+          {
+            echo '# FakeDreamer FLOS 2.2 - POCO F3 / alioth'
+            echo
+            echo '- Source: re-noroi/kernel_sm8250 @ be837cd0f654f78f41cb3b4b65db56294e61dfa7'
+            echo '- Base: FakeDreamer FLOS 2.2 branch'
+            echo '- Network profile: FLOS CNSS2/QMI + QRTR/MHI/IPA3; Raikiri RMNET_PERF and RMNET_SHS enabled'
+            echo '- VoWiFi: compatibility build candidate; IMS/VoWiFi must be confirmed on-device'
+            echo '- NoMount: v2.2.0, built-in CONFIG_NOMOUNT=y'
+            echo '- Battery: existing J3S Sun 5000 mAh profile preserved'
+            echo '- Target: alioth / Android 16 HyperOS 3 test'
+            echo '- Artifacts are raw kernel/device-tree outputs; no device is flashed by CI'
+          } > "$GITHUB_WORKSPACE/flos-output/BUILD-REPORT.md"
+          (cd "$GITHUB_WORKSPACE/flos-output" && sha256sum * > SHA256SUMS.txt)
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fakedreamer-flos22-alioth-build-log
+          path: flos-build.log
+          if-no-files-found: ignore
+          compression-level: 6
+
+      - name: Upload FLOS kernel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fakedreamer-flos22-alioth-vowifi-nomount22-miui5k-raw
+          path: flos-output/
+          if-no-files-found: error
+          compression-level: 0
