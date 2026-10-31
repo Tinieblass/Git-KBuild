@@ -222,6 +222,10 @@ jobs:
             EXTRA="-W"
           elif [[ "${{ env.VARIANT }}" == "-OPLUS" ]]; then
             EXTRA="-OPLUS"
+          elif [[ "${{ env.VARIANT }}" == "-W-Oplus" ]]; then
+            EXTRA="-W-Oplus"
+          elif [[ "${{ env.VARIANT }}" == "legacy" ]]; then
+            EXTRA="-legacy"
           fi
           sed -i -e "s/CONFIG_LOCALVERSION=\"-FakeDreamer\"/CONFIG_LOCALVERSION=\"${{ env.CUSTOM_SED }}${EXTRA}\"/" arch/arm64/configs/vendor/alioth_defconfig
 
@@ -265,7 +269,7 @@ jobs:
           sed -i -e '/CONFIG_LTO_CLANG_FULL=y/c\# CONFIG_LTO_CLANG_FULL is not set;' arch/arm64/configs/vendor/alioth_defconfig
 
       - name: Oplus Features
-        if: ${{ env.VARIANT == '-OPLUS' }}
+        if: ${{ env.VARIANT == '-OPLUS' || env.VARIANT == '-W-Oplus' }}
         run: |
           cd kernel_tree
           sed -i -e '/# CONFIG_OPLUS_PORT is not set/c\CONFIG_OPLUS_PORT=y;' arch/arm64/configs/vendor/alioth_defconfig
@@ -423,6 +427,10 @@ jobs:
             EXTRA2="-W"
           elif [[ "${{ env.VARIANT }}" == "-OPLUS" ]]; then
             EXTRA2="-OPLUS"
+          elif [[ "${{ env.VARIANT }}" == "-W-Oplus" ]]; then
+            EXTRA2="-W-Oplus"
+          elif [[ "${{ env.VARIANT }}" == "legacy" ]]; then
+            EXTRA2="-legacy"
           fi
           echo "ZIP_NAME=[FD-][TEST-${{ env.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
 
