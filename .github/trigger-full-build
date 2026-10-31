@@ -1,1 +1,2 @@
 Launch alioth W J3S 5000mAh build from pinned bpf-testing base f7030790 with IPA wake-source fix, RMNET_PERF, KSU manager compatibility and NoMount 2.1. Package one validated recovery ZIP.
+IPA patch: include linux/pm_wakeup.h after linux/device.h before calling __pm_stay_awake/__pm_relax.
