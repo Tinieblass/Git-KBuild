@@ -1,2 +1,2 @@
 41203187437
-# Repackage with the corrected single-pass AnyKernel3 vendor_boot handling
+# Repackage the existing successful FLOS build with boot + active-slot DTBO only; do not flash vendor_boot.
