@@ -2,6 +2,11 @@ name: FD-tester-alioth-builder
 
 on:
   pull_request:
+  push:
+    branches:
+      - Tiw-MidoriSU-NX-alioth-test
+    paths:
+      - .github/workflows/alioth-tester-rebase.yml
   workflow_dispatch:
     inputs:
       KERNEL_TREE_1:
@@ -92,6 +97,20 @@ jobs:
     runs-on: ubuntu-latest
     env:
       UPLOAD_TO_RELEASE: false
+      KERNEL_TREE_1: ${{ env.KERNEL_TREE_1 || 'https://github.com/re-noroi/kernel_sm8250' }}
+      KERNEL_TREE_BRANCH_1: ${{ env.KERNEL_TREE_BRANCH_1 || 'freesia' }}
+      CODENAME: ${{ env.CODENAME || 'alioth' }}
+      ANYKERNEL_URL: ${{ env.ANYKERNEL_URL || 'https://github.com/re-noroi/anykernel3-test' }}
+      CUSTOM_SED: ${{ env.CUSTOM_SED || '-FakeDreamer' }}
+      COMPILER: ${{ env.COMPILER || 'r614150' }}
+      VARIANT: ${{ env.VARIANT || 'W-variant' }}
+      LTO_CHOICE: ${{ env.LTO_CHOICE || 'full_lto' }}
+      REMOVE_CYCLE_COUNT: ${{ env.REMOVE_CYCLE_COUNT || 'no' }}
+      ENABLE_NTSYNC: ${{ env.ENABLE_NTSYNC || 'true' }}
+      ENABLE_NOMOUNT: ${{ env.ENABLE_NOMOUNT || 'true' }}
+      ENABLE_RAIKIRI_VOWIFI: ${{ env.ENABLE_RAIKIRI_VOWIFI || 'true' }}
+      ENABLE_RW_SWAPPINESS: ${{ env.ENABLE_RW_SWAPPINESS || 'false' }}
+      ENABLE_BYPASS_CHARGING: ${{ env.ENABLE_BYPASS_CHARGING || 'false' }}
 
     steps:
       - name: Install Dependencies
@@ -99,15 +118,15 @@ jobs:
 
       - name: Download & Extract Clang
         run: |
-          if [[ "${{ github.event.inputs.COMPILER }}" == "r547379" ]]; then
+          if [[ "${{ env.COMPILER }}" == "r547379" ]]; then
             wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
             mkdir clang
             tar -xf clang.tar.gz -C clang
-          elif [[ "${{ github.event.inputs.COMPILER }}" == "r574158" ]]; then
+          elif [[ "${{ env.COMPILER }}" == "r574158" ]]; then
             wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/ebcc6c3bef363bc539ea39f45b6abae1dce6ff1a/clang-r574158.tar.gz -O clang.tar.gz
             mkdir clang
             tar -xf clang.tar.gz -C clang
-          elif [[ "${{ github.event.inputs.COMPILER }}" == "r614150" ]]; then
+          elif [[ "${{ env.COMPILER }}" == "r614150" ]]; then
             wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/747f0cceb48f48bf7cf497a3e01af1389266904b/clang-r614150.tar.gz -O clang.tar.gz
             mkdir clang
             tar -xf clang.tar.gz -C clang
@@ -120,26 +139,24 @@ jobs:
           
       - name: Set Kernel Environment Variables
         run: |
-          echo "KERNEL_TREE_BRANCH=${{ github.event.inputs.KERNEL_TREE_BRANCH_1 }}" >> $GITHUB_ENV
+          echo "KERNEL_TREE_BRANCH=${{ env.KERNEL_TREE_BRANCH_1 }}" >> $GITHUB_ENV
           
       - name: Checkout Kernel via PAT
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          if [[ "${{ github.event.inputs.KERNEL_TREE_1 }}" == "private" ]]; then
+          if [[ "${{ env.KERNEL_TREE_1 }}" == "private" ]]; then
             REPO_URL="https://x-access-token:${GH_PAT}@github.com/re-noroi/FD-private.git"
           else
-            REPO_URL="${{ github.event.inputs.KERNEL_TREE_1 }}"
+            REPO_URL="${{ env.KERNEL_TREE_1 }}"
           fi
           git clone --depth=1 --branch "${{ env.KERNEL_TREE_BRANCH }}" "${REPO_URL}" kernel_tree
 
-      # Raikiri carries RMNET_PERF in its alioth profile. FakeDreamer has the
-      # implementation sources and Kbuild, but its Kconfig symbol is not exposed
-      # by the top-level Kconfig. Expose it only for this optional profile.
-      # RMNET_SHS is deliberately NOT enabled: this FLOS revision has no SHS .c
-      # implementation files, so toggling its Kconfig would not build the driver.
-      - name: Wire Raikiri RMNET_PERF into the FLOS Kconfig
-        if: ${{ github.event.inputs.ENABLE_RAIKIRI_VOWIFI == 'true' }}
+      # FakeDreamer already contains both Raikiri RMNET modules. Their Kconfig
+      # entries were not exposed at top level; techpack/Kbuild already descends
+      # into techpack/data, whose Makefile includes both RMNET directories.
+      - name: Wire Raikiri RMNET_PERF and RMNET_SHS into FLOS Kconfig
+        if: ${{ env.ENABLE_RAIKIRI_VOWIFI == 'true' }}
         working-directory: kernel_tree
         run: |
           set -euo pipefail
@@ -147,62 +164,67 @@ jobs:
           from pathlib import Path
 
           root = Path("Kconfig")
-          perf_dir = Path("techpack/data/drivers/rmnet/perf")
+          perf = Path("techpack/data/drivers/rmnet/perf")
+          shs = Path("techpack/data/drivers/rmnet/shs")
           required = [
-              root,
-              perf_dir / "Kconfig",
-              perf_dir / "Kbuild",
-              perf_dir / "rmnet_perf_config.c",
-              perf_dir / "rmnet_perf_core.c",
-              perf_dir / "rmnet_perf_opt.c",
-              perf_dir / "rmnet_perf_tcp_opt.c",
-              perf_dir / "rmnet_perf_udp_opt.c",
-              Path("techpack/data/Makefile"),
-              Path("techpack/Kbuild"),
+              root, Path("techpack/Kbuild"), Path("techpack/data/Makefile"),
+              perf / "Kconfig", perf / "Kbuild",
+              perf / "rmnet_perf_config.c", perf / "rmnet_perf_core.c",
+              perf / "rmnet_perf_opt.c", perf / "rmnet_perf_tcp_opt.c",
+              perf / "rmnet_perf_udp_opt.c",
+              shs / "Kconfig", shs / "Kbuild",
+              shs / "rmnet_shs_config.c", shs / "rmnet_shs_main.c",
+              shs / "rmnet_shs_wq.c", shs / "rmnet_shs_freq.c",
+              shs / "rmnet_shs_wq_mem.c", shs / "rmnet_shs_wq_genl.c",
           ]
           missing = [str(p) for p in required if not p.is_file()]
           if missing:
-              raise SystemExit("Cannot integrate Raikiri RMNET_PERF; missing: " + ", ".join(missing))
+              raise SystemExit("Cannot integrate Raikiri RMNET modules; missing: " + ", ".join(missing))
 
           text = root.read_text()
-          entry = 'source "techpack/data/drivers/rmnet/perf/Kconfig"'
           anchor = 'source "drivers/Kconfig"'
-          if entry not in text:
-              if anchor not in text:
-                  raise SystemExit('Cannot locate source "drivers/Kconfig" in top-level Kconfig')
-              # RMNET is declared by drivers/Kconfig, so source the dependent
-              # RMNET_PERF option immediately after that Kconfig is loaded.
-              text = text.replace(
-                  anchor,
-                  anchor + '\n\n# Raikiri-compatible Qualcomm RMNET performance option.\n' + entry,
-                  1,
-              )
-              root.write_text(text)
+          if anchor not in text:
+              raise SystemExit('Cannot locate source "drivers/Kconfig" in top-level Kconfig')
+          entries = [
+              'source "techpack/data/drivers/rmnet/perf/Kconfig"',
+              'source "techpack/data/drivers/rmnet/shs/Kconfig"',
+          ]
+          for entry in entries:
+              if entry not in text:
+                  text = text.replace(
+                      anchor,
+                      anchor + '\n\n# Raikiri-compatible Qualcomm RMNET performance/SHS.\n' + entry,
+                      1,
+                  )
+          root.write_text(text)
 
-          # Verify the existing in-tree techpack descent will compile RMNET_PERF.
           data_make = Path("techpack/data/Makefile").read_text()
-          perf_kbuild = (perf_dir / "Kbuild").read_text()
-          if "obj-y += drivers/rmnet/perf/" not in data_make:
-              raise SystemExit("techpack/data/Makefile does not descend into RMNET_PERF")
-          if "obj-$(CONFIG_RMNET_PERF) += rmnet_perf.o" not in perf_kbuild:
-              raise SystemExit("RMNET_PERF Kbuild target is missing")
-          print("PASS: RMNET_PERF Kconfig and in-tree Kbuild path are wired.")
-          print("NOTE: RMNET_SHS is not enabled because its implementation sources are absent.")
+          for entry in ("obj-y += drivers/rmnet/perf/", "obj-y += drivers/rmnet/shs/"):
+              if entry not in data_make:
+                  raise SystemExit("techpack/data/Makefile is missing " + entry)
+          for folder, symbol, target in (
+              (perf, "CONFIG_RMNET_PERF", "rmnet_perf.o"),
+              (shs, "CONFIG_RMNET_SHS", "rmnet_shs.o"),
+          ):
+              if f"obj-$(${symbol}) += {target}" not in (folder / "Kbuild").read_text():
+                  raise SystemExit(f"{symbol} Kbuild target missing")
+          print("PASS: both RMNET_PERF and RMNET_SHS Kconfig/Kbuild paths are available.")
           PY
+          git diff --check
 
       - name: Kernel Version
         run: |
           cd kernel_tree
           EXTRA=""
-          if [[ "${{ github.event.inputs.VARIANT }}" == "W-variant" ]]; then
+          if [[ "${{ env.VARIANT }}" == "W-variant" ]]; then
             EXTRA="-W"
-          elif [[ "${{ github.event.inputs.VARIANT }}" == "oplus-variant" ]]; then
+          elif [[ "${{ env.VARIANT }}" == "oplus-variant" ]]; then
             EXTRA="-oplus"
           fi
-          sed -i -e "s/CONFIG_LOCALVERSION=\"-FakeDreamer\"/CONFIG_LOCALVERSION=\"${{ github.event.inputs.CUSTOM_SED }}${EXTRA}\"/" arch/arm64/configs/vendor/alioth_defconfig
+          sed -i -e "s/CONFIG_LOCALVERSION=\"-FakeDreamer\"/CONFIG_LOCALVERSION=\"${{ env.CUSTOM_SED }}${EXTRA}\"/" arch/arm64/configs/vendor/alioth_defconfig
 
       - name: Remove cycle count
-        if: ${{ github.event.inputs.REMOVE_CYCLE_COUNT == 'yes' }}
+        if: ${{ env.REMOVE_CYCLE_COUNT == 'yes' }}
         run: |
           cd kernel_tree
           sed -i '/case POWER_SUPPLY_PROP_CYCLE_COUNT:/,/break;/c\
@@ -228,20 +250,20 @@ jobs:
           patch -p1 -f < "0001-stock-gpu-freq.patch"
 
       - name: Disable MLGO flags for Neutron Clang
-        if: ${{ github.event.inputs.COMPILER == 'neutron' }}
+        if: ${{ env.COMPILER == 'neutron' }}
         run: |
           cd kernel_tree
           sed -i -e '/regalloc-enable-advisor/s/^/#/' -e '/enable-ml-inliner/s/^/#/' Makefile
 
       - name: Change LTO Type
-        if: ${{ github.event.inputs.LTO_CHOICE == 'thin_lto' }}
+        if: ${{ env.LTO_CHOICE == 'thin_lto' }}
         run: |
           cd kernel_tree
           sed -i -e '/# CONFIG_LTO_CLANG_THIN is not set/c\CONFIG_LTO_CLANG_THIN=y;' arch/arm64/configs/vendor/alioth_defconfig
           sed -i -e '/CONFIG_LTO_CLANG_FULL=y/c\# CONFIG_LTO_CLANG_FULL is not set;' arch/arm64/configs/vendor/alioth_defconfig
 
       - name: Oplus Features
-        if: ${{ github.event.inputs.VARIANT == 'oplus-variant' }}
+        if: ${{ env.VARIANT == 'oplus-variant' }}
         run: |
           cd kernel_tree
           sed -i -e '/# CONFIG_OPLUS_PORT is not set/c\CONFIG_OPLUS_PORT=y;' arch/arm64/configs/vendor/alioth_defconfig
@@ -268,16 +290,16 @@ jobs:
           }
 
           echo "==== Applying Extra Features ===="
-          toggle_config "CONFIG_NTSYNC" "${{ github.event.inputs.ENABLE_NTSYNC }}"
-          toggle_config "CONFIG_NOMOUNT" "${{ github.event.inputs.ENABLE_NOMOUNT }}"
-          toggle_config "CONFIG_RW_SWAPPINESS" "${{ github.event.inputs.ENABLE_RW_SWAPPINESS }}"
-          if [[ "${{ github.event.inputs.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
+          toggle_config "CONFIG_NTSYNC" "${{ env.ENABLE_NTSYNC }}"
+          toggle_config "CONFIG_NOMOUNT" "${{ env.ENABLE_NOMOUNT }}"
+          toggle_config "CONFIG_RW_SWAPPINESS" "${{ env.ENABLE_RW_SWAPPINESS }}"
+          if [[ "${{ env.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
             echo '==== Applying Raikiri-compatible Qualcomm modem/network profile ===='
             # Match the network stack present in the working Raikiri alioth defconfig.
             # Do not force RMNET_PERF/RMNET_SHS: they are not part of the buildable
             # FLOS kernel Kconfig path (the SHS source directory is absent).
             for feature in \
-              CONFIG_RMNET CONFIG_RMNET_PERF \
+              CONFIG_RMNET CONFIG_RMNET_PERF CONFIG_RMNET_SHS \
               CONFIG_CNSS2 CONFIG_CNSS2_QMI CONFIG_CNSS_ASYNC CONFIG_CNSS_GENL \
               CONFIG_QRTR CONFIG_QRTR_SMD CONFIG_QRTR_MHI \
               CONFIG_MHI_BUS CONFIG_MHI_QCOM CONFIG_MHI_NETDEV CONFIG_MHI_UCI CONFIG_MHI_SATELLITE \
@@ -287,7 +309,7 @@ jobs:
               toggle_config "$feature" 'true'
             done
           fi
-          toggle_config "CONFIG_BYPASS_CHARGING" "${{ github.event.inputs.ENABLE_BYPASS_CHARGING }}"
+          toggle_config "CONFIG_BYPASS_CHARGING" "${{ env.ENABLE_BYPASS_CHARGING }}"
           echo "================================="
 
       - name: Apply Modifications (if modified build)
@@ -312,9 +334,9 @@ jobs:
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           cd kernel_tree
           make O=out vendor/alioth_defconfig
-          if [[ "${{ github.event.inputs.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
+          if [[ "${{ env.ENABLE_RAIKIRI_VOWIFI }}" == 'true' ]]; then
             for cfg in \
-              CONFIG_RMNET CONFIG_RMNET_PERF \
+              CONFIG_RMNET CONFIG_RMNET_PERF CONFIG_RMNET_SHS \
               CONFIG_CNSS2 CONFIG_CNSS2_QMI CONFIG_CNSS_ASYNC CONFIG_CNSS_GENL \
               CONFIG_QRTR CONFIG_QRTR_SMD CONFIG_QRTR_MHI \
               CONFIG_MHI_BUS CONFIG_MHI_QCOM CONFIG_MHI_NETDEV CONFIG_MHI_UCI CONFIG_MHI_SATELLITE \
@@ -324,8 +346,8 @@ jobs:
               grep -qx "${cfg}=y" out/.config || { echo "ERROR: Raikiri-compatible network option ${cfg} did not survive Kconfig"; exit 1; }
             done
             grep -qx 'CONFIG_RMNET_PERF=y' out/.config || { echo 'ERROR: RMNET_PERF did not survive Kconfig'; exit 1; }
-            echo 'PASS: Raikiri-compatible Qualcomm modem/network stack + RMNET_PERF enabled and verified.'
-            echo 'NOTE: RMNET_SHS is intentionally omitted; this FLOS source revision lacks its implementation files.'
+            grep -qx 'CONFIG_RMNET_SHS=y' out/.config || { echo 'ERROR: RMNET_SHS did not survive Kconfig'; exit 1; }
+            echo 'PASS: Raikiri-compatible Qualcomm modem/network stack + RMNET_PERF + RMNET_SHS enabled and verified.'
           fi
           make O=out CC=clang HOSTCC=gcc HOSTCXX=g++ -j$(nproc --all) CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
           if [[ "${{ matrix.kernel }}" == 1 ]]; then
@@ -382,7 +404,7 @@ jobs:
           path: kernel-1-4
 
       - name: Clone AnyKernel3
-        run: git clone --recursive --depth=1 ${{ github.event.inputs.ANYKERNEL_URL }} -b main AnyKernel3-1
+        run: git clone --recursive --depth=1 ${{ env.ANYKERNEL_URL }} -b main AnyKernel3-1
 
       - name: Move Kernel Files to AnyKernel3
         run: |
@@ -395,12 +417,12 @@ jobs:
         run: |
           COMPILED_DATE=$(date +%Y%m%d)
           EXTRA2=""
-          if [[ "${{ github.event.inputs.VARIANT }}" == "W-variant" ]]; then
+          if [[ "${{ env.VARIANT }}" == "W-variant" ]]; then
             EXTRA2="-W"
-          elif [[ "${{ github.event.inputs.VARIANT }}" == "oplus-variant" ]]; then
+          elif [[ "${{ env.VARIANT }}" == "oplus-variant" ]]; then
             EXTRA2="-OPLUS"
           fi
-          echo "ZIP_NAME=[FD-][TEST-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
+          echo "ZIP_NAME=[FD-][TEST-${{ env.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
 
       - name: Upload Flashable Kernel Zip
         uses: actions/upload-artifact@v4
