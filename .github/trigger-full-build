@@ -4,3 +4,5 @@ Matrix: builds 1 and 2 only (J3S MIUI 5000mAh package).
 IPA wake-source patch: disabled for this isolation run.
 SRCU iterator compatibility fix: retained.
 Do not flash before reviewing build and ZIP.
+
+Diagnostic workflow syntax fix: trigger 2026-10-31.
