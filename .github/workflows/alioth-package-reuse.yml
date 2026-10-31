@@ -120,6 +120,45 @@ jobs:
           test -s AnyKernel3-1/alioth-j3s-dtbo-miui.img
           test -s AnyKernel3-1/alioth-effcpu-gpustk-dtb
 
+      # Alioth / HyperOS safety fix:
+      # The upstream AnyKernel3 template's write_boot() also writes vendor_boot,
+      # vendor_kernel_boot and vendor_dlkm. For this 4.19 alioth package we only
+      # replace boot (kernel + selected DTB) and the active-slot DTBO. Do not
+      # repack or flash vendor_boot from this package.
+      - name: Restrict AnyKernel installer to boot and active-slot DTBO
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("AnyKernel3-1/anykernel.sh")
+          text = path.read_text()
+          marker = "## AnyKernel install"
+          if text.count(marker) != 1:
+              raise SystemExit("Expected exactly one AnyKernel install section; refusing unsafe rewrite.")
+          prefix = text.split(marker, 1)[0]
+          install = """## AnyKernel install - alioth safe path (boot + active-slot DTBO only)
+          dump_boot;
+          # Repack the existing boot ramdisk with the selected kernel and DTB.
+          repack_ramdisk;
+          flash_boot;
+          # Flash only the DTBO matching the currently active A/B slot.
+          test -s dtbo.img || abort "Selected DTBO image is missing. Aborting...";
+          cp -f dtbo.img "dtbo$slot.img";
+          flash_generic "dtbo$slot";
+          ## end install
+          """
+          path.write_text(prefix + install)
+          PY
+          sh -n AnyKernel3-1/anykernel.sh
+          grep -q 'dump_boot;' AnyKernel3-1/anykernel.sh
+          grep -q 'repack_ramdisk;' AnyKernel3-1/anykernel.sh
+          grep -q 'flash_boot;' AnyKernel3-1/anykernel.sh
+          grep -q 'flash_generic "dtbo\$slot"' AnyKernel3-1/anykernel.sh
+          ! grep -Eq 'block=.*/vendor_boot|flash_generic vendor_boot|flash_generic vendor_kernel_boot|flash_generic vendor_dlkm' AnyKernel3-1/anykernel.sh
+          test "$(grep -c 'dump_boot;' AnyKernel3-1/anykernel.sh)" -eq 1
+          test "$(grep -c 'flash_boot;' AnyKernel3-1/anykernel.sh)" -eq 1
+
       - name: Create requested W-variant ZIP
         id: zip
         run: |
