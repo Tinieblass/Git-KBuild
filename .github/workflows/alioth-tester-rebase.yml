@@ -515,8 +515,12 @@ jobs:
           elif text.count(inc) == 1 and text.count(dec) == 1:
               if "__pm_stay_awake(ipa3_ctx->w_lock)" in text or "__pm_relax(ipa3_ctx->w_lock)" in text:
                   raise SystemExit("Partial IPA wake-source patch detected; refusing to guess.")
+              # pm_wakeup.h requires linux/device.h to have been included first.
               if '#include <linux/pm_wakeup.h>' not in text:
-                  raise SystemExit("IPA wakeup header is missing; refusing to add unresolved calls.")
+                  device_include = '#include <linux/device.h>\\n'
+                  if text.count(device_include) != 1:
+                      raise SystemExit("Cannot safely locate unique linux/device.h include.")
+                  text = text.replace(device_include, device_include + '#include <linux/pm_wakeup.h>\\n', 1)
               text = text.replace(inc, inc_fix, 1).replace(dec, dec_fix, 1)
               path.write_text(text)
               print("PATCHED: first IPA client now calls __pm_stay_awake(); last client calls __pm_relax().")
@@ -528,6 +532,8 @@ jobs:
               )
 
           verify = path.read_text()
+          if '#include <linux/pm_wakeup.h>' not in verify:
+              raise SystemExit("IPA wakeup header include verification failed.")
           if verify.count("__pm_stay_awake(ipa3_ctx->w_lock)") != 1:
               raise SystemExit("IPA acquire verification failed.")
           if verify.count("__pm_relax(ipa3_ctx->w_lock)") != 1:
