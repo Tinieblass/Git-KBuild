@@ -1,2 +1,2 @@
 41203187437
-# Repackage the existing successful FLOS build with boot + active-slot DTBO only; do not flash vendor_boot.
+# Repackage verified four kernel artifacts; canonical AnyKernel write_boot, no compiler or rebuild.
