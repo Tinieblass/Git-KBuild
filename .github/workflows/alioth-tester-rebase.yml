@@ -170,7 +170,7 @@ jobs:
               "\tlist_for_each_entry_rcu(pos, head, member, \\\n"
               "\t\tsrcu_read_lock_held(&wakeup_srcu))\n"
           )
-          if text.count("list_for_each_entry_rcu_locked") > 1:
+          if text.count("#define list_for_each_entry_rcu_locked") > 1:
               raise SystemExit("Unexpected multiple definitions/usages of the wakeup RCU iterator")
           if "#define list_for_each_entry_rcu_locked" in text:
               print("PASS: SRCU-aware wakeup iterator already defined; no change needed.")
