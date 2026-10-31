@@ -106,7 +106,7 @@ jobs:
           grep -qx 'CONFIG_CNSS2=y' out/.config
           grep -qx 'CONFIG_CNSS2_QMI=y' out/.config
           grep -qx 'CONFIG_IPA3=y' out/.config
-          grep -qx 'CONFIG_LOCALVERSION="-FakeDreamer-FLOS2.2-W-VoWiFi-J3S5000-NM2.2-KSU-bpf' out/.config
+          grep -Fqx 'CONFIG_LOCALVERSION="-FakeDreamer-FLOS2.2-W-VoWiFi-J3S5000-NM2.2-KSU-bpf"' out/.config
           {
             echo '# FakeDreamer FLOS 2.2 alioth configuration'
             grep -E '^(CONFIG_BOARD_ALIOTH=|CONFIG_NOMOUNT=|CONFIG_KSU=|CONFIG_RMNET=|CONFIG_QRTR=|CONFIG_QRTR_MHI=|CONFIG_CNSS2=|CONFIG_CNSS2_QMI=|CONFIG_IPA3=|CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_BPF_JIT=|CONFIG_BPF_JIT_ALWAYS_ON=|CONFIG_LOCALVERSION=)' out/.config
