@@ -468,11 +468,11 @@ jobs:
       - name: Define ZIP Name
         run: |
           COMPILED_DATE=$(date +%Y%m%d)
-          EXTRA2=""
+          EXTRA2="-j3s-miui-eff-uv"
           if [[ "${{ env.VARIANT }}" == "W-variant" ]]; then
-            EXTRA2="-W"
+            EXTRA2="-W-j3s-miui-eff-uv"
           elif [[ "${{ env.VARIANT }}" == "oplus-variant" ]]; then
-            EXTRA2="-OPLUS"
+            EXTRA2="-OPLUS-j3s-miui-eff-uv"
           fi
           echo "ZIP_NAME=[FD-][TEST-${{ env.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
 
