@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 
 TABLE_RE = re.compile(
-    r"qcom,((?:fcc[12]-temp|pc-temp-v[12]|pc-temp-[zy][1-6])-lut)\\s*\\{(.*?)\\n\\s*\\};",
+    r"qcom,((?:fcc[12]-temp|pc-temp-v[12]|pc-temp-[zy][1-6])-lut)\s*\{(.*?)\n\s*\};",
     re.S,
 )
 CELL_RE = re.compile(r"<([^<>]*)>")
@@ -25,7 +25,7 @@ def ints(text):
     return out
 
 def property_cells(block, name):
-    match = re.search(r"qcom," + re.escape(name) + r"\\s*=\\s*(.*?);", block, re.S)
+    match = re.search(r"qcom," + re.escape(name) + r"\s*=\s*(.*?);", block, re.S)
     if not match:
         return []
     return [ints(cell) for cell in CELL_RE.findall(match.group(1))]
@@ -70,9 +70,9 @@ def main():
     if not summary:
         raise SystemExit("No supported QG LUT tables found")
     with (args.output_dir / "SUMMARY.txt").open("w", encoding="utf-8") as handle:
-        handle.write("QG LUT extraction only; no Gen4 profile conversion.\\n")
+        handle.write("QG LUT extraction only; no Gen4 profile conversion.\n")
         for name, nr, nc, nv, filename in summary:
-            handle.write(f"{name}: rows={nr} cols={nc} values={nv} file={filename}\\n")
+            handle.write(f"{name}: rows={nr} cols={nc} values={nv} file={filename}\n")
     print(f"Extracted {len(summary)} tables to {args.output_dir}")
 
 if __name__ == "__main__":
