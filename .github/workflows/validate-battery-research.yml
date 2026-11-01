@@ -36,6 +36,7 @@ jobs:
           set -euo pipefail
           python3 tools/compare_alioth_gen4_profiles.py
           test -s research/battery/Gen4-Comparison/register-byte-comparison.csv
+          test -s research/battery/Gen4-Comparison/register-word-comparison.csv
           test -s research/battery/Gen4-Comparison/profile-metadata.csv
           grep -q "J3S provision cross-check: PASS" research/battery/Gen4-Comparison/README.md
 
