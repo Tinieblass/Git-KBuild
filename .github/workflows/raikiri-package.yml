@@ -97,8 +97,6 @@ jobs:
           do.systemless=0
           do.cleanup=1
           do.cleanuponabort=0
-          device.name1=alioth
-          supported.versions=16
           '; }
 
           BLOCK=boot;
@@ -108,30 +106,18 @@ jobs:
 
           . tools/ak3-core.sh;
 
-          # Keep installer output short and perform checks in the requested order.
-          # Device check intentionally omitted: the previous getprop-based
-          # check caused false negatives in OrangeFox recovery.
-          ui_print "Device check: skipped"
-
-          MIUI_VERSION="$(getprop ro.miui.ui.version.name)"
-          MIOS_VERSION="$(getprop ro.mi.os.version.name)"
-          BUILD_INCREMENTAL="$(getprop ro.build.version.incremental)"
-          case "$MIUI_VERSION $MIOS_VERSION $BUILD_INCREMENTAL" in
-            *HyperOS*|*hyperos*|*OS1.*|*OS2.*|*OS3.*|*OS4.*) ;;
-            *) abort "ROM check failed: HyperOS required" ;;
-          esac
-          ui_print "ROM: HyperOS OK"
+          # Informational labels only: no device, ROM, Android or battery checks.
+          ui_print "Device: alioth"
+          ui_print "ROM: HyperOS"
 
           # Default profile is stock; only the explicit -miui5k suffix selects 5000mAh.
           ZIP_BASENAME="$(basename "$ZIPFILE" .zip)"
           case "$ZIP_BASENAME" in
             *-miui5k)
-              [ -s dtbo-5k.img ] || abort "5000mAh DTBO missing"
               DTBO_IMAGE=dtbo-5k.img
               ui_print "Battery: 5000mAh"
               ;;
             *)
-              [ -s dtbo.img ] || abort "Stock DTBO missing"
               DTBO_IMAGE=dtbo.img
               ui_print "Battery: stock"
               ;;
@@ -172,6 +158,11 @@ jobs:
           unzip -p "$ZIP" anykernel.sh | grep -q 'supported.versions=16'
           unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel by Tinieblass'
           unzip -p "$ZIP" banner | grep -qx 'Flash Kernel by Tinieblass'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'Device: alioth'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'ROM: HyperOS'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'Battery: stock'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'Battery: 5000mAh'
+          ! unzip -p "$ZIP" anykernel.sh | grep -Eq 'supported\\.versions=|device\\.name[0-9]*=|ROM check failed|Unsupported device|Unsupported Android version'
           ! unzip -p "$ZIP" anykernel.sh | grep -q 'show_flash_animation'
           unzip -p "$ZIP" anykernel.sh | grep -q 'Device check: skipped'
           unzip -p "$ZIP" anykernel.sh | grep -q 'ROM: HyperOS OK'
