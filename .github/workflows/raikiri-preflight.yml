@@ -1,12 +1,6 @@
-name: Raikiri v1.7 - compatibility preflight
+name: Raikiri v1.7 - original MIUI5K battery preflight
 
 on:
-  push:
-    branches:
-      - Raikiri-Midori-NM
-    paths:
-      - '.github/workflows/raikiri-preflight.yml'
-      - 'scripts/prepare_raikiri_j3s.py'
   workflow_dispatch:
 
 permissions:
@@ -29,10 +23,12 @@ jobs:
           git -C kernel checkout --detach "$PIN"
           test "$(git -C kernel rev-parse HEAD)" = "$PIN"
 
-          echo "## J3S battery DTS preparation" | tee preflight-report.md
-          python3 scripts/prepare_raikiri_j3s.py kernel | tee -a preflight-report.md
-          git -C kernel diff -- arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi > j3s-dts.patch
-          test -s j3s-dts.patch
+          echo "## Original Raikiri v1.7 battery DTS preservation" | tee preflight-report.md
+          git -C kernel diff --exit-code -- arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-FMT-4520mah.dtsi arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-GY-4520mah.dtsi
+          grep -nE 'alioth_batterydata:|fg-gen4-batterydata-alioth-(FMT|GY)-4520mah' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi | tee -a preflight-report.md
+          ! grep -q 'j3s-batt-profile' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+          ! grep -q 'apollo-sun-5000mah' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+          echo "PASS: original battery DTS retained; no J3S overlay from the other branch." | tee -a preflight-report.md
 
           {
             echo
@@ -42,10 +38,10 @@ jobs:
             echo "- Pinned commit: $PIN"
             echo "- Kernel version: $(sed -n 's/^SUBLEVEL = /4.19./p' kernel/Makefile)"
             echo
-            echo "## Device and battery after isolated J3S preparation"
-            grep -nE 'alioth_batterydata:|fg-gen4-batterydata-(apollo-sun-5000mah|alioth-)|qcom,battery-data' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi || true
-            grep -nE 'qcom,(j3s-batt-profile|k11a-batt-profile|sun-profile-only|five-pin-battery)' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi || true
-            grep -nE 'nom-batt-capacity-mah|battery-type|six-pin|five-pin' kernel/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-apollo-sun-5000mah.dtsi || true
+            echo "## Device and original Raikiri battery configuration"
+            grep -nE 'alioth_batterydata:|fg-gen4-batterydata-alioth-(FMT|GY)-4520mah|qcom,battery-data' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi || true
+            grep -nE 'qcom,(k11a-batt-profile|sun-profile-only|five-pin-battery)' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi || true
+            grep -nE 'nom-batt-capacity-mah|battery-type|six-pin|five-pin' kernel/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-FMT-4520mah.dtsi kernel/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-GY-4520mah.dtsi || true
             echo
             echo "## Kernel config fragments"
             grep -nE 'CONFIG_(KSU|KSU_MANUAL_HOOK|NOMOUNT|MIDORI|SUSFS)' kernel/arch/arm64/configs/vendor/xiaomi/raikiri.config kernel/arch/arm64/configs/alioth_defconfig kernel/arch/arm64/configs/vendor/xiaomi/alioth.config || true
@@ -58,7 +54,7 @@ jobs:
             fi
             echo
             echo "## Build safety"
-            echo "This job only prepares and diffs the J3S DTS in a disposable checkout. It does not build a kernel/DTBO or produce a flashable ZIP."
+            echo "This job verifies the pinned original Raikiri battery DTS is unchanged. It does not build a kernel/DTBO or produce a flashable ZIP."
           } | tee -a preflight-report.md
 
       - name: Upload preflight report and DTS patch
@@ -67,4 +63,4 @@ jobs:
           name: raikiri-v17-preflight
           path: |
             preflight-report.md
-            j3s-dts.patch
+            preflight-report.md
