@@ -98,6 +98,32 @@ def main():
         vals = [v for row in matrix for v in row]
         lines.append(f"| {name} | {len(rows)} ({rows[0]} to {rows[-1]}) | {', '.join(map(str, cols))} | {fmt(min(vals))}–{fmt(max(vals))} |")
 
+    # Physical-unit cross-checks from the QG driver's documented scaling.
+    v1_rows, v1_cols, v1_matrix = tables["pc-temp-v1-lut"]
+    v2_rows, v2_cols, v2_matrix = tables["pc-temp-v2-lut"]
+    fcc1_cols, fcc1_values = tables["fcc1-temp-lut"][1], tables["fcc1-temp-lut"][2][0]
+    fcc2_cols, fcc2_values = tables["fcc2-temp-lut"][1], tables["fcc2-temp-lut"][2][0]
+    v1_temp_index = v1_cols.index(25)
+    v2_temp_index = v2_cols.index(25)
+    fcc1_25 = fcc1_values[fcc1_cols.index(25)]
+    fcc2_25 = fcc2_values[fcc2_cols.index(25)]
+    lines += [
+        "",
+        "## Reference values at 25 °C",
+        "",
+        "The QG driver documents OCV table values as input microvolts divided by 100; therefore raw LUT value / 10 = mV. FCC values are returned in mAh.",
+        "",
+        f"- FCC1 at 25 °C: {fcc1_25} mAh",
+        f"- FCC2 at 25 °C: {fcc2_25} mAh",
+        "",
+        "| SOC | OCV v1 (charging, mV) | OCV v2 (discharging, mV) |",
+        "|---:|---:|---:|",
+    ]
+    for target_soc in (10000, 9000, 5000, 1000, 0):
+        i1 = v1_rows.index(target_soc)
+        i2 = v2_rows.index(target_soc)
+        lines.append(f"| {target_soc / 100:.0f}% | {v1_matrix[i1][v1_temp_index] / 10:.1f} | {v2_matrix[i2][v2_temp_index] / 10:.1f} |")
+
     lines += [
         "",
         "## Auxiliary Z/Y VAR surfaces (units not identified)",
