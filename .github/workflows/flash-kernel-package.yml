@@ -94,7 +94,6 @@ jobs:
           do.cleanup=1
           do.cleanuponabort=0
           device.name1=alioth
-          supported.versions=16
           '; }
 
           BLOCK=boot;
@@ -107,19 +106,11 @@ jobs:
           ui_print 'Flash kernel by Tinieblass';
           DEVICE=$(getprop ro.product.device);
           [ -n "$DEVICE" ] || DEVICE=$(getprop ro.build.product);
-          if [ "$DEVICE" != 'alioth' ]; then
-            ui_print 'ERROR: este ZIP solo admite alioth';
-            abort 'Dispositivo no compatible';
-          fi;
-          ui_print 'Dispositivo: alioth OK';
+          [ -n "$DEVICE" ] || DEVICE='desconocido';
+          ui_print "Dispositivo detectado: $DEVICE (informativo)";
           INCREMENTAL=$(getprop ro.build.version.incremental);
-          case "$INCREMENTAL" in
-            OS3*) ui_print 'HyperOS: detectado' ;;
-            *)
-              ui_print 'ERROR: no se detecta HyperOS 3';
-              abort 'ROM no compatible: se requiere HyperOS 3';
-              ;;
-          esac;
+          [ -n "$INCREMENTAL" ] || INCREMENTAL='desconocida';
+          ui_print "ROM/build detectado: $INCREMENTAL (informativo)";
           ZIP_BASENAME="$(basename "$ZIPFILE" .zip)";
           case "$ZIP_BASENAME" in
             *-5k)
@@ -158,8 +149,12 @@ jobs:
           unzip -p "$ZIP" dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-dtbo.sha
           sha256sum raw/dtbo-5k.img | awk '{print $1}' > raw-5k-dtbo.sha
           diff -u raw-5k-dtbo.sha packaged-5k-dtbo.sha
-          unzip -p "$ZIP" anykernel.sh | grep -q 'device.name1=alioth'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'supported.versions=16'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'Dispositivo detectado:'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'ROM/build detectado:'
+          if unzip -p "$ZIP" anykernel.sh | grep -Eq 'abort .*Dispositivo no compatible|abort .*ROM no compatible|supported.versions='; then
+            echo 'ERROR: quedan restricciones de dispositivo, ROM o Android' >&2
+            exit 1
+          fi
           unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'ZIP_BASENAME'
