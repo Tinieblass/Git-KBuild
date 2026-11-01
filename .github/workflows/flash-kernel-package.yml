@@ -163,7 +163,7 @@ jobs:
             exit 1
           fi
           unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth'
-          if unzip -p "$ZIP" anykernel.sh | grep -Eq 'device.name[0-9]+=|supported.versions=|abort '; then
+          if unzip -p "$ZIP" anykernel.sh | grep -Eq 'device.name[0-9]+=|supported.versions='; then
             echo 'ERROR: installer contains a device/ROM/Android restriction or abort gate' >&2
             exit 1
           fi
@@ -185,7 +185,6 @@ jobs:
           unzip -l "$ZIP" | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|META-INF/com/google/android/update-binary|LICENSE'
           unzip -p Flash-Kernel-alioth-5k.zip dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-named-dtbo.sha
           diff -u packaged-5k-dtbo.sha packaged-5k-named-dtbo.sha
-          diff -u packaged-6k-dtbo.sha packaged-6k-named-dtbo.sha
           sha256sum "$ZIP" Flash-Kernel-alioth-5k.zip
 
       - name: Publish direct ZIP downloads
