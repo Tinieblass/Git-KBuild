@@ -1,13 +1,7 @@
 name: Package Flash Kernel - alioth (KowSU + NoMount 2.2)
 
 on:
-  workflow_run:
-    workflows:
-      - Raikiri v1.7 - alioth stock (KowSU + backslashxx 3.3.1-35)
-    types:
-      - completed
-    branches:
-      - Flash-Kernel-alioth-miui5k
+  workflow_dispatch:
 
 permissions:
   actions: read
@@ -15,7 +9,6 @@ permissions:
 
 jobs:
   package:
-    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -27,7 +20,7 @@ jobs:
         with:
           name: raikiri-v17-alioth-stock-kowsu-nm22-raw
           path: raw
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: 41300917175
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download verified J3S 5000mAh DTBO build
