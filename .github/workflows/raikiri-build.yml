@@ -3,11 +3,11 @@ name: Flash Kernel - alioth
 on:
   push:
     branches:
-      - Raikiri-Midori-NM
+      - Flash-Kernel
     paths:
       - '.github/workflows/raikiri-build.yml'
       - 'scripts/prepare_raikiri_backslashxx.py'
-  # Manual launch for the alioth stock-battery validation build.
+  # Flash Kernel alioth build; J3S 5k DTBO is sourced from a separately verified artifact.
   workflow_dispatch:
 
 permissions:
