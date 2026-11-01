@@ -1,4 +1,4 @@
-name: Package Raikiri v1.7 - alioth stock (KowSU + NoMount 2.2)
+name: Package Flash Kernel - alioth (KowSU + NoMount 2.2)
 
 on:
   push:
@@ -57,18 +57,32 @@ jobs:
           test -f anykernel/META-INF/com/google/android/update-binary
           rm -rf anykernel/.git anykernel/.github anykernel/README.md
 
-      - name: Assemble general alioth stock installer
+      - name: Assemble general alioth installer
         run: |
           set -euo pipefail
           cp raw/Image.gz anykernel/Image.gz
           cp raw/dtbo.img anykernel/dtbo.img
+          # A verified 5000mAh DTBO is optional; never relabel stock DTBO as 5k.
+          if [ -s raw/dtbo-5k.img ]; then
+            cp raw/dtbo-5k.img anykernel/dtbo-5k.img
+          fi
+          cat > anykernel/banner <<'BANNER'
+           ______ _      _____  _____ _    _
+          |  ____| |    / ____|/ ____| |  | |
+          | |__  | |   | (___ | |    | |  | |
+          |  __| | |    \___ \| |    | |  | |
+          | |    | |____ ____) | |____| |__| |
+          |_|    |______|_____/ \_____|\____/
+                    ⚡ FLASH KERNEL ⚡
+                       POCO F3 / alioth
+          BANNER
           cat > anykernel/anykernel.sh <<'AK3'
-          ### Flash Kernel - POCO F3 / alioth - stock
+          ### Flash Kernel - POCO F3 / alioth
           ## KowSU-compatible backslashxx KernelSU 3.3.1-35 + NoMount 2.2.0
           ## Unofficial package; built from pinned Raikiri v1.7 source.
 
           properties() { '
-          kernel.string=Flash Kernel alioth - stock DTBO - KowSU + NoMount 2.2.0 (unofficial)
+          kernel.string=Flash Kernel alioth - KowSU + NoMount 2.2.0 (unofficial)
           do.devicecheck=1
           do.modules=0
           do.systemless=0
@@ -85,20 +99,34 @@ jobs:
 
           . tools/ak3-core.sh;
 
+          # Select the battery DTBO from the ZIP filename, not the recovery ROM name.
+          ZIP_BASENAME="$(basename "$ZIPFILE" .zip)"
+          case "$ZIP_BASENAME" in
+            *-5k)
+              [ -s dtbo-5k.img ] || abort "This ZIP is named -5k but the verified 5000mAh DTBO is missing. No partitions were changed."
+              DTBO_IMAGE=dtbo-5k.img
+              ui_print "Battery profile: 5000mAh"
+              ;;
+            *)
+              DTBO_IMAGE=dtbo.img
+              ui_print "Battery profile: stock"
+              ;;
+          esac
+
           # Preserve the installed boot ramdisk and replace only the kernel.
           dump_boot;
-          # Flash the matching active-slot DTBO before touching boot.
-          cp -f dtbo.img dtbo$SLOT.img;
+          # Flash the selected active-slot DTBO before touching boot.
+          cp -f "$DTBO_IMAGE" dtbo$SLOT.img;
           flash_generic dtbo$SLOT;
           repack_ramdisk;
           flash_boot;
           AK3
-          (cd anykernel && zip -qr9 ../Flash-Kernel-alioth-stock.zip . -x '.git/*' '.github/*' 'README.md')
+          (cd anykernel && zip -qr9 ../Flash-Kernel-alioth.zip . -x '.git/*' '.github/*' 'README.md')
 
       - name: Validate installer structure and embedded binaries
         run: |
           set -euo pipefail
-          ZIP=Raikiri-v1.7-alioth-miui5k-KowSU-NoMount2.2.zip
+          ZIP=Flash-Kernel-alioth.zip
           unzip -t "$ZIP"
           unzip -p "$ZIP" Image.gz | sha256sum | awk '{print $1}' > packaged-image.sha
           sha256sum raw/Image.gz | awk '{print $1}' > raw-image.sha
@@ -108,20 +136,22 @@ jobs:
           diff -u raw-dtbo.sha packaged-dtbo.sha
           unzip -p "$ZIP" anykernel.sh | grep -q 'device.name1=alioth'
           unzip -p "$ZIP" anykernel.sh | grep -q 'supported.versions=16'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth - stock DTBO'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
+          unzip -p "$ZIP" anykernel.sh | grep -Fq 'ZIP_BASENAME'
+          unzip -p "$ZIP" anykernel.sh | grep -Fq 'dtbo-5k.img'
           unzip -p "$ZIP" anykernel.sh | grep -q 'flash_boot'
           if unzip -p "$ZIP" anykernel.sh | grep -Eq 'write_boot|flash_generic (vendor_dlkm|system_dlkm)'; then
             echo 'ERROR: wrong battery branch or unrelated partition write detected' >&2
             exit 1
           fi
-          unzip -l "$ZIP" | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|META-INF/com/google/android/update-binary|LICENSE'
+          unzip -l "$ZIP" | grep -E 'anykernel.sh|banner|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|META-INF/com/google/android/update-binary|LICENSE'
           sha256sum "$ZIP"
 
-      - name: Upload general flashable alioth stock installer
+      - name: Upload general flashable alioth installer
         uses: actions/upload-artifact@v4
         with:
-          name: Flash-Kernel-alioth-stock-flashable
-          path: Raikiri-v1.7-alioth-miui5k-KowSU-NoMount2.2.zip
+          name: Flash-Kernel-alioth-flashable
+          path: Flash-Kernel-alioth.zip
           if-no-files-found: error
           compression-level: 0
