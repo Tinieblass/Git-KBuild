@@ -33,7 +33,7 @@ Flash Kernel is derivative work, not a claim of original authorship over upstrea
 - [ ] Import complete corresponding source and audit licenses.
 - [ ] Reproduce original Raikiri v1.7 alioth DTBO outputs in Flash build.
 - [x] Add reproducible raw-artifact packaging workflow and branded AnyKernel3 recovery banner.
-- [ ] Add and verify the distinct 5000 mAh alioth DTBO before enabling the `-5k` package path.
+- [x] Bundle and checksum-verify the distinct J3S Sun 5000 mAh alioth DTBO from the matching Raikiri v1.7 source build.
 - [ ] Publish first Flash Kernel test build after preflight checks pass.
 
 **Device:** POCO F3 · **Codename:** alioth · **Target:** HyperOS / Android 16
