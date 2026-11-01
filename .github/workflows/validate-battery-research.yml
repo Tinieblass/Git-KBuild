@@ -47,7 +47,7 @@ jobs:
       - name: Extract all M703 QG LUTs and verify table count
         run: |
           set -euo pipefail
-          OUT="$RUNNER_TEMP/m703-qg-luts"
+          OUT="research/battery/M703-QG-Comparison/LUTs"
           python3 tools/extract_qg_battery_luts.py research/battery/M703-ATL-6000mah.dtsi "$OUT"
           test "$(find "$OUT" -maxdepth 1 -name '*.csv' | wc -l)" -eq 16
           grep -q 'pc-temp-z6-lut' "$OUT/SUMMARY.txt"
