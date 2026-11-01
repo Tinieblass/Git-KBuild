@@ -109,7 +109,6 @@ jobs:
           . tools/ak3-core.sh;
 
           # Keep installer output short and perform checks in the requested order.
-          ui_print "Flash Kernel by Tinieblass"
           DEVICE="$(getprop ro.product.device)"
           [ -n "$DEVICE" ] || DEVICE="$(getprop ro.product.vendor.device)"
           [ "$DEVICE" = "alioth" ] || abort "Device check failed: alioth required"
