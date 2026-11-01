@@ -73,8 +73,15 @@ jobs:
           |  __| | |    \___ \| |    | |  | |
           | |    | |____ ____) | |____| |__| |
           |_|    |______|_____/ \_____|\____/
-                    ⚡ FLASH KERNEL ⚡
-                       POCO F3 / alioth
+                    /|
+                   / |
+                  /  |
+                 /___|
+                     /
+                    /
+                   /____
+                   FLASH KERNEL
+                   POCO F3 / alioth
           BANNER
           cat > anykernel/anykernel.sh <<'AK3'
           ### Flash Kernel - POCO F3 / alioth
