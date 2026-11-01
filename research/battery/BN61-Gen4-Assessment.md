@@ -22,6 +22,29 @@
    - Driver defines `PROFILE_LEN = 416`, rejects any other length, copies the bytes as an opaque profile payload, and separately parses metadata such as nominal capacity, thermistor coefficients, and rslow coefficients.
    - The driver does not provide a QG-LUT-to-Gen4 profile conversion routine.
 
+## Extracted QG data inventory
+
+The M703 source was parsed and all **16 LUTs / 4323 scalar entries** passed row/column dimension checks. The normalized long-form dataset is `M703-ATL-6000mah-LUTs.csv`; the extractor can regenerate per-table CSV files.
+
+| LUT | Rows | Columns | Values |
+|---|---:|---:|---:|
+| `fcc1-temp-lut` | 1 | 5 | 5 |
+| `fcc2-temp-lut` | 1 | 6 | 6 |
+| `pc-temp-v1-lut` | 56 | 5 | 280 |
+| `pc-temp-v2-lut` | 56 | 6 | 336 |
+| `pc-temp-z1-lut` | 56 | 5 | 280 |
+| `pc-temp-z2-lut` | 56 | 5 | 280 |
+| `pc-temp-z3-lut` | 56 | 5 | 280 |
+| `pc-temp-z4-lut` | 56 | 5 | 280 |
+| `pc-temp-z5-lut` | 56 | 5 | 280 |
+| `pc-temp-z6-lut` | 56 | 5 | 280 |
+| `pc-temp-y1-lut` | 56 | 6 | 336 |
+| `pc-temp-y2-lut` | 56 | 6 | 336 |
+| `pc-temp-y3-lut` | 56 | 6 | 336 |
+| `pc-temp-y4-lut` | 56 | 6 | 336 |
+| `pc-temp-y5-lut` | 56 | 6 | 336 |
+| `pc-temp-y6-lut` | 56 | 6 | 336 |
+
 ## BN61 data currently known
 
 - Battery model: Nohon BN61, labelled 5850 mAh rated / 6000 mAh typical, 3.87 V nominal, 4.45 V charge limit (vendor listing/manual data; not an electrical characterization dataset).
