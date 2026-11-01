@@ -1,4 +1,4 @@
-name: FD-tester-alioth-builder
+name: Flash Kernel | alioth | Tester
 
 on:
   pull_request:
@@ -22,7 +22,7 @@ on:
         required: false
       CUSTOM_SED:
         description: 'Custom Kernel Version'
-        default: '-FakeDreamer'
+        default: '-Tinieblass'
         required: false
       COMPILER:
         description: 'Choose compiler'
@@ -229,8 +229,8 @@ jobs:
           export PATH="$(pwd)/clang/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=ARM64
-          export KBUILD_BUILD_USER="renoroi"
-          export KBUILD_BUILD_HOST="dreamstate"
+          export KBUILD_BUILD_USER="Tinieblass"
+          export KBUILD_BUILD_HOST="FlashKernel"
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           cd kernel_tree
           make O=out vendor/alioth_defconfig
@@ -307,7 +307,7 @@ jobs:
           elif [[ "${{ github.event.inputs.VARIANT }}" == "oplus-variant" ]]; then
             EXTRA2="-OPLUS"
           fi
-          echo "ZIP_NAME=[FD-][TEST-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
+          echo "ZIP_NAME=[FlashKernel][TEST-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
 
       - name: Upload Flashable Kernel Zip
         uses: actions/upload-artifact@v4
