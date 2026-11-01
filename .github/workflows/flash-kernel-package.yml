@@ -46,9 +46,6 @@ jobs:
           test -s alioth-sm8250-overlay.dtbo
           grep -qF 'Target: POCO F3 / alioth / HyperOS 3 / Android 16' BUILD-REPORT.md
           grep -qF 'Stock profile: FMT/GY 4520mAh, original DTBO retained' BUILD-REPORT.md
-          grep -qF 'BN61 profile: J3S Sun curve retained; nominal capacity set to 5850mAh in profile DT and FG SRAM NOM_CAP_WORD' BUILD-REPORT.md
-          test -s dtbo-6k.img
-          ! cmp -s dtbo.img dtbo-6k.img
           grep -qF 'VoWiFi/IMS: upstream code retained; no IMS source files changed by this workflow' BUILD-REPORT.md
           grep -qx 'CONFIG_KSU=y' <(grep '^CONFIG_KSU=' config-report.txt)
           grep -qx 'CONFIG_KSU_HACK_ARM64_BRANCH_LINK=y' <(grep '^CONFIG_KSU_HACK_ARM64_BRANCH_LINK=' config-report.txt)
@@ -68,11 +65,10 @@ jobs:
           cp dtbo.img ../raw/dtbo-5k.img
           echo 'PASS: distinct J3S Sun 5000mAh DTBO verified from the same pinned kernel source.'
           cd ../raw
-          test -s dtbo-6k.img
-          grep -qF '5850mAh' BUILD-REPORT.md
-          grep -qF 'FG SRAM NOM_CAP_WORD' BUILD-REPORT.md
-          ! cmp -s dtbo.img dtbo-6k.img
-          echo 'PASS: distinct BN61 5850mAh DTBO and FG SRAM capacity integration verified.'
+          grep -qF 'BN61 profile: RESERVED (-6K); no DTBO generated pending validated Gen4 electrical characterization' BUILD-REPORT.md
+          test -s BN61-STATUS.txt
+          grep -qF 'RESERVED / NOT BUILT' BN61-STATUS.txt
+          echo 'PASS: BN61 is deliberately excluded until a validated Gen4 profile exists.'
 
       - name: Fetch pinned AnyKernel3 template
         run: |
@@ -91,7 +87,6 @@ jobs:
           cp raw/Image.gz anykernel/Image.gz
           cp raw/dtbo.img anykernel/dtbo.img
           cp raw/dtbo-5k.img anykernel/dtbo-5k.img
-          cp raw/dtbo-6k.img anykernel/dtbo-6k.img
           cat > anykernel/anykernel.sh <<'AK3'
           ### Flash Kernel - POCO F3 / alioth
           ## Unofficial package by Tinieblass.
@@ -123,8 +118,7 @@ jobs:
           ZIP_BASENAME="$(basename "$ZIPFILE" .zip)";
           case "$ZIP_BASENAME" in
             *-6K|*-6k)
-              DTBO_IMAGE=dtbo-6k.img;
-              ui_print 'Bateria: BN61 5850mAh';
+              abort 'BN61 5850mAh (-6K) is reserved and is not available in this build.';
               ;;
             *-5k|*-5K)
               DTBO_IMAGE=dtbo-5k.img;
@@ -146,7 +140,6 @@ jobs:
           AK3
           (cd anykernel && zip -qr9 ../Flash-Kernel-alioth.zip . -x '.git/*' '.github/*' 'README.md')
           cp Flash-Kernel-alioth.zip Flash-Kernel-alioth-5k.zip
-          cp Flash-Kernel-alioth.zip Flash-Kernel-alioth-6K.zip
 
       - name: Validate installer structure and embedded binaries
         run: |
@@ -154,7 +147,6 @@ jobs:
           ZIP=Flash-Kernel-alioth.zip
           unzip -t "$ZIP"
           unzip -t Flash-Kernel-alioth-5k.zip
-          unzip -t Flash-Kernel-alioth-6K.zip
           unzip -p "$ZIP" Image.gz | sha256sum | awk '{print $1}' > packaged-image.sha
           sha256sum raw/Image.gz | awk '{print $1}' > raw-image.sha
           diff -u raw-image.sha packaged-image.sha
@@ -164,9 +156,6 @@ jobs:
           unzip -p "$ZIP" dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-dtbo.sha
           sha256sum raw/dtbo-5k.img | awk '{print $1}' > raw-5k-dtbo.sha
           diff -u raw-5k-dtbo.sha packaged-5k-dtbo.sha
-          unzip -p "$ZIP" dtbo-6k.img | sha256sum | awk '{print $1}' > packaged-6k-dtbo.sha
-          sha256sum raw/dtbo-6k.img | awk '{print $1}' > raw-6k-dtbo.sha
-          diff -u raw-6k-dtbo.sha packaged-6k-dtbo.sha
           unzip -p "$ZIP" anykernel.sh | grep -q 'Dispositivo detectado:'
           unzip -p "$ZIP" anykernel.sh | grep -q 'ROM/build detectado:'
           if unzip -p "$ZIP" anykernel.sh | grep -Eq 'abort .*Dispositivo no compatible|abort .*ROM no compatible|supported.versions='; then
@@ -185,9 +174,8 @@ jobs:
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'ZIP_BASENAME'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'dtbo-5k.img'
-          unzip -p "$ZIP" anykernel.sh | grep -Fq 'dtbo-6k.img'
           unzip -p "$ZIP" anykernel.sh | grep -q 'Bateria: J3S Sun 5000mAh'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'Bateria: BN61 5850mAh'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'BN61 5850mAh (-6K) is reserved'
           unzip -p "$ZIP" anykernel.sh | grep -q 'Bateria: stock'
           unzip -p "$ZIP" anykernel.sh | grep -q 'flash_boot'
           if unzip -p "$ZIP" anykernel.sh | grep -Eq 'write_boot|flash_generic (vendor_dlkm|system_dlkm)'; then
@@ -197,9 +185,8 @@ jobs:
           unzip -l "$ZIP" | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|META-INF/com/google/android/update-binary|LICENSE'
           unzip -p Flash-Kernel-alioth-5k.zip dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-named-dtbo.sha
           diff -u packaged-5k-dtbo.sha packaged-5k-named-dtbo.sha
-          unzip -p Flash-Kernel-alioth-6K.zip dtbo-6k.img | sha256sum | awk '{print $1}' > packaged-6k-named-dtbo.sha
           diff -u packaged-6k-dtbo.sha packaged-6k-named-dtbo.sha
-          sha256sum "$ZIP" Flash-Kernel-alioth-5k.zip Flash-Kernel-alioth-6K.zip
+          sha256sum "$ZIP" Flash-Kernel-alioth-5k.zip
 
       - name: Publish direct ZIP downloads
         env:
@@ -207,4 +194,4 @@ jobs:
         run: |
           set -euo pipefail
           TAG="flash-kernel-alioth-${GITHUB_RUN_NUMBER}"
-          gh release create "$TAG" Flash-Kernel-alioth.zip Flash-Kernel-alioth-5k.zip Flash-Kernel-alioth-6K.zip --title "Flash Kernel alioth - build ${GITHUB_RUN_NUMBER}" --notes "Flash Kernel for POCO F3 / alioth. No device, ROM or Android version gates. Stock: no suffix. J3S Sun 5000mAh: suffix -5k. BN61 5850mAh: suffix -6K."
+          gh release create "$TAG" Flash-Kernel-alioth.zip Flash-Kernel-alioth-5k.zip --title "Flash Kernel alioth - build ${GITHUB_RUN_NUMBER}" --notes "Flash Kernel for POCO F3 / alioth. Stock: no suffix. J3S Sun 5000mAh: suffix -5k. BN61 5850mAh (-6K) is reserved and is not included pending a validated Gen4 profile."
