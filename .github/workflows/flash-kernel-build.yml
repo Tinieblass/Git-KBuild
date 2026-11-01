@@ -110,6 +110,9 @@ jobs:
           scripts/config --file out/.config --disable KSU_TAMPER_SYSCALL_TABLE
           scripts/config --file out/.config --enable NOMOUNT
           make O=out olddefconfig
+          # Override the upstream config fragment's legacy local version.
+          scripts/config --file out/.config --set-str LOCALVERSION "-FlashKernel"
+          make O=out olddefconfig
           grep -qx 'CONFIG_NOMOUNT=y' out/.config
           grep -qx 'CONFIG_KSU=y' out/.config
           grep -qx 'CONFIG_KSU_HACK_ARM64_BRANCH_LINK=y' out/.config
