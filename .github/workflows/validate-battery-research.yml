@@ -7,7 +7,8 @@ on:
     paths:
       - "research/battery/**"
       - "tools/extract_qg_battery_luts.py"
-      - "tools/analyze_bn61_reference.py"\n      - "tools/compare_m703_qg_profiles.py"
+      - "tools/analyze_bn61_reference.py"
+      - "tools/compare_m703_qg_profiles.py"
       - "tools/compare_alioth_gen4_profiles.py"
       - "tools/validate_battery_research.py"
       - ".github/workflows/validate-battery-research.yml"
