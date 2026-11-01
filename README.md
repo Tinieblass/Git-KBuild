@@ -2,19 +2,17 @@
 
 Automated Android kernel builds powered by GitHub Actions.
 
-This repository contains the build workflows and configuration used by **Flash Kernel by Tinieblass**. It is designed to build supported Xiaomi Mi-Kona devices from the selected kernel source and package the resulting files into flashable ZIP archives.
+This repository contains the build workflows and configuration for **Flash Kernel by Tinieblass**, focused exclusively on the **POCO F3 (`alioth`)**.
 
-## Supported devices
+## Supported device
 
-- **POCO F3 / Redmi K40** — `alioth`
-- **Mi 10T / Mi 10T Pro** — `apollo`
-- **POCO X3 GT** — `munch`
+- **POCO F3** — `alioth`
 
-Support depends on the kernel source and its configuration. Not every source supports every device.
+This project is intended for `alioth` only. Other devices are not supported or published by this project. Using a different kernel source URL does not add support for another device.
 
 ## Build features
 
-- GitHub Actions workflows for test and release builds.
+- GitHub Actions workflows for alioth test and release builds.
 - Selectable Clang toolchains, including the configured LLVM/Neutron-Clang options.
 - Configurable AnyKernel3 packaging repository.
 - Configurable kernel version suffix.
@@ -24,30 +22,30 @@ Support depends on the kernel source and its configuration. Not every source sup
 ## How to build
 
 1. Open the **Actions** tab.
-2. Select the appropriate **Tester** or **Release** workflow.
+2. Select the **alioth Tester** or **alioth Release** workflow.
 3. Click **Run workflow** and complete the available inputs:
    - **AnyKernel Repo:** URL of the AnyKernel3 repository to use.
    - **Custom Kernel Version:** optional suffix for the build version.
    - **Choose compiler:** select one of the toolchains offered by the workflow.
    - **LTO_CHOICE:** select the supported LTO mode.
-   - **OPLUS features:** enable only when the target kernel source requires and supports them.
+   - **OPLUS features:** enable only when the selected kernel source requires and supports them.
 4. Start the workflow and follow its progress in the Actions tab.
 
-The exact options and compatibility depend on the workflow and kernel source currently selected.
+The exact options and compatibility depend on the selected kernel source and the alioth configuration.
 
 ## Build outputs
 
 The workflows package the generated kernel images and device-tree files into ZIP archives.
 
-- **Tester:** produces a test build archive.
-- **Release:** produces the release archives configured by the workflow.
+- **Tester:** produces an alioth test build archive.
+- **Release:** produces the alioth release archives configured by the workflow.
 
-Check each workflow run's **Artifacts** section for the generated files. Always read the release notes and verify device compatibility before flashing.
+Check each workflow run's **Artifacts** section for the generated files. A successful compilation does not guarantee that the kernel boots or that every feature works on every ROM. Verify compatibility before flashing.
 
 ## Important notes
 
+- This project is configured for the POCO F3 (`alioth`) only.
 - Builds use the source and configuration selected by the workflow.
-- A successful compilation does not by itself guarantee that a kernel is compatible with every ROM or device variant.
 - The deprecated `SUSFS` branch and the removed `nextpatch.sh` execution path are no longer part of the current build flow.
 
 ## Project and support
@@ -58,5 +56,3 @@ Check each workflow run's **Artifacts** section for the generated files. Always 
 - Telegram channel: https://t.me/flashkernelbytinieblass
 
 For support, report the device codename, ROM/Android version, kernel source and the relevant GitHub Actions run.
-
----
