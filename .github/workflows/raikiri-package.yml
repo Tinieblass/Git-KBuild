@@ -70,7 +70,7 @@ jobs:
 
           properties() { '
           kernel.string=Raikiri v1.7 alioth STOCK - KSU + NoMount 2.2.0 (unofficial)
-          do.devicecheck=1
+          do.devicecheck=0
           do.modules=0
           do.systemless=0
           do.cleanup=1
@@ -85,6 +85,24 @@ jobs:
           PATCH_VBMETA_FLAG=auto;
 
           . tools/ak3-core.sh;
+
+          ui_print 'Flash kernel by Tinieblass';
+          DEVICE=$(getprop ro.product.device);
+          [ -n "$DEVICE" ] || DEVICE=$(getprop ro.build.product);
+          if [ "$DEVICE" != 'alioth' ]; then
+            ui_print 'ERROR: este ZIP solo admite alioth';
+            abort 'Dispositivo no compatible';
+          fi;
+          ui_print 'Dispositivo: alioth OK';
+          HYPEROS=$(getprop ro.miui.ui.version.name);
+          INCREMENTAL=$(getprop ro.build.version.incremental);
+          case "$INCREMENTAL" in OS3*|*OS3*) HYPEROS=${HYPEROS:-HyperOS3} ;; esac;
+          if [ -z "$HYPEROS" ]; then
+            ui_print 'ERROR: no se detecta HyperOS';
+            abort 'ROM no compatible: se requiere HyperOS';
+          fi;
+          ui_print 'HyperOS: detectado';
+          ui_print 'Bateria: STOCK (DTS FMT/GY 4520mAh)';
 
           # Preserve the installed boot ramdisk and replace only the kernel.
           dump_boot;
