@@ -173,7 +173,7 @@ jobs:
           unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel by Tinieblass'
           unzip -p "$ZIP" banner | grep -qx 'Flash Kernel by Tinieblass'
           ! unzip -p "$ZIP" anykernel.sh | grep -q 'show_flash_animation'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'Device: alioth OK'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'Device check: skipped'
           unzip -p "$ZIP" anykernel.sh | grep -q 'ROM: HyperOS OK'
           unzip -p "$ZIP" anykernel.sh | grep -q '*-miui5k'
           ! unzip -p "$ZIP" anykernel.sh | grep -Eqi 'KowSU|NoMount|bootstrap|Raikiri'
