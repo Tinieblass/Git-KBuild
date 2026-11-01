@@ -72,6 +72,24 @@ def main():
             w.writerow([i, f"0x{address:03X}" if address is not None else "unmapped-tail",
                         offset, *[f"0x{x:02X}" for x in vals], len(set(vals))])
 
+    word_common = 0
+    with (OUT / "register-word-comparison.csv").open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["profile_word_index", "sram_word_address", *profiles.keys(), "distinct_values", "source"])
+        for i in range(208):
+            vals = [
+                p["bytes"][i * 2] | (p["bytes"][i * 2 + 1] << 8)
+                for p in profiles.values()
+            ]
+            distinct = len(set(vals))
+            if distinct == 1:
+                word_common += 1
+            w.writerow([
+                i, f"0x{0x041 + i:03X}",
+                *[f"0x{x:04X}" for x in vals], distinct,
+                "PM855GUI-exported" if i < 207 else "DTSI-only"
+            ])
+
     with (OUT / "profile-metadata.csv").open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["profile", "capacity_mAh", "max_voltage_uV", "battery_id_kohm",
@@ -96,6 +114,9 @@ def main():
         "- Payload length: 416 bytes for each profile.",
         f"- Byte positions identical across all three profiles: {common}.",
         f"- Byte positions differing in at least one profile: {differing}.",
+        f"- 16-bit words identical across all three profiles: {word_common}/208.",
+        f"- 16-bit words differing in at least one profile: {208 - word_common}/208.",
+        "- Word-level map: register-word-comparison.csv (little-endian words at SRAM addresses 0x041–0x110).",
         "- Mapped provision range: registers 0x041–0x10F, offsets 0 and 1 (414 bytes).",
         "- J3S provision export matches J3S DTSI bytes 0–413 exactly.",
         "- J3S DTSI retains two trailing bytes 00 00 beyond the available provision address rows.",
@@ -106,11 +127,11 @@ def main():
         "Capacity, voltage, battery ID, battery type, Rslow and checksum are copied from DTSI declarations. Individual semantics of the 416-byte payload remain undocumented here.",
         "No BN61/5850 mAh payload is generated. Scaling or interpolating these bytes is not a valid electrical characterization.",
         "", "## Reproducibility", "", "Run: python3 tools/compare_alioth_gen4_profiles.py",
-        "Outputs: register-byte-comparison.csv and profile-metadata.csv in this directory.",
+        "Outputs: register-byte-comparison.csv, register-word-comparison.csv and profile-metadata.csv in this directory.",
         "J3S provision cross-check: PASS (414 explicit bytes plus two trailing zero bytes in DTSI).",
     ]
     (OUT / "README.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"PASS: three Gen4 profiles parsed (416 bytes each); {common} common positions, {differing} differing.")
+    print(f"PASS: three Gen4 profiles parsed (416 bytes each); {common} common byte positions, {differing} differing; {word_common}/208 common words.")
     print("PASS: J3S PM855GUI provision matches payload bytes 0..413; trailing DTSI bytes are 00 00.")
     print(f"Reports written to {OUT.relative_to(ROOT)}")
 
