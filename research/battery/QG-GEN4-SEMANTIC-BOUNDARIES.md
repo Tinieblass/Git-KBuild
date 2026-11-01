@@ -101,3 +101,15 @@ Not confirmed:
 3. A mathematical transform from QG OCV/FCC/VAR tables to PM855B Gen4 payload words.
 
 Therefore this work must not emit an installable BN61/-6K profile yet.
+
+
+## 6. Qualcomm UEFI parser inspection (follow-up)
+
+The public Qualcomm UEFI source mirror was inspected after the original byte-map work:
+- [PmicFgBattProfile.h](https://github.com/SwedMlite/BOOT.XF.3.3/blob/55ff7c1920ccf084951b2770d46ffcbe8917864f/QcomPkg/Drivers/PmicDxe/Fg/PmicFgBattProfile.h)
+- [PmicFgBattProfile.c](https://github.com/SwedMlite/BOOT.XF.3.3/blob/55ff7c1920ccf084951b2770d46ffcbe8917864f/QcomPkg/Drivers/PmicDxe/Fg/PmicFgBattProfile.c)
+- [PmicFgSram.c](https://github.com/SwedMlite/BOOT.XF.3.3/blob/55ff7c1920ccf084951b2770d46ffcbe8917864f/QcomPkg/Drivers/PmicDxe/Fg/PmicFgSram.c)
+
+The UEFI parser combines offset 0/1 bytes into 16-bit SRAM words, verifies the checksum, selects a profile by battery ID, and writes the word array to SRAM. It parses thermistor coefficients, thermistor pull-up/center, and Rslow coefficients as separate named metadata. It does not decode the physical meaning of each profile word. This independently confirms the current boundary: byte serialization and checksum are understood; the Gen4 word semantics are not.
+
+See [UEFI-PARSER-AND-METADATA.md](PM855GUI-Gen4-Map/UEFI-PARSER-AND-METADATA.md) for the detailed source audit and implications for BN61.
