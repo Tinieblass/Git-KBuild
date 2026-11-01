@@ -48,3 +48,10 @@ The three known PM855GUI export ↔ DTSI pairs establish byte serialization and 
 Do not create or flash a `-6K` profile from the M703 QG LUTs, the 4520 mAh alioth payloads, or the J3S 5000 mAh payload. The 416-byte Gen4 payload cannot be reconstructed from capacity, OCV, FCC, checksum, thermistor coefficients, or the QG tables alone.
 
 The next viable route is to extract an authentic BN61/M703 PM855GUI provision export or Gen4 profile from the original POCO X3 firmware/vendor image. If none exists, the alternative is a documented Qualcomm Gen4 characterization toolchain plus controlled characterization of the exact BN61 pack.
+
+
+### Binary submodule follow-up
+
+The Mu-Silicium `.gitmodules` file points its `Binaries` submodule to [Project-Silicium/Device-Binaries](https://github.com/Project-Silicium/Device-Binaries). A scoped GitHub code-index search there for `BATTERY.PROVISION`, `M703`, `surya`, and `RawFiles` did not surface a surya battery provision file. The only `surya` text hit was an unrelated note about reusing a UFS driver in the phoenix platform.
+
+This still does not prove the binary submodule lacks the file: GitHub code search may not index binary assets, and the source archive's RAW manifest is the stronger evidence for which firmware files that particular UEFI build packages.
