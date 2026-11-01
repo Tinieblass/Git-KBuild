@@ -10,6 +10,7 @@ on:
       - "tools/analyze_bn61_reference.py"
       - "tools/compare_m703_qg_profiles.py"
       - "tools/verify_pm855gui_gen4_export.py"
+      - "tools/verify_pm855gui_gen4_pairs.py"
       - "tools/normalize_m703_qg_curves.py"
       - "tools/compare_alioth_gen4_profiles.py"
       - "tools/validate_battery_research.py"
@@ -76,6 +77,13 @@ jobs:
           python3 tools/verify_pm855gui_gen4_export.py
           test -s research/battery/PM855GUI-Gen4-Map/register-map.csv
           grep -q "Result: PASS" research/battery/PM855GUI-Gen4-Map/README.md
+      - name: Cross-check three PM855GUI Gen4 export pairs
+        run: |
+          set -euo pipefail
+          python3 tools/verify_pm855gui_gen4_pairs.py
+          test -s research/battery/PM855GUI-Gen4-Map/multi-profile-verification.csv
+          test -s research/battery/PM855GUI-Gen4-Map/multi-profile-register-words.csv
+          grep -q "PM855GUI 1.0.0.13 and 1.0.0.14" research/battery/PM855GUI-Gen4-Map/MULTI-PROFILE-VALIDATION.md
       - name: Upload reproducible BN61 research report
         uses: actions/upload-artifact@v4
         with:
