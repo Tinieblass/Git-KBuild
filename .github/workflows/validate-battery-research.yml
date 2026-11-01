@@ -10,6 +10,7 @@ on:
       - "tools/analyze_bn61_reference.py"
       - "tools/compare_m703_qg_profiles.py"
       - "tools/verify_pm855gui_gen4_export.py"
+      - "tools/normalize_m703_qg_curves.py"
       - "tools/compare_alioth_gen4_profiles.py"
       - "tools/validate_battery_research.py"
       - ".github/workflows/validate-battery-research.yml"
@@ -60,6 +61,14 @@ jobs:
           python3 tools/compare_m703_qg_profiles.py
           test -s research/battery/M703-QG-Comparison/table-comparison.csv
           grep -q "does not map QG values to PM855B Gen4 bytes" research/battery/M703-QG-Comparison/README.md
+      - name: Normalize M703 QG OCV and FCC curves
+        run: |
+          set -euo pipefail
+          python3 tools/normalize_m703_qg_curves.py
+          test -s research/battery/M703-QG-Comparison/normalized/pc-temp-v1-lut.csv
+          test -s research/battery/M703-QG-Comparison/normalized/pc-temp-v2-lut.csv
+          test -s research/battery/M703-QG-Comparison/normalized/fcc1-temp-lut.csv
+          grep -q "source value / 10" research/battery/M703-QG-Comparison/normalized/README.md
       - name: Verify PM855GUI export against the J3S Gen4 payload
         run: |
           set -euo pipefail
