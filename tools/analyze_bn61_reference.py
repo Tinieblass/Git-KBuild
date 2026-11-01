@@ -72,7 +72,7 @@ def main():
         "",
         "The source is explicitly m703-atl-6000mah QG data. The QG driver selects this profile when authenticated DS page0 characters 3–4 are '61'; it selects the companion 5160 mAh PM7150B profile for '57'. Commercial references identify BN61 as 5850 mAh rated / 6000 mAh typical for POCO X3 and BN57 as the 5160 mAh X3 NFC/X3 Pro pack. This is a strong model/profile association, but the source does not certify that every third-party BN61 replacement uses the identical cell or electrochemical characterization.",
         "",
-        "All values below are reported in source-native integer units. No conversion to ohms, milliohms, volts, or another physical unit is inferred.",
+        "Raw LUT ranges remain in source-native integer units. The explicitly labeled OCV mV and FCC mAh checkpoints below use only the scaling documented in the QG driver; no physical unit is inferred for Z/Y VAR tables.",
         "",
         "## Capacity versus temperature",
         "",
