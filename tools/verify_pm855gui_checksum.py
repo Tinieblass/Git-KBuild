@@ -32,11 +32,11 @@ def checksum(words: list[int]) -> int:
 
 
 def parse_provision(text: str) -> tuple[list[int], int | None]:
-    match = re.search(r"^Checksum\\s*,\\s*([0-9A-Fa-f]+)", text, re.M)
+    match = re.search(r"^Checksum\s*,\s*([0-9A-Fa-f]+)", text, re.M)
     expected = int(match.group(1), 16) if match else None
     rows = re.findall(
-        r"^\\s*([0-9A-Fa-f]{3})\\s*,\\s*([0-9A-Fa-f]{3})"
-        r"\\s*,\\s*([01])\\s*,\\s*([0-9A-Fa-f]{2})\\s*$",
+        r"^\s*([0-9A-Fa-f]{3})\s*,\s*([0-9A-Fa-f]{3})"
+        r"\s*,\s*([01])\s*,\s*([0-9A-Fa-f]{2})\s*$",
         text, re.M,
     )
     if len(rows) != WORD_COUNT * 2:
@@ -51,15 +51,15 @@ def parse_provision(text: str) -> tuple[list[int], int | None]:
 
 
 def parse_dtsi(text: str) -> tuple[list[int], int | None]:
-    match = re.search(r"qcom,checksum\\s*=\\s*<\\s*0x([0-9A-Fa-f]+)\\s*>", text)
+    match = re.search(r"qcom,checksum\s*=\s*<\s*0x([0-9A-Fa-f]+)\s*>", text)
     expected = int(match.group(1), 16) if match else None
-    payload = re.search(r"qcom,fg-profile-data\\s*=\\s*\\[(.*?)\\]", text, re.S)
+    payload = re.search(r"qcom,fg-profile-data\s*=\s*\[(.*?)\]", text, re.S)
     if not payload:
         raise ValueError("qcom,fg-profile-data block not found")
-    raw = bytes(int(token, 16) for token in re.findall(r"\\b[0-9A-Fa-f]{2}\\b", payload.group(1)))
+    raw = bytes(int(token, 16) for token in re.findall(r"\b[0-9A-Fa-f]{2}\b", payload.group(1)))
     if len(raw) != DTSI_BYTE_COUNT:
         raise ValueError(f"expected {DTSI_BYTE_COUNT} profile bytes, got {len(raw)}")
-    if raw[-2:] != b"\\x00\\x00":
+    if raw[-2:] != b"\x00\x00":
         raise ValueError("expected final Gen4 word at 0x110 to be 0x0000")
     words = [raw[i] | (raw[i + 1] << 8) for i in range(0, WORD_COUNT * 2, 2)]
     return words, expected
