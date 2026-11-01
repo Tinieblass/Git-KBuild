@@ -3,7 +3,7 @@
 
 **Flash Kernel** is an independent community kernel project for the Xiaomi POCO F3 (alioth), initially targeting HyperOS 3 / Android 16.
 
-> Status: **project bootstrap / pre-release**. The first known-good baseline is derived from Raikiri v1.7 and has booted on the maintainer's POCO F3. No Flash Kernel release ZIP is published yet.
+> Status: **pre-release**. The first known-good baseline is derived from Raikiri v1.7 and has booted on the maintainer's POCO F3. No Flash Kernel release ZIP is published yet.
 
 ## Project direction
 - Device scope: POCO F3 (alioth) only for the first milestone.
@@ -11,7 +11,7 @@
 - Kernel: Linux 4.19.325.
 - Root integration baseline: backslashxx/KernelSU (KowSU-compatible) with NoMount 2.2.0.
 - Preserve the working HyperOS 3 boot path and VoWiFi/IMS behavior.
-- The `-miui5k` package must retain the original Raikiri v1.7 alioth DTS/DTBO outputs unchanged; its suffix is a package variant name, not a claim about battery calibration.
+- Publish one general stock ZIP for alioth, retaining the original Raikiri v1.7 alioth DTS/DTBO outputs unchanged. Users may rename the ZIP with `-miui5k` as a personal package label; renaming does not alter battery calibration or DTBO contents.
 - Keep any future battery-profile changes separate until the physical battery ID and fuel-gauge data are verified.
 
 ## Build and release policy
