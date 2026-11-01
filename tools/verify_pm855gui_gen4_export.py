@@ -89,7 +89,7 @@ def main():
         writer = csv.writer(handle)
         writer.writerow([
             "profile_word_index", "register_address", "low_byte", "high_byte",
-            "word_value_little_endian", "payload_byte_offset"
+            "word_value_little_endian", "payload_byte_offset", "source"
         ])
         for word_index in range(len(entries) // 2):
             low = entries[word_index * 2][2]
