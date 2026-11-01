@@ -73,4 +73,7 @@ jobs:
           path: |
             research/battery/BN61-Reference-Analysis.md
             research/battery/Gen4-Comparison/**
+            research/battery/M703-QG-Comparison/**
+            research/battery/PM855GUI-Gen4-Map/**
+            research/battery/QG-GEN4-SEMANTIC-BOUNDARIES.md
           if-no-files-found: error
