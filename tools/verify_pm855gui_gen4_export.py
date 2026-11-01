@@ -126,7 +126,7 @@ def main():
         "",
         "This establishes an exact PM855GUI-export-to-Gen4-payload byte mapping for this J3S reference. It does not decode the semantic meaning of every register word, and it does not provide a QG-to-Gen4 conversion.",
         "",
-        "See register-map.csv for the 207 address/word pairs.",
+        "See register-map.csv for all 208 payload words: 207 exported PM855GUI words plus the DTSI-only word at SRAM address 0x110.",
         "",
     ]
     (args.out / "README.md").write_text("\n".join(report), encoding="utf-8")
