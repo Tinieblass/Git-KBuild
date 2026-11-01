@@ -82,7 +82,7 @@ def main():
     report = [
         "# Multi-profile PM855GUI ↔ Gen4 validation",
         "",
-        "Three independent PM855GUI exports from versions 1.0.0.13 and 1.0.0.14 were compared byte-for-byte with their matching Gen4 DTSI payloads.",
+        "PM855GUI 1.0.0.13 and 1.0.0.14 exports were compared byte-for-byte with three matching Gen4 DTSI payloads.",
         "",
         "| Pair | Capacity | PM855GUI | Checksum | GUI bytes | Payload bytes | Match |",
         "|---|---:|---|---|---:|---:|:---:|",
