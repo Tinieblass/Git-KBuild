@@ -49,7 +49,7 @@ jobs:
           ln -s ../KernelSU/kernel kernel/drivers/kernelsu
           test -f kernel/drivers/kernelsu/Kconfig
           test -f kernel/drivers/kernelsu/Makefile
-          cp kernel/arch/arm64/configs/vendor/xiaomi/flash-kernel.config kernel/arch/arm64/configs/vendor/xiaomi/flash-kernel.config
+          cp kernel/arch/arm64/configs/vendor/xiaomi/raikiri.config kernel/arch/arm64/configs/vendor/xiaomi/flash-kernel.config
           git -C kernel diff --check
       - name: Integrate pinned NoMount v2.2.0 source
         run: |
