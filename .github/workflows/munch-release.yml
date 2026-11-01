@@ -1,7 +1,6 @@
 name: FD-release-munch-builder
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       KERNEL_TREE_1:

@@ -31,9 +31,7 @@ jobs:
           echo "## Original Raikiri v1.7 battery DTS preservation" | tee preflight-report.md
           git -C kernel diff --exit-code -- arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-FMT-4520mah.dtsi arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-GY-4520mah.dtsi
           grep -nE 'alioth_batterydata:|fg-gen4-batterydata-alioth-(FMT|GY)-4520mah' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi | tee -a preflight-report.md
-          ! grep -q 'j3s-batt-profile' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
-          ! grep -q 'apollo-sun-5000mah' kernel/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
-          echo "PASS: original battery DTS retained; no J3S overlay from the other branch." | tee -a preflight-report.md
+                              echo "PASS: original Raikiri v1.7 alioth battery DTS retained unchanged." | tee -a preflight-report.md
 
           {
             echo
