@@ -1,6 +1,12 @@
 name: Raikiri v1.7 - alioth MIUI5K (KowSU + backslashxx 3.3.1-35)
 
 on:
+  push:
+    branches:
+      - Raikiri-Midori-NM
+    paths:
+      - '.github/workflows/raikiri-build.yml'
+      - 'scripts/prepare_raikiri_backslashxx.py'
   workflow_dispatch:
 
 permissions:
@@ -112,13 +118,19 @@ jobs:
           grep -qx 'CONFIG_BUILD_ARM64_DT_OVERLAY=y' out/.config
           grep -qx 'CONFIG_OVERLAY_FS=y' out/.config
           grep -qx 'CONFIG_KSU=y' out/.config
-          # Legacy KernelSU uses the manual source hooks in this Raikiri tree.
-          # Disable KPROBES to avoid its volume-down safe-mode trigger.
+          # Use backslashxx inline ARM64 branch-link hooks on this 4.19 kernel.
+          # Disable KPROBES; the old KernelSU-Next manual-hook option was removed.
           scripts/config --file out/.config --disable KPROBES
-          scripts/config --file out/.config --enable NOMOUNT
+          scripts/config --file out/.config --enable KSU_HACK_ARM64_BRANCH_LINK
+          scripts/config --file out/.config --enable KSU_LSM_SECURITY_HOOKS
+          scripts/config --file out/.config --disable KSU_TAMPER_SYSCALL_TABLE
+          scripts/config --enable NOMOUNT
           make O=out olddefconfig
           grep -qx 'CONFIG_NOMOUNT=y' out/.config
           grep -qx 'CONFIG_KSU=y' out/.config
+          grep -qx 'CONFIG_KSU_HACK_ARM64_BRANCH_LINK=y' out/.config
+          grep -qx 'CONFIG_KSU_LSM_SECURITY_HOOKS=y' out/.config
+          grep -qx '# CONFIG_KSU_TAMPER_SYSCALL_TABLE is not set' out/.config
           grep -qx '# CONFIG_KPROBES is not set' out/.config
           grep -qx 'CONFIG_LOCALVERSION="-Raikiri-v1.7"' out/.config
           {
