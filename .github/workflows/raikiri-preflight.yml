@@ -1,6 +1,11 @@
 name: Raikiri v1.7 - original MIUI5K battery preflight
 
 on:
+  push:
+    branches:
+      - Raikiri-Midori-NM
+    paths:
+      - '.github/workflows/raikiri-preflight.yml'
   workflow_dispatch:
 
 permissions:
