@@ -1,4 +1,4 @@
-name: Package Flash Kernel - alioth (KowSU + NoMount 2.2)
+name: Package Flash Kernel - alioth
 
 on:
   push:
@@ -85,26 +85,14 @@ jobs:
             cp raw/dtbo-5k.img anykernel/dtbo-5k.img
           fi
           cat > anykernel/banner <<'BANNER'
-                         /|
-                        / |
-                       /  |
-                      / / |
-                     / /  |
-                    /_/   |
-                        \ |
-                         \|
-          F L A S H
-          K E R N E L
-          POCO F3 / alioth
+          Flash Kernel by Tinieblass
           BANNER
           cat > anykernel/anykernel.sh <<'AK3'
-          ### Flash Kernel - POCO F3 / alioth
-          ## KowSU-compatible backslashxx KernelSU 3.3.1-35 + NoMount 2.2.0
-          ## Unofficial package; built from pinned Raikiri v1.7 source.
+          ### Flash Kernel by Tinieblass
 
           properties() { '
-          kernel.string=Flash Kernel alioth - KowSU + NoMount 2.2.0 (unofficial)
-          do.devicecheck=1
+          kernel.string=Flash Kernel by Tinieblass
+          do.devicecheck=0
           do.modules=0
           do.systemless=0
           do.cleanup=1
@@ -120,52 +108,34 @@ jobs:
 
           . tools/ak3-core.sh;
 
-          # Recovery-friendly frame sequence: move the ASCII bolt left-to-right.
-          # Recovery ui_print is line-oriented, so frames are shown sequentially.
-          show_flash_animation() {
-            ui_print " "
-            ui_print "  /|"
-            ui_print " / |"
-            ui_print "/__|"
-            ui_print "   |"
-            ui_print "F L A S H"
-            ui_print "K E R N E L"
-            ui_print " "
-            ui_print "       /|"
-            ui_print "      / |"
-            ui_print "     /__|"
-            ui_print "        |"
-            ui_print "F L A S H"
-            ui_print "K E R N E L"
-            ui_print " "
-            ui_print "              /|"
-            ui_print "             / |"
-            ui_print "            /__|"
-            ui_print "               |"
-            ui_print "F L A S H"
-            ui_print "K E R N E L"
-            ui_print " "
-            ui_print "                     /|"
-            ui_print "                    / |"
-            ui_print "                   /__|"
-            ui_print "                      |"
-            ui_print "F L A S H"
-            ui_print "K E R N E L"
-            ui_print "POCO F3 / alioth"
-          }
-          show_flash_animation
+          # Keep installer output short and perform checks in the requested order.
+          ui_print "Flash Kernel by Tinieblass"
+          DEVICE="$(getprop ro.product.device)"
+          [ -n "$DEVICE" ] || DEVICE="$(getprop ro.product.vendor.device)"
+          [ "$DEVICE" = "alioth" ] || abort "Device check failed: alioth required"
+          ui_print "Device: alioth OK"
 
-          # Select the battery DTBO from the ZIP filename, not the recovery ROM name.
+          MIUI_VERSION="$(getprop ro.miui.ui.version.name)"
+          MIOS_VERSION="$(getprop ro.mi.os.version.name)"
+          BUILD_INCREMENTAL="$(getprop ro.build.version.incremental)"
+          case "$MIUI_VERSION $MIOS_VERSION $BUILD_INCREMENTAL" in
+            *HyperOS*|*hyperos*|*OS1.*|*OS2.*|*OS3.*|*OS4.*) ;;
+            *) abort "ROM check failed: HyperOS required" ;;
+          esac
+          ui_print "ROM: HyperOS OK"
+
+          # Default profile is stock; only the explicit -miui5k suffix selects 5000mAh.
           ZIP_BASENAME="$(basename "$ZIPFILE" .zip)"
           case "$ZIP_BASENAME" in
-            *-5k)
-              [ -s dtbo-5k.img ] || abort "This ZIP is named -5k but the verified 5000mAh DTBO is missing. No partitions were changed."
+            *-miui5k)
+              [ -s dtbo-5k.img ] || abort "5000mAh DTBO missing"
               DTBO_IMAGE=dtbo-5k.img
-              ui_print "Battery profile: 5000mAh"
+              ui_print "Battery: 5000mAh"
               ;;
             *)
+              [ -s dtbo.img ] || abort "Stock DTBO missing"
               DTBO_IMAGE=dtbo.img
-              ui_print "Battery profile: stock"
+              ui_print "Battery: stock"
               ;;
           esac
 
@@ -202,10 +172,13 @@ jobs:
           fi
           unzip -p "$ZIP" anykernel.sh | grep -q 'device.name1=alioth'
           unzip -p "$ZIP" anykernel.sh | grep -q 'supported.versions=16'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth'
-          unzip -p "$ZIP" banner | grep -q 'F L A S H'
-          unzip -p "$ZIP" banner | grep -q 'K E R N E L'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'show_flash_animation'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel by Tinieblass'
+          unzip -p "$ZIP" banner | grep -qx 'Flash Kernel by Tinieblass'
+          ! unzip -p "$ZIP" anykernel.sh | grep -q 'show_flash_animation'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'Device: alioth OK'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'ROM: HyperOS OK'
+          unzip -p "$ZIP" anykernel.sh | grep -q '*-miui5k'
+          ! unzip -p "$ZIP" anykernel.sh | grep -Eqi 'KowSU|NoMount|bootstrap|Raikiri'
           if unzip -p "$ZIP" anykernel.sh | grep -Eqi 'kernel.string=.*raikiri|ui_print.*raikiri'; then echo 'ERROR: Raikiri branding leaked into installer UI' >&2; exit 1; fi
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'ZIP_BASENAME'
