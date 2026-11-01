@@ -12,10 +12,6 @@ on:
         description: 'Kernel Tree Branch 1'
         default: 'freesia'
         required: true
-      CODENAME:
-        description: 'Codename (do not change)'
-        default: 'alioth'
-        required: true
       ANYKERNEL_URL:
         description: 'AnyKernel Url (leave blank if you dont want AnyKernel)'
         default: 'https://github.com/re-noroi/anykernel3-test'
@@ -307,7 +303,7 @@ jobs:
           elif [[ "${{ github.event.inputs.VARIANT }}" == "oplus-variant" ]]; then
             EXTRA2="-OPLUS"
           fi
-          echo "ZIP_NAME=[FlashKernel][TEST-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
+          echo "ZIP_NAME=[FlashKernel][TEST-alioth-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
 
       - name: Upload Flashable Kernel Zip
         uses: actions/upload-artifact@v4
