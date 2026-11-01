@@ -134,6 +134,16 @@ jobs:
           unzip -p "$ZIP" dtbo.img | sha256sum | awk '{print $1}' > packaged-dtbo.sha
           sha256sum raw/dtbo.img | awk '{print $1}' > raw-dtbo.sha
           diff -u raw-dtbo.sha packaged-dtbo.sha
+          if [ -s raw/dtbo-5k.img ]; then
+            unzip -p "$ZIP" dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-dtbo.sha
+            sha256sum raw/dtbo-5k.img | awk '{print $1}' > raw-5k-dtbo.sha
+            diff -u raw-5k-dtbo.sha packaged-5k-dtbo.sha
+          else
+            if unzip -l "$ZIP" | grep -q 'dtbo-5k.img'; then
+              echo 'ERROR: unexpected 5k DTBO without a matching raw artifact' >&2
+              exit 1
+            fi
+          fi
           unzip -p "$ZIP" anykernel.sh | grep -q 'device.name1=alioth'
           unzip -p "$ZIP" anykernel.sh | grep -q 'supported.versions=16'
           unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth'
