@@ -1,4 +1,4 @@
-name: Package Raikiri v1.7 - alioth MIUI5K
+name: Package Raikiri v1.7 - alioth MIUI5K (KowSU + NoMount 2.2)
 
 on:
   push:
@@ -15,29 +15,37 @@ permissions:
 jobs:
   package:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - name: Checkout builder
         uses: actions/checkout@v4
 
-      - name: Download verified raw kernel build
+      - name: Download exact verified MIUI5K raw build
         uses: actions/download-artifact@v4
         with:
-          name: raikiri-v17-alioth-j3s-raw
+          name: raikiri-v17-alioth-miui5k-kowsu-nm22-raw
           path: raw
-          run-id: 41160583371
+          run-id: 41290067346
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify raw build manifest
+      - name: Verify raw build manifest and configuration
         run: |
           set -euo pipefail
           cd raw
           sha256sum -c SHA256SUMS.txt
           test -s Image.gz
           test -s dtbo.img
-          grep -q 'J3S Sun 5000 mAh' BUILD-REPORT.md
+          test -s alioth-sm8250-overlay.dtbo
+          grep -qF 'Target: POCO F3 / alioth / HyperOS 3 / Android 16' BUILD-REPORT.md
+          grep -qF 'Battery/DTBO: original Raikiri v1.7 DTS retained unchanged; no J3S profile from the other branch' BUILD-REPORT.md
+          grep -qF 'VoWiFi/IMS: based on the known-working Raikiri v1.7 source; no IMS source files changed by this workflow' BUILD-REPORT.md
           grep -qx 'CONFIG_KSU=y' <(grep '^CONFIG_KSU=' config-report.txt)
-          grep -qx 'CONFIG_KSU_MANUAL_HOOK=y' <(grep '^CONFIG_KSU_MANUAL_HOOK=' config-report.txt)
+          grep -qx 'CONFIG_KSU_HACK_ARM64_BRANCH_LINK=y' <(grep '^CONFIG_KSU_HACK_ARM64_BRANCH_LINK=' config-report.txt)
+          grep -qx 'CONFIG_KSU_LSM_SECURITY_HOOKS=y' <(grep '^CONFIG_KSU_LSM_SECURITY_HOOKS=' config-report.txt)
           grep -qx 'CONFIG_NOMOUNT=y' <(grep '^CONFIG_NOMOUNT=' config-report.txt)
+          grep -qx '# CONFIG_KPROBES is not set' <(grep '^# CONFIG_KPROBES is not set$' config-report.txt)
+          ! grep -q 'J3S' BUILD-REPORT.md
+          echo 'PASS: exact MIUI5K build, KowSU driver, NoMount 2.2.0 and preserved IMS provenance.'
 
       - name: Fetch pinned AnyKernel3 template
         run: |
@@ -47,6 +55,7 @@ jobs:
           test "$(git -C anykernel rev-parse HEAD)" = '41f04bdb4ee30a44e429c2c1131d5e8bb32b15f1'
           test -f anykernel/LICENSE
           test -f anykernel/tools/ak3-core.sh
+          test -f anykernel/META-INF/com/google/android/update-binary
           rm -rf anykernel/.git anykernel/.github anykernel/README.md
 
       - name: Assemble alioth MIUI5K installer
@@ -56,10 +65,11 @@ jobs:
           cp raw/dtbo.img anykernel/dtbo.img
           cat > anykernel/anykernel.sh <<'AK3'
           ### Raikiri v1.7 - POCO F3 / alioth - MIUI5K
+          ## KowSU-compatible backslashxx KernelSU 3.3.1-35 + NoMount 2.2.0
           ## Unofficial package; built from pinned Raikiri v1.7 source.
 
           properties() { '
-          kernel.string=Raikiri v1.7 J3S Sun 5000mAh -miui5k (unofficial)
+          kernel.string=Raikiri v1.7 alioth MIUI5K - KowSU + NoMount 2.2.0 (unofficial)
           do.devicecheck=1
           do.modules=0
           do.systemless=0
@@ -76,36 +86,43 @@ jobs:
 
           . tools/ak3-core.sh;
 
-          # Preserve the existing boot ramdisk and replace only the kernel.
+          # Preserve the installed boot ramdisk and replace only the kernel.
           dump_boot;
-          # Use explicit partition writes; skip the broad combined installer routine.
-          # Write the exact active-slot DTBO first, so a missing/mismatched DTBO aborts before boot changes.
+          # Flash the matching active-slot DTBO before touching boot.
           cp -f dtbo.img dtbo$SLOT.img;
           flash_generic dtbo$SLOT;
           repack_ramdisk;
           flash_boot;
           AK3
-          (cd anykernel && zip -qr9 ../Raikiri-v1.7-alioth-miui5k.zip . -x '.git/*' '.github/*' 'README.md')
+          (cd anykernel && zip -qr9 ../Raikiri-v1.7-alioth-miui5k-KowSU-NoMount2.2.zip . -x '.git/*' '.github/*' 'README.md')
 
-      - name: Validate installer package (no device flashing)
+      - name: Validate installer structure and embedded binaries
         run: |
           set -euo pipefail
-          unzip -t Raikiri-v1.7-alioth-miui5k.zip
-          unzip -l Raikiri-v1.7-alioth-miui5k.zip | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|LICENSE'
-          unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'device.name1=alioth'
-          unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'IS_SLOT_DEVICE=1'
-          unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -q 'flash_boot'
-          unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
-          if unzip -p Raikiri-v1.7-alioth-miui5k.zip anykernel.sh | grep -Eq 'write_boot|flash_generic (vendor_dlkm|system_dlkm)'; then
-            echo 'ERROR: installer attempts to flash unrelated partitions' >&2
+          ZIP=Raikiri-v1.7-alioth-miui5k-KowSU-NoMount2.2.zip
+          unzip -t "$ZIP"
+          unzip -p "$ZIP" Image.gz | sha256sum | awk '{print $1}' > packaged-image.sha
+          sha256sum raw/Image.gz | awk '{print $1}' > raw-image.sha
+          diff -u raw-image.sha packaged-image.sha
+          unzip -p "$ZIP" dtbo.img | sha256sum | awk '{print $1}' > packaged-dtbo.sha
+          sha256sum raw/dtbo.img | awk '{print $1}' > raw-dtbo.sha
+          diff -u raw-dtbo.sha packaged-dtbo.sha
+          unzip -p "$ZIP" anykernel.sh | grep -q 'device.name1=alioth'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'supported.versions=16'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Raikiri v1.7 alioth MIUI5K'
+          unzip -p "$ZIP" anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'flash_boot'
+          if unzip -p "$ZIP" anykernel.sh | grep -Eq 'J3S|apollo-sun|j3s-batt-profile|write_boot|flash_generic (vendor_dlkm|system_dlkm)'; then
+            echo 'ERROR: wrong battery branch or unrelated partition write detected' >&2
             exit 1
           fi
-          sha256sum Raikiri-v1.7-alioth-miui5k.zip
+          unzip -l "$ZIP" | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|META-INF/com/google/android/update-binary|LICENSE'
+          sha256sum "$ZIP"
 
-      - name: Upload MIUI5K installer candidate
+      - name: Upload flashable MIUI5K installer
         uses: actions/upload-artifact@v4
         with:
-          name: Raikiri-v1.7-alioth-miui5k-candidate
-          path: Raikiri-v1.7-alioth-miui5k.zip
+          name: Raikiri-v1.7-alioth-miui5k-KowSU-NoMount2.2-flashable
+          path: Raikiri-v1.7-alioth-miui5k-KowSU-NoMount2.2.zip
           if-no-files-found: error
           compression-level: 0
