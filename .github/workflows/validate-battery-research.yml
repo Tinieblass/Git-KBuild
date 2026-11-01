@@ -11,6 +11,7 @@ on:
       - "tools/compare_m703_qg_profiles.py"
       - "tools/verify_pm855gui_gen4_export.py"
       - "tools/verify_pm855gui_gen4_pairs.py"
+      - "tools/verify_pm855gui_checksum.py"
       - "tools/normalize_m703_qg_curves.py"
       - "tools/compare_alioth_gen4_profiles.py"
       - "tools/validate_battery_research.py"
@@ -84,6 +85,18 @@ jobs:
           test -s research/battery/PM855GUI-Gen4-Map/multi-profile-verification.csv
           test -s research/battery/PM855GUI-Gen4-Map/multi-profile-register-words.csv
           grep -q "PM855GUI 1.0.0.13 and 1.0.0.14" research/battery/PM855GUI-Gen4-Map/MULTI-PROFILE-VALIDATION.md
+      - name: Verify Qualcomm PM855GUI checksum algorithm on all reference pairs
+        run: |
+          set -euo pipefail
+          for profile in \
+            research/battery/J3S-Sun-5000mah.BATTERY.PROVISION2 \
+            research/battery/J11-Sun-4700mah.BATTERY.PROVISION1 \
+            research/battery/UMI-GY-4780mah.BATTERY.PROVISION \
+            research/battery/alioth-J3S-Sun-5000mah.dtsi \
+            research/battery/alioth-J11-Sun-4700mah.dtsi \
+            research/battery/UMI-GY-4780mah.dtsi; do
+            python3 tools/verify_pm855gui_checksum.py "$profile"
+          done
       - name: Upload reproducible BN61 research report
         uses: actions/upload-artifact@v4
         with:
