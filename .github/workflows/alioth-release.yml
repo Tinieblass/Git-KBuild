@@ -12,10 +12,6 @@ on:
         description: 'Kernel Tree Branch 1'
         default: 'freesia'
         required: true
-      CODENAME:
-        description: 'Codename (do not change)'
-        default: 'alioth'
-        required: true
       ANYKERNEL_URL:
         description: 'AnyKernel Url (leave blank if you dont want AnyKernel)'
         default: 'https://github.com/re-noroi/anykernel3-test'
@@ -365,9 +361,9 @@ jobs:
             EXTRA2="-OPLUS"
           fi
           if [[ "${{ matrix.kernel }}" == "1" ]]; then
-            echo "ZIP_NAME=[FlashKernel][ksu-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
+            echo "ZIP_NAME=[FlashKernel][ksu-alioth-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
           else
-            echo "ZIP_NAME=[FlashKernel][noksu-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
+            echo "ZIP_NAME=[FlashKernel][noksu-alioth-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
           fi
       
       - name: Upload Flashable Kernel Zip
