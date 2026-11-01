@@ -140,12 +140,14 @@ jobs:
           flash_boot;
           AK3
           (cd anykernel && zip -qr9 ../Flash-Kernel-alioth.zip . -x '.git/*' '.github/*' 'README.md')
+          cp Flash-Kernel-alioth.zip Flash-Kernel-alioth-5k.zip
 
       - name: Validate installer structure and embedded binaries
         run: |
           set -euo pipefail
           ZIP=Flash-Kernel-alioth.zip
           unzip -t "$ZIP"
+          unzip -t Flash-Kernel-alioth-5k.zip
           unzip -p "$ZIP" Image.gz | sha256sum | awk '{print $1}' > packaged-image.sha
           sha256sum raw/Image.gz | awk '{print $1}' > raw-image.sha
           diff -u raw-image.sha packaged-image.sha
@@ -161,20 +163,24 @@ jobs:
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'ZIP_BASENAME'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'dtbo-5k.img'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'Battery: J3S Sun 5000mAh'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'Battery: stock'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'Bateria: J3S Sun 5000mAh'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'Bateria: stock'
           unzip -p "$ZIP" anykernel.sh | grep -q 'flash_boot'
           if unzip -p "$ZIP" anykernel.sh | grep -Eq 'write_boot|flash_generic (vendor_dlkm|system_dlkm)'; then
             echo 'ERROR: wrong battery branch or unrelated partition write detected' >&2
             exit 1
           fi
           unzip -l "$ZIP" | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|META-INF/com/google/android/update-binary|LICENSE'
-          sha256sum "$ZIP"
+          unzip -p Flash-Kernel-alioth-5k.zip dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-named-dtbo.sha
+          diff -u packaged-5k-dtbo.sha packaged-5k-named-dtbo.sha
+          sha256sum "$ZIP" Flash-Kernel-alioth-5k.zip
 
       - name: Upload Flash Kernel alioth installer
         uses: actions/upload-artifact@v4
         with:
           name: Flash-Kernel-alioth-flashable
-          path: Flash-Kernel-alioth.zip
+          path: |
+            Flash-Kernel-alioth.zip
+            Flash-Kernel-alioth-5k.zip
           if-no-files-found: error
           compression-level: 0
