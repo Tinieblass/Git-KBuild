@@ -32,7 +32,7 @@ Alioth's `qpnp-fg-gen4` driver requires `PROFILE_LEN == 416` bytes and copies th
 
 A related public reference is the J3S Sun PM855GUI provision export:
 [Project-Aloha / Xiaomi Umi / BATTERY.PROVISION2](https://github.com/Project-Aloha/mu_aloha_platforms/blob/ecac086b16e8f406e1629913e0f9ab9a7f6bb9d8/Platforms/KonaPkg/Device/xiaomi-umi/Binaries/RawFiles/BATTERY.PROVISION2).
-It identifies PM855GUI 1.0.0.14, profile revision 24, 5000 mAh, 100 kΩ ID and checksum BE8D. It is useful as a known-good Gen4 reference, not as a BN61 conversion recipe.
+It identifies PM855GUI 1.0.0.14, profile revision 24, 5000 mAh, 100 kΩ ID and checksum BE8D. It is useful as a known-good Gen4 reference, not as a BN61 conversion recipe. Its text export contains 414 register bytes; those match the first 414 bytes of the J3S DTSI payload exactly, with the final two DTSI bytes being `00 00`. Both sources report checksum `BE8D`.
 
 ## Next required engineering input
 
