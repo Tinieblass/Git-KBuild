@@ -11,7 +11,7 @@
 - Kernel: Linux 4.19.325.
 - Root integration baseline: backslashxx/KernelSU (KowSU-compatible) with NoMount 2.2.0.
 - Preserve the working HyperOS 3 boot path and VoWiFi/IMS behavior.
-- Publish one general stock ZIP for alioth, retaining the original Raikiri v1.7 alioth DTS/DTBO outputs unchanged. Users may rename the ZIP with `-miui5k` as a personal package label; renaming does not alter battery calibration or DTBO contents.
+- Publish `Flash-Kernel-alioth.zip` as the stock-battery package. If a separately verified 5000 mAh DTBO is present in the build artifact, the same ZIP can be renamed to `Flash-Kernel-alioth-5k.zip`; the installer selects that DTBO by the ZIP filename. It must abort safely if the `-5k` name is used without the matching DTBO. Never substitute the stock DTBO for the 5000 mAh variant.
 - Keep any future battery-profile changes separate until the physical battery ID and fuel-gauge data are verified.
 
 ## Build and release policy
@@ -32,7 +32,8 @@ Flash Kernel is derivative work, not a claim of original authorship over upstrea
 - [ ] Create dedicated `Tinieblass/Flash-Kernel` repository.
 - [ ] Import complete corresponding source and audit licenses.
 - [ ] Reproduce original Raikiri v1.7 alioth DTBO outputs in Flash build.
-- [ ] Add reproducible build and flashable packaging workflows.
+- [x] Add reproducible raw-artifact packaging workflow and branded AnyKernel3 recovery banner.
+- [ ] Add and verify the distinct 5000 mAh alioth DTBO before enabling the `-5k` package path.
 - [ ] Publish first Flash Kernel test build after preflight checks pass.
 
 **Device:** POCO F3 · **Codename:** alioth · **Target:** HyperOS / Android 16
