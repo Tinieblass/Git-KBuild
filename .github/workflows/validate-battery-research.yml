@@ -9,6 +9,7 @@ on:
       - "tools/extract_qg_battery_luts.py"
       - "tools/analyze_bn61_reference.py"
       - "tools/compare_m703_qg_profiles.py"
+      - "tools/verify_pm855gui_gen4_export.py"
       - "tools/compare_alioth_gen4_profiles.py"
       - "tools/validate_battery_research.py"
       - ".github/workflows/validate-battery-research.yml"
@@ -59,6 +60,12 @@ jobs:
           python3 tools/compare_m703_qg_profiles.py
           test -s research/battery/M703-QG-Comparison/table-comparison.csv
           grep -q "does not map QG values to PM855B Gen4 bytes" research/battery/M703-QG-Comparison/README.md
+      - name: Verify PM855GUI export against the J3S Gen4 payload
+        run: |
+          set -euo pipefail
+          python3 tools/verify_pm855gui_gen4_export.py
+          test -s research/battery/PM855GUI-Gen4-Map/register-map.csv
+          grep -q "Result: PASS" research/battery/PM855GUI-Gen4-Map/README.md
       - name: Upload reproducible BN61 research report
         uses: actions/upload-artifact@v4
         with:
