@@ -7,6 +7,7 @@ on:
     paths:
       - "research/battery/**"
       - "tools/extract_qg_battery_luts.py"
+      - "tools/analyze_bn61_reference.py"
       - "tools/validate_battery_research.py"
       - ".github/workflows/validate-battery-research.yml"
   workflow_dispatch:
@@ -26,6 +27,12 @@ jobs:
           set -euo pipefail
           python3 tools/validate_battery_research.py
 
+      - name: Quantitatively audit M703 reference surfaces
+        run: |
+          set -euo pipefail
+          python3 tools/analyze_bn61_reference.py
+          test -s research/battery/BN61-Reference-Analysis.md
+          grep -q "This is not a BN61 characterization" research/battery/BN61-Reference-Analysis.md
       - name: Extract all M703 QG LUTs and verify table count
         run: |
           set -euo pipefail
@@ -35,3 +42,10 @@ jobs:
           grep -q 'pc-temp-z6-lut' "$OUT/SUMMARY.txt"
           grep -q 'pc-temp-y6-lut' "$OUT/SUMMARY.txt"
           cat "$OUT/SUMMARY.txt"
+
+      - name: Upload reproducible BN61 research report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bn61-reference-analysis
+          path: research/battery/BN61-Reference-Analysis.md
+          if-no-files-found: error
