@@ -81,7 +81,11 @@ References:
 - [NOHON BN61 manual: BN61 5850/6000 mAh; BN57 for X3 NFC/X3 Pro 5160 mAh](https://manuals.plus/ae/1005005950829288)
 - [Xiaomi official POCO X3 NFC specification: 5160 mAh typical](https://www.po.co/global/poco-x3-nfc/specs/)
 
-The remaining unknown is whether the actual replacement BN61 cell installed in the project has the same OCV, impedance/DCIR, thermal response, and pack-identification behavior as the original M703 ATL 6000 pack. This matters because third-party replacement cells may differ even when their model label and headline capacity match.
+The archived M703 ATL 6000 profile gives FCC1/FCC2 values of 5956/5955 mAh at 25 °C. Its 25 °C OCV surface includes (charging/discharging) 100% = 4430.5/4428.0 mV, 50% = 3897.1/3875.4 mV and 10% = 3709.8/3688.0 mV. These are values decoded from the QG source using the driver's documented unit scaling, not new measurements.
+
+**Voltage discrepancy requiring resolution:** the M703 DTSI declares max-voltage 4.45 V, but also declares ffc-max-voltage 4.48 V and a JEITA float-voltage range reaching 4.48 V. The cited BN61 replacement manuals specify a 4.45 V charging-voltage limit. Do not carry the M703 4.48 V FFC/JEITA setting into any BN61/Gen4 profile unless the exact cell manufacturer documentation explicitly supports it.
+
+The remaining unknown is whether the actual replacement BN61 cell installed in the project has the same OCV, impedance/DCIR, thermal response, charging-voltage limits, and pack-identification behavior as the original M703 ATL 6000 pack. This matters because third-party replacement cells may differ even when their model label and headline capacity match.
 
 ## 6. Conversion status
 
