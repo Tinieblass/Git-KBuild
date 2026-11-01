@@ -70,7 +70,7 @@ def main():
         "",
         "**Status: analysis only. This is not a BN61 characterization and does not generate a Gen4 profile.**",
         "",
-        "The source is explicitly m703-atl-6000mah QG data. Its battery-ID selection links it to the BN61-style ID family, but does not prove that a Nohon BN61 replacement cell has the same electrochemistry, impedance, thermal response, or capacity curve.",
+        "The source is explicitly m703-atl-6000mah QG data. Its 100 kΩ battery-ID value is not unique: the companion M703 PM7150B 5160 mAh profile also declares 100 kΩ. Therefore the ID value alone does not identify BN61 or distinguish these packs. The 6000 mAh capacity class is consistent with commonly listed BN61 replacement-pack specifications, but does not prove identical cell chemistry, impedance, thermal response, or capacity curves.",
         "",
         "All values below are reported in source-native integer units. No conversion to ohms, milliohms, volts, or another physical unit is inferred.",
         "",
