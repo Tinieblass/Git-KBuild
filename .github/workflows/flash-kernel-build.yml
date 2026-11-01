@@ -7,6 +7,9 @@ on:
     paths:
       - '.github/workflows/flash-kernel-build.yml'
       - 'scripts/prepare_flash_kernel_backslashxx.py'
+      - 'tools/analyze_bn61_reference.py'
+      - 'tools/validate_battery_research.py'
+      - 'research/battery/**'
   workflow_dispatch:
 
 permissions:
@@ -23,6 +26,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential flex libelf-dev libncurses-dev libssl-dev lz4 python3 rsync
+      - name: Validate and analyze battery research inputs
+        run: |
+          set -euo pipefail
+          python3 tools/validate_battery_research.py
+          python3 tools/analyze_bn61_reference.py
       - name: Download LLVM toolchain
         run: |
           set -euo pipefail
@@ -134,6 +142,7 @@ jobs:
           test -s "$BOOT/dtbo.img"
           test -s "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo"
           mkdir -p "$GITHUB_WORKSPACE/flash-kernel-output"
+          cp "$GITHUB_WORKSPACE/research/battery/BN61-Reference-Analysis.md" "$GITHUB_WORKSPACE/flash-kernel-output/"
           cp "$BOOT/dtbo.img" "$GITHUB_WORKSPACE/flash-kernel-output/dtbo-stock.img"
           cp "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo" "$GITHUB_WORKSPACE/flash-kernel-output/alioth-sm8250-overlay-stock.dtbo"
       - name: Reserve BN61 5850mAh profile pending validated Gen4 model
@@ -163,7 +172,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/flash-kernel-output/alioth-sm8250-overlay-stock.dtbo" "$GITHUB_WORKSPACE/flash-kernel-output/alioth-sm8250-overlay.dtbo"
           cp "$BOOT/dts/vendor/qcom/kona.dtb" "$BOOT/dts/vendor/qcom/kona-v2.dtb" "$BOOT/dts/vendor/qcom/kona-v2.1.dtb" "$GITHUB_WORKSPACE/flash-kernel-output/"
           cp "$GITHUB_WORKSPACE/config-report.txt" "$GITHUB_WORKSPACE/flash-kernel-output/"
-          (cd "$GITHUB_WORKSPACE/flash-kernel-output" && sha256sum Image.gz dtbo.img alioth-sm8250-overlay.dtbo kona.dtb kona-v2.dtb kona-v2.1.dtb config-report.txt BN61-STATUS.txt > SHA256SUMS.txt)
+          (cd "$GITHUB_WORKSPACE/flash-kernel-output" && sha256sum Image.gz dtbo.img alioth-sm8250-overlay.dtbo kona.dtb kona-v2.dtb kona-v2.1.dtb config-report.txt BN61-STATUS.txt BN61-Reference-Analysis.md > SHA256SUMS.txt)
           {
             echo '# Flash Kernel - alioth battery profiles'
             echo
@@ -172,6 +181,7 @@ jobs:
             echo '- Stock profile: FMT/GY 4520mAh, original DTBO retained'
             echo '- J3S Sun profile: 5000mAh, separate verified DTBO supplied by the pinned Raikiri v1.7 build'
             echo '- BN61 profile: RESERVED (-6K); no DTBO generated pending validated Gen4 electrical characterization'
+            echo '- BN61 research: M703 QG reference quantitatively audited; not converted to Gen4'
             echo '- Driver: qpnp-fg-gen4 synchronizes the selected qcom,nom-batt-capacity-mah to SRAM before capacity-learning initialization'
             echo '- Built-in driver: backslashxx/KernelSU v3.3.1-35 (commit a9f3e2dd767ad77ac40f3874da39a7002998071f)'
             echo '- NoMount: v2.2.0 built-in CONFIG_NOMOUNT=y from pinned commit bf1847f98fed382369c43bfd652cd93774b9b8e3'
