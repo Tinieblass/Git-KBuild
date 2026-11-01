@@ -1,12 +1,19 @@
 name: Package Raikiri v1.7 - alioth MIUI5K (KowSU + NoMount 2.2)
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - "Raikiri v1.7 - alioth MIUI5K (KowSU + backslashxx 3.3.1-35)"
+    types:
+      - completed
     branches:
       - Raikiri-Midori-NM
-    paths:
-      - '.github/workflows/raikiri-package.yml'
   workflow_dispatch:
+    inputs:
+      RAW_RUN_ID:
+        description: 'Run ID do workflow de compilación (deixar baleiro só no disparo automático)'
+        required: false
+        type: string
 
 permissions:
   actions: read
@@ -14,6 +21,9 @@ permissions:
 
 jobs:
   package:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -25,7 +35,7 @@ jobs:
         with:
           name: raikiri-v17-alioth-miui5k-kowsu-nm22-raw
           path: raw
-          run-id: 41290067346
+          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.RAW_RUN_ID }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify raw build manifest and configuration
