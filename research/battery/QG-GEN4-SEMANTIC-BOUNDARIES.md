@@ -38,13 +38,17 @@ Reference pair:
 - [PM855GUI J3S export](https://github.com/Tinieblass/Git-KBuild/blob/Flash-Kernel/research/battery/J3S-Sun-5000mah.BATTERY.PROVISION2)
 - [J3S Gen4 DTSI](https://github.com/Tinieblass/Git-KBuild/blob/Flash-Kernel/research/battery/alioth-J3S-Sun-5000mah.dtsi)
 
-The PM855GUI export has 414 byte rows: addresses 0x041 through 0x10F, each with offset 0 then offset 1. All 414 bytes match the first 414 bytes of the J3S DTSI payload exactly.
+Three independent PM855GUI exports now match their corresponding Gen4 DTSI payloads byte-for-byte:
 
-The Gen4 payload is 416 bytes = 208 16-bit words. Starting at SRAM word 0x041, that spans words 0x041 through 0x110. The last word at 0x110 is 0x0000 in the DTSI and has no corresponding row in the PM855GUI export.
+- J3S Sun 5000 mAh, PM855GUI 1.0.0.14.
+- J11 Sun 4700 mAh, PM855GUI 1.0.0.13.
+- Xiaomi J2GYBM4N 4780 mAh, PM855GUI 1.0.0.13.
 
-The verifier is tools/verify_pm855gui_gen4_export.py. It creates PM855GUI-Gen4-Map/register-map.csv with the 207 exported address/word pairs and documents the extra zero word.
+Each export has 414 byte rows: addresses 0x041 through 0x10F, each with offset 0 then offset 1. All 414 bytes match the first 414 bytes of the corresponding 416-byte DTSI payload.
 
-This is a real, exact mapping between a PM855GUI export and its matching Gen4 DTSI payload. It is not a semantic decoder of all 208 words.
+The Gen4 payload is 416 bytes = 208 16-bit words. Starting at SRAM word 0x041, that spans words 0x041 through 0x110. The last word at 0x110 is 0x0000 in all three DTSIs and has no corresponding row in these PM855GUI exports.
+
+The tools/verify_pm855gui_gen4_export.py and tools/verify_pm855gui_gen4_pairs.py validators create aligned byte/word maps and verify the export pairs. This confirms the PM855GUI-to-Gen4 serialization and byte order across two GUI versions. It is not a semantic decoder of all 208 words.
 
 ## 4. M703 6000 mAh profile selection is tied to a one-wire identifier
 
