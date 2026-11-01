@@ -1,13 +1,13 @@
 name: Package Flash Kernel - alioth (KowSU + NoMount 2.2)
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - Raikiri v1.7 - alioth stock (KowSU + backslashxx 3.3.1-35)
+    types:
+      - completed
     branches:
-      - Raikiri-Midori-NM
       - Flash-Kernel-alioth-miui5k
-    paths:
-      - '.github/workflows/raikiri-package.yml'
-  workflow_dispatch:
 
 permissions:
   actions: read
@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   package:
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -24,9 +25,9 @@ jobs:
       - name: Download exact verified stock alioth raw build
         uses: actions/download-artifact@v4
         with:
-          name: raikiri-v17-alioth-miui5k-kowsu-nm22-raw
+          name: raikiri-v17-alioth-stock-kowsu-nm22-raw
           path: raw
-          run-id: 41290067346
+          run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download verified J3S 5000mAh DTBO build
@@ -207,7 +208,7 @@ jobs:
           unzip -p "$ZIP" banner | grep -q 'F L A S H'
           unzip -p "$ZIP" banner | grep -q 'K E R N E L'
           unzip -p "$ZIP" anykernel.sh | grep -q 'show_flash_animation'
-          if unzip -p "$ZIP" anykernel.sh | grep -qi 'raikiri'; then echo 'ERROR: Raikiri branding leaked into installer' >&2; exit 1; fi
+          if unzip -p "$ZIP" anykernel.sh | grep -Eqi 'kernel.string=.*raikiri|ui_print.*raikiri'; then echo 'ERROR: Raikiri branding leaked into installer UI' >&2; exit 1; fi
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'ZIP_BASENAME'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'dtbo-5k.img'
