@@ -23,7 +23,7 @@ jobs:
       - name: Download exact verified STOCK-battery raw build
         uses: actions/download-artifact@v4
         with:
-          name: raikiri-v17-alioth-stock-kowsu-nm22-raw
+          name: raikiri-v17-alioth-stock-ksu-nm22-raw
           path: raw
           run-id: ${{ inputs.RAW_RUN_ID }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -44,7 +44,7 @@ jobs:
           grep -qx 'CONFIG_KSU_LSM_SECURITY_HOOKS=y' <(grep '^CONFIG_KSU_LSM_SECURITY_HOOKS=' config-report.txt)
           grep -qx 'CONFIG_NOMOUNT=y' <(grep '^CONFIG_NOMOUNT=' config-report.txt)
           grep -qx '# CONFIG_KPROBES is not set' <(grep '^# CONFIG_KPROBES is not set$' config-report.txt)
-          ! grep -Eq 'J3S|5000mAh|MIUI5K' BUILD-REPORT.md
+          ! grep -Eq 'J3S|apollo-sun|MIUI5K' BUILD-REPORT.md
           echo 'PASS: exact STOCK-battery build, backslashxx KSU driver, NoMount 2.2.0 and preserved IMS provenance.'
 
       - name: Fetch pinned AnyKernel3 template
