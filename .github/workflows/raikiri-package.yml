@@ -24,7 +24,7 @@ jobs:
       - name: Download exact verified stock alioth raw build
         uses: actions/download-artifact@v4
         with:
-          name: raikiri-v17-alioth-stock-kowsu-nm22-raw
+          name: raikiri-v17-alioth-miui5k-kowsu-nm22-raw
           path: raw
           run-id: 41290067346
           github-token: ${{ secrets.GITHUB_TOKEN }}
