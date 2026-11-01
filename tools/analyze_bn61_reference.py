@@ -149,6 +149,7 @@ def main():
         "- FCC1 spans 5 713–6 012 mAh and FCC2 spans 5 881–5 958 mAh. These are M703 ATL source values, not measured Nohon BN61 values.",
         "- The QG API exposes all six Z and six Y tables through a generic VAR interpolation function, with values clamped to 0–65535. The inspected source does not assign physical units; do not label these tables as resistance or ESR without additional evidence.",
         "- The DS page0 '61' versus '57' selection path is a strong clue linking the M703 ATL 6000 profile to BN61 and the 5160 PM7150B profile to BN57; it is not proof of identical third-party replacement-cell chemistry.",
+        "- Voltage caution: M703 declares max-voltage 4.45 V but ffc-max-voltage 4.48 V; BN61 replacement manuals specify 4.45 V charge limit. Do not transfer the 4.48 V FFC/JEITA setting without exact cell-maker approval.",
         "- The J3S alioth Gen4 profile is a format/provisioning reference only. Its 416-byte payload is opaque PM855GUI output; no documented transform maps QG surfaces into those bytes.",
         "- No synthetic Gen4 payload, BN61 DTSI, BN61 DTBO, or -6K flashable package is emitted.",
         "",
