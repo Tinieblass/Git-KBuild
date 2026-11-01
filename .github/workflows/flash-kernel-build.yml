@@ -99,7 +99,7 @@ jobs:
           export ARCH=arm64
           export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
           make O=out alioth_defconfig
-          scripts/kconfig/merge_config.sh -m -O out out/.config arch/arm64/configs/vendor/xiaomi/sm8250-common.config arch/arm64/configs/vendor/xiaomi/alioth.config arch/arm64/configs/vendor/xiaomi/raikiri.config
+          scripts/kconfig/merge_config.sh -m -O out out/.config arch/arm64/configs/vendor/xiaomi/sm8250-common.config arch/arm64/configs/vendor/xiaomi/alioth.config arch/arm64/configs/vendor/xiaomi/flash-kernel.config
           make O=out olddefconfig
           grep -qx 'CONFIG_MACH_XIAOMI_ALIOTH=y' out/.config
           grep -qx 'CONFIG_BUILD_ARM64_DT_OVERLAY=y' out/.config
