@@ -46,7 +46,7 @@ jobs:
           test -s dtbo.img
           test -s alioth-sm8250-overlay.dtbo
           grep -qF 'Target: POCO F3 / alioth / HyperOS 3 / Android 16' BUILD-REPORT.md
-          grep -qF 'Battery/DTBO: original Raikiri v1.7 alioth DTS and DTBO outputs retained unchanged' BUILD-REPORT.md
+          grep -qF 'Battery/DTBO: original Raikiri v1.7 DTS retained unchanged; no J3S profile from the other branch' BUILD-REPORT.md
           grep -qF 'VoWiFi/IMS: based on the known-working Raikiri v1.7 source; no IMS source files changed by this workflow' BUILD-REPORT.md
           grep -qx 'CONFIG_KSU=y' <(grep '^CONFIG_KSU=' config-report.txt)
           grep -qx 'CONFIG_KSU_HACK_ARM64_BRANCH_LINK=y' <(grep '^CONFIG_KSU_HACK_ARM64_BRANCH_LINK=' config-report.txt)
