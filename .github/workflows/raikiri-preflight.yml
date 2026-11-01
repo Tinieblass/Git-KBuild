@@ -57,10 +57,8 @@ jobs:
             echo "This job verifies the pinned original Raikiri battery DTS is unchanged. It does not build a kernel/DTBO or produce a flashable ZIP."
           } | tee -a preflight-report.md
 
-      - name: Upload preflight report and DTS patch
+      - name: Upload original battery preflight report
         uses: actions/upload-artifact@v4
         with:
           name: raikiri-v17-preflight
-          path: |
-            preflight-report.md
-            preflight-report.md
+          path: preflight-report.md
