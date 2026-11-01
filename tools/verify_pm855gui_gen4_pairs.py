@@ -37,7 +37,7 @@ def dtsi_data(path):
         return m.group(1).strip() if m else ""
     metadata = {
         "capacity": prop(r"qcom,nom-batt-capacity-mah\s*=\s*<([0-9]+)>"),
-        "checksum": prop(r"qcom,checksum\s*=\s*<([^>]+)>").lower(),
+        "checksum": prop(r"qcom,checksum\s*=\s*<([^>]+)>").lower().removeprefix("0x"),
         "gui": prop(r'qcom,gui-version\s*=\s*"([^"]+)"'),
         "type": prop(r'qcom,battery-type\s*=\s*"([^"]+)"'),
     }
