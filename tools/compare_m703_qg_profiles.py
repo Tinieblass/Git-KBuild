@@ -6,14 +6,14 @@ import csv
 import re
 
 TABLE_RE = re.compile(
-    r"qcom,((?:fcc[12]-temp|pc-temp-v[12]|pc-temp-[zy][1-6])-lut)\\s*\\{(.*?)\\n\\s*\\};",
+    r"qcom,((?:fcc[12]-temp|pc-temp-v[12]|pc-temp-[zy][1-6])-lut)\s*\{(.*?)\n\s*\};",
     re.S,
 )
 CELL_RE = re.compile(r"<([^<>]*)>")
 
 
 def parse_cells(block, prop):
-    match = re.search(r"qcom," + re.escape(prop) + r"\\s*=\\s*(.*?);", block, re.S)
+    match = re.search(r"qcom," + re.escape(prop) + r"\s*=\s*(.*?);", block, re.S)
     if not match:
         return []
     cells = []
@@ -49,7 +49,7 @@ def parse(path):
 
 
 def scalar(source, key):
-    match = re.search(r"qcom," + re.escape(key) + r"\\s*=\\s*<([^>]+)>", source)
+    match = re.search(r"qcom," + re.escape(key) + r"\s*=\s*<([^>]+)>", source)
     return match.group(1).strip() if match else ""
 
 
@@ -130,7 +130,7 @@ def main():
         "The two profiles share 100 kΩ battery-ID, beta 4250, 100 kΩ thermistor, profile version 100 and six-pin flag. The shared ID resistance is not unique to either pack. Their LUTs must remain distinct; this report does not authorize substituting one profile for the other.",
         "",
     ]
-    (args.out / "README.md").write_text("\\n".join(lines), encoding="utf-8")
+    (args.out / "README.md").write_text("\n".join(lines), encoding="utf-8")
     print(f"PASS: compared {len(rows)} QG LUTs; same axes in {sum(r['same_axes'] for r in rows)} tables")
 
 
