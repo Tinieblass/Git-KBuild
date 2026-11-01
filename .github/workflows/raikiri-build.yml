@@ -1,4 +1,4 @@
-name: Raikiri v1.7 - alioth MIUI5K (KowSU + backslashxx 3.3.1-35)
+name: Raikiri v1.7 - alioth stock (KowSU + backslashxx 3.3.1-35)
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     paths:
       - '.github/workflows/raikiri-build.yml'
       - 'scripts/prepare_raikiri_backslashxx.py'
-  # Manual launch enabled for the MIUI5K validation build.
+  # Manual launch enabled for the stock alioth validation build.
   workflow_dispatch:
 
 permissions:
@@ -169,7 +169,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/config-report.txt" "$GITHUB_WORKSPACE/raikiri-output/"
           (cd "$GITHUB_WORKSPACE/raikiri-output" && sha256sum * > SHA256SUMS.txt)
           {
-            echo '# Raikiri v1.7 alioth MIUI5K build'
+            echo '# Raikiri v1.7 alioth stock build'
             echo
             echo '- Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d'
             echo '- Target: POCO F3 / alioth / HyperOS 3 / Android 16'
@@ -178,14 +178,14 @@ jobs:
             echo '- NoMount: v2.2.0 built-in CONFIG_NOMOUNT=y from pinned commit bf1847f98fed382369c43bfd652cd93774b9b8e3'
             echo '- VoWiFi/IMS: based on the known-working Raikiri v1.7 source; no IMS source files changed by this workflow'
             echo '- Outputs: Image.gz, combined dtbo.img, alioth overlay DTBO, Kona base DTBs'
-            echo '- Artifact naming target: -miui5k (HyperOS/MIUI branch)'
+            echo '- Artifact naming target: general stock alioth build'
             echo '- Not a flashable ZIP; no AnyKernel packaging or device-side testing has been performed.'
           } > "$GITHUB_WORKSPACE/raikiri-output/BUILD-REPORT.md"
 
       - name: Upload raw kernel and device-tree artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: raikiri-v17-alioth-miui5k-kowsu-nm22-raw
+          name: raikiri-v17-alioth-stock-kowsu-nm22-raw
           path: raikiri-output/
           if-no-files-found: error
           compression-level: 0
