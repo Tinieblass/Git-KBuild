@@ -91,7 +91,9 @@ jobs:
           grep -q 'fg-gen4-batterydata-alioth-GY-4520mah.dtsi' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
           ! grep -q 'j3s-batt-profile' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
           ! grep -q 'apollo-sun-5000mah' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
-          echo 'PASS: untouched original Raikiri v1.7 battery DTS; no J3S branch profile injected.'      - name: Configure alioth with Raikiri fragments
+          echo 'PASS: untouched original Raikiri v1.7 battery DTS; no J3S branch profile injected.'
+
+      - name: Configure alioth with Raikiri fragments
         working-directory: kernel
         run: |
           set -euo pipefail
