@@ -10,7 +10,7 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
 
 jobs:
   package:
@@ -93,7 +93,6 @@ jobs:
           do.systemless=0
           do.cleanup=1
           do.cleanuponabort=0
-          device.name1=alioth
           '; }
 
           BLOCK=boot;
@@ -156,6 +155,14 @@ jobs:
             exit 1
           fi
           unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth'
+          if unzip -p "$ZIP" anykernel.sh | grep -Eq 'device.name[0-9]+=|supported.versions=|abort '; then
+            echo 'ERROR: installer contains a device/ROM/Android restriction or abort gate' >&2
+            exit 1
+          fi
+          if unzip -p "$ZIP" anykernel.sh | LC_ALL=C grep -q '[^ -~]'; then
+            echo 'ERROR: installer UI/script is not ASCII-only' >&2
+            exit 1
+          fi
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'ZIP_BASENAME'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'dtbo-5k.img'
@@ -171,12 +178,12 @@ jobs:
           diff -u packaged-5k-dtbo.sha packaged-5k-named-dtbo.sha
           sha256sum "$ZIP" Flash-Kernel-alioth-5k.zip
 
-      - name: Upload Flash Kernel alioth installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: Flash-Kernel-alioth-flashable
-          path: |
-            Flash-Kernel-alioth.zip
-            Flash-Kernel-alioth-5k.zip
-          if-no-files-found: error
-          compression-level: 0
+      - name: Publish direct ZIP downloads
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="flash-kernel-alioth-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" Flash-Kernel-alioth.zip Flash-Kernel-alioth-5k.zip \\
+            --title "Flash Kernel alioth - build ${GITHUB_RUN_NUMBER}" \\
+            --notes "Flash Kernel for POCO F3 / alioth. Installer scripts are ASCII-only and have no device, ROM or Android version gates. Rename the stock ZIP with suffix -5k only when selecting the 5000mAh profile."
