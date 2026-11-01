@@ -1,4 +1,4 @@
-name: Raikiri v1.7 - alioth J3S build
+name: Raikiri v1.7 - alioth J3S build (KernelSU legacy)
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/raikiri-build.yml'
       - 'scripts/prepare_raikiri_j3s.py'
+      - 'scripts/prepare_raikiri_ksu_legacy.py'
       - 'scripts/raikiri-build-info.md'
   workflow_dispatch:
 
@@ -41,15 +42,19 @@ jobs:
           git clone --no-checkout https://github.com/Sayemx18/kernel_xiaomi_sm8250.git kernel
           git -C kernel checkout --detach 4d8105023e3d1474323f4118abc3b4ce6485070d
           test "$(git -C kernel rev-parse HEAD)" = '4d8105023e3d1474323f4118abc3b4ce6485070d'
-          # Raikiri stores KernelSU-Next as a pinned Git submodule. Populate it
-          # before Kconfig follows drivers/kernelsu -> ../KernelSU-Next/kernel.
-          git -C kernel submodule update --init --recursive
-          test -f kernel/KernelSU-Next/kernel/Kconfig
+          # This target is the original non-GKI KernelSU, not KernelSU-Next.
+          git clone --depth 1 --branch v0.9.5 https://github.com/tiann/KernelSU.git kernel/KernelSU
+          test "$(git -C kernel/KernelSU describe --tags --exact-match HEAD)" = 'v0.9.5'
+          test -f kernel/KernelSU/kernel/Kconfig
+          test -f kernel/KernelSU/kernel/Makefile
+          rm -rf kernel/KernelSU-Next
+          rm -f kernel/drivers/kernelsu
+          ln -s ../KernelSU/kernel kernel/drivers/kernelsu
           test -f kernel/drivers/kernelsu/Kconfig
           test -f kernel/drivers/kernelsu/Makefile
-          git -C kernel submodule status --recursive
+          git -C kernel diff --check
 
-      - name: Integrate pinned NoMount source (legacy 4.19 built-in test)
+      - name: Integrate pinned NoMount v2.2.0 source (legacy 4.19 built-in test)
         run: |
           set -euo pipefail
           NOMOUNT_COMMIT='bf1847f98fed382369c43bfd652cd93774b9b8e3'
@@ -57,6 +62,7 @@ jobs:
           git -C NoMount fetch --depth=1 origin "$NOMOUNT_COMMIT"
           git -C NoMount checkout --detach "$NOMOUNT_COMMIT"
           test "$(git -C NoMount rev-parse HEAD)" = "$NOMOUNT_COMMIT"
+          grep -q '^version=v2.2.0$' NoMount/module/module.prop
           test -s NoMount/kernel/src/nomount.c
           test -s NoMount/kernel/src/Kconfig
           test -s NoMount/kernel/src/Makefile
@@ -76,7 +82,13 @@ jobs:
               p.write_text(s)
           PY
           git -C kernel diff --check
-          echo "NoMount commit: $NOMOUNT_COMMIT"
+          echo "NoMount v2.2.0 commit: $NOMOUNT_COMMIT"
+
+      - name: Adapt Raikiri manual hooks for legacy KernelSU
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_raikiri_ksu_legacy.py kernel
+          git -C kernel diff --check
 
       - name: Prepare and verify J3S 5000 mAh DTS
         run: |
@@ -99,15 +111,20 @@ jobs:
           make O=out olddefconfig
           grep -qx 'CONFIG_MACH_XIAOMI_ALIOTH=y' out/.config
           grep -qx 'CONFIG_BUILD_ARM64_DT_OVERLAY=y' out/.config
+          grep -qx 'CONFIG_OVERLAY_FS=y' out/.config
           grep -qx 'CONFIG_KSU=y' out/.config
-          grep -qx 'CONFIG_KSU_MANUAL_HOOK=y' out/.config
-          scripts/config --file out/.config -e NOMOUNT
+          # Legacy KernelSU uses the manual source hooks in this Raikiri tree.
+          # Disable KPROBES to avoid its volume-down safe-mode trigger.
+          scripts/config --file out/.config --disable KPROBES
+          scripts/config --file out/.config --enable NOMOUNT
           make O=out olddefconfig
           grep -qx 'CONFIG_NOMOUNT=y' out/.config
+          grep -qx 'CONFIG_KSU=y' out/.config
+          grep -qx '# CONFIG_KPROBES is not set' out/.config
           grep -qx 'CONFIG_LOCALVERSION="-Raikiri-v1.7"' out/.config
           {
             echo '## Final kernel configuration checks'
-            grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_KSU=|CONFIG_KSU_MANUAL_HOOK=|CONFIG_NOMOUNT=|CONFIG_LOCALVERSION=)' out/.config
+            grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_OVERLAY_FS=|CONFIG_KSU=|CONFIG_NOMOUNT=|# CONFIG_KPROBES is not set|CONFIG_LOCALVERSION=)' out/.config
           } | tee "$GITHUB_WORKSPACE/config-report.txt"
 
       - name: Build Image.gz, DTBs and DTBO
@@ -145,11 +162,11 @@ jobs:
             echo '# Raikiri v1.7 alioth J3S build'
             echo
             echo '- Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d'
-            echo '- Target: POCO F3 / alioth'
+            echo '- Target: POCO F3 / alioth / HyperOS 3 / Android 16'
             echo '- Battery profile selected in alioth overlay: J3S Sun 5000 mAh'
-            echo '- Kernel config: alioth_defconfig + sm8250-common + alioth + raikiri fragments'
-            echo '- KSU and manual hook: enabled and verified'
-            echo '- NoMount: built-in CONFIG_NOMOUNT=y from pinned commit bf1847f98fed382369c43bfd652cd93774b9b8e3'
+            echo '- KernelSU: original legacy v0.9.5, manual hooks adapted and checked'
+            echo '- NoMount: v2.2.0 built-in CONFIG_NOMOUNT=y from pinned commit bf1847f98fed382369c43bfd652cd93774b9b8e3'
+            echo '- VoWiFi/IMS: based on the known-working Raikiri v1.7 source; no IMS source files changed by this workflow'
             echo '- Outputs: Image.gz, combined dtbo.img, alioth overlay DTBO, Kona base DTBs'
             echo '- Not a flashable ZIP; no AnyKernel packaging or device-side testing has been performed.'
           } > "$GITHUB_WORKSPACE/raikiri-output/BUILD-REPORT.md"
@@ -157,7 +174,7 @@ jobs:
       - name: Upload raw kernel and device-tree artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: raikiri-v17-alioth-j3s-raw
+          name: raikiri-v17-alioth-j3s-ksu-legacy-nm22-raw
           path: raikiri-output/
           if-no-files-found: error
           compression-level: 0
