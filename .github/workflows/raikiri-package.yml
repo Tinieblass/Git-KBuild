@@ -28,7 +28,15 @@ jobs:
           run-id: 41290067346
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify raw build manifest and configuration
+      - name: Download verified J3S 5000mAh DTBO build
+        uses: actions/download-artifact@v4
+        with:
+          name: raikiri-v17-alioth-j3s-raw
+          path: raw-5k
+          run-id: 41160583371
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify raw build manifests and battery DTBO provenance
         run: |
           set -euo pipefail
           cd raw
@@ -44,7 +52,17 @@ jobs:
           grep -qx 'CONFIG_KSU_LSM_SECURITY_HOOKS=y' <(grep '^CONFIG_KSU_LSM_SECURITY_HOOKS=' config-report.txt)
           grep -qx 'CONFIG_NOMOUNT=y' <(grep '^CONFIG_NOMOUNT=' config-report.txt)
           grep -qx '# CONFIG_KPROBES is not set' <(grep '^# CONFIG_KPROBES is not set$' config-report.txt)
-          echo 'PASS: pinned alioth build, original Raikiri DTBO, KowSU driver, NoMount 2.2.0 and IMS provenance.'
+          echo 'PASS: pinned alioth stock build, KowSU driver, NoMount 2.2.0 and IMS provenance.'
+          cd ../raw-5k
+          sha256sum -c SHA256SUMS.txt
+          test -s dtbo.img
+          test -s alioth-sm8250-overlay.dtbo
+          grep -qF 'Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d' BUILD-REPORT.md
+          grep -qF 'Battery profile selected in alioth overlay: J3S Sun 5000 mAh' BUILD-REPORT.md
+          grep -qF 'Target: POCO F3 / alioth' BUILD-REPORT.md
+          ! cmp -s ../raw/dtbo.img dtbo.img
+          cp dtbo.img ../raw/dtbo-5k.img
+          echo 'PASS: distinct J3S Sun 5000mAh combined DTBO verified from the same pinned Raikiri v1.7 source.'
 
       - name: Fetch pinned AnyKernel3 template
         run: |
