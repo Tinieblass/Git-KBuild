@@ -62,3 +62,59 @@ for rel in ("fs/read_write.c", "kernel/reboot.c", "fs/open.c", "fs/exec.c", "fs/
         raise SystemExit(f"ERROR: stale KernelSU-Next hook remains in {rel}")
 print("PASS: all targeted KernelSU-Next hook symbols removed")
 print("PASS: IMS/VoWiFi and battery DTS files were not modified")
+
+
+# Keep the Qualcomm FG SRAM nominal-capacity word synchronized with the
+# capacity declared by the selected battery profile. The DT property alone
+# only changes CHARGE_FULL_DESIGN; charge-counter calculations read NOM_CAP_WORD.
+driver = root / "drivers/power/supply/qcom/qpnp-fg-gen4.c"
+if not driver.is_file():
+    raise SystemExit("ERROR: missing drivers/power/supply/qcom/qpnp-fg-gen4.c")
+data = driver.read_text()
+load_needle = """\trc = qpnp_fg_gen4_load_profile(chip);
+\tif (rc < 0)
+\t\tgoto out;
+"""
+load_replacement = load_needle + """
+\t/* Read the selected profile's nominal capacity before initializing
+\t * capacity learning, then mirror it into FG SRAM NOM_CAP_WORD.
+\t * This keeps CC_SOC/charge-counter math aligned with the active
+\t * battery profile (4520 stock, 5000 J3S Sun, or 5850 BN61).
+\t */
+\trc = fg_gen4_bp_params_config(fg);
+\tif (rc < 0) {
+\t\tpr_err("Error in configuring battery profile params, rc:%d\\n", rc);
+\t\tgoto out;
+\t}
+\tif (fg->bp.nom_cap_uah > 0 && fg->bp.nom_cap_uah <= 0xFFFF) {
+\t\tu8 nom_cap_buf[2] = {
+\t\t\tfg->bp.nom_cap_uah & 0xFF,
+\t\t\t(fg->bp.nom_cap_uah >> 8) & 0xFF,
+\t\t};
+\t\trc = fg_sram_write(fg, NOM_CAP_WORD, NOM_CAP_OFFSET,
+\t\t\t\tnom_cap_buf, sizeof(nom_cap_buf), FG_IMA_DEFAULT);
+\t\tif (rc < 0) {
+\t\t\tpr_err("Error in writing nominal capacity %u mAh to FG SRAM, rc=%d\\n",
+\t\t\t\tfg->bp.nom_cap_uah, rc);
+\t\t\tgoto out;
+\t\t}
+\t\tpr_info("FG nominal capacity synchronized to battery profile: %u mAh\\n",
+\t\t\tfg->bp.nom_cap_uah);
+\t}
+"""
+if data.count(load_needle) != 1:
+    raise SystemExit(f"ERROR: expected one FG profile-load insertion point, got {data.count(load_needle)}")
+data = data.replace(load_needle, load_replacement, 1)
+late_block = """\trc = fg_gen4_bp_params_config(fg);
+\tif (rc < 0)
+\t\tpr_err("Error in configuring battery profile params, rc:%d\\n",
+\t\t\trc);
+
+"""
+if data.count(late_block) != 1:
+    raise SystemExit(f"ERROR: expected one late battery-profile config block, got {data.count(late_block)}")
+data = data.replace(late_block, "", 1)
+if data.count("fg_sram_write(fg, NOM_CAP_WORD, NOM_CAP_OFFSET") != 1:
+    raise SystemExit("ERROR: FG SRAM nominal-capacity write was not inserted exactly once")
+driver.write_text(data)
+print("PATCHED: qpnp-fg-gen4 writes selected qcom,nom-batt-capacity-mah into SRAM NOM_CAP_WORD before capacity-learning initialization")
