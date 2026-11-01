@@ -49,6 +49,7 @@ jobs:
           ln -s ../KernelSU/kernel kernel/drivers/kernelsu
           test -f kernel/drivers/kernelsu/Kconfig
           test -f kernel/drivers/kernelsu/Makefile
+          cp kernel/arch/arm64/configs/vendor/xiaomi/flash-kernel.config kernel/arch/arm64/configs/vendor/xiaomi/flash-kernel.config
           git -C kernel diff --check
       - name: Integrate pinned NoMount v2.2.0 source
         run: |
@@ -154,7 +155,7 @@ jobs:
             echo '- VoWiFi/IMS: upstream code retained; no IMS source files changed by this workflow'
             echo '- Outputs: Image.gz, combined dtbo.img, alioth overlay DTBO, Kona base DTBs'
             echo '- Battery profile: STOCK (FMT/GY 4520mAh DTS), unchanged'
-            echo '- Upstream provenance: Raikiri v1.7 source base. Not a flashable ZIP; no device-side testing performed.'
+            echo '- Upstream provenance: pinned SM8250 source and retained upstream feature configuration. Not a flashable ZIP; no device-side testing performed.'
           } > "$GITHUB_WORKSPACE/flash-kernel-output/BUILD-REPORT.md"
       - name: Upload raw stock-battery kernel and device-tree artifacts
         uses: actions/upload-artifact@v4
