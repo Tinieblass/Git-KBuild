@@ -20,12 +20,20 @@ jobs:
       - name: Checkout builder
         uses: actions/checkout@v4
 
-      - name: Download exact verified STOCK-battery raw build
+      - name: Download exact verified Flash Kernel raw build
         uses: actions/download-artifact@v4
         with:
           name: flash-kernel-alioth-raw
           path: raw
           run-id: ${{ inputs.RAW_RUN_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download verified J3S Sun 5000mAh DTBO
+        uses: actions/download-artifact@v4
+        with:
+          name: raikiri-v17-alioth-j3s-raw
+          path: raw-5k
+          run-id: 41160583371
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify raw build manifest and configuration
@@ -44,8 +52,17 @@ jobs:
           grep -qx 'CONFIG_KSU_LSM_SECURITY_HOOKS=y' <(grep '^CONFIG_KSU_LSM_SECURITY_HOOKS=' config-report.txt)
           grep -qx 'CONFIG_NOMOUNT=y' <(grep '^CONFIG_NOMOUNT=' config-report.txt)
           grep -qx '# CONFIG_KPROBES is not set' <(grep '^# CONFIG_KPROBES is not set$' config-report.txt)
-          ! grep -Eq 'J3S|apollo-sun|MIUI5K' BUILD-REPORT.md
-          echo 'PASS: exact STOCK-battery build, backslashxx KSU driver, NoMount 2.2.0 and preserved IMS provenance.'
+          echo 'PASS: Flash Kernel raw build, backslashxx driver, NoMount integration and preserved IMS provenance.'
+          cd ../raw-5k
+          sha256sum -c SHA256SUMS.txt
+          test -s dtbo.img
+          test -s alioth-sm8250-overlay.dtbo
+          grep -qF 'Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d' BUILD-REPORT.md
+          grep -qF 'Battery profile selected in alioth overlay: J3S Sun 5000 mAh' BUILD-REPORT.md
+          grep -qF 'Target: POCO F3 / alioth' BUILD-REPORT.md
+          ! cmp -s ../raw/dtbo.img dtbo.img
+          cp dtbo.img ../raw/dtbo-5k.img
+          echo 'PASS: distinct J3S Sun 5000mAh DTBO verified from the same pinned kernel source.'
 
       - name: Fetch pinned AnyKernel3 template
         run: |
@@ -58,15 +75,15 @@ jobs:
           test -f anykernel/META-INF/com/google/android/update-binary
           rm -rf anykernel/.git anykernel/.github anykernel/README.md
 
-      - name: Assemble alioth STOCK-battery installer
+      - name: Assemble Flash Kernel alioth installer
         run: |
           set -euo pipefail
           cp raw/Image.gz anykernel/Image.gz
           cp raw/dtbo.img anykernel/dtbo.img
+          cp raw/dtbo-5k.img anykernel/dtbo-5k.img
           cat > anykernel/anykernel.sh <<'AK3'
-          ### Flash Kernel - POCO F3 / alioth - STOCK battery
-          ## KSU-compatible backslashxx KernelSU 3.3.1-35 + NoMount 2.2.0
-          ## Unofficial package; built from pinned upstream kernel source (Raikiri v1.7 base).
+          ### Flash Kernel - POCO F3 / alioth
+          ## Unofficial package by Tinieblass.
 
           properties() { '
           kernel.string=Flash Kernel alioth (Tinieblass)
@@ -102,12 +119,22 @@ jobs:
             abort 'ROM no compatible: se requiere HyperOS';
           fi;
           ui_print 'HyperOS: detectado';
-          ui_print 'Bateria: STOCK (DTS FMT/GY 4520mAh)';
+          ZIP_BASENAME="$(basename "$ZIPFILE" .zip)";
+          case "$ZIP_BASENAME" in
+            *-5k)
+              DTBO_IMAGE=dtbo-5k.img;
+              ui_print 'Bateria: J3S Sun 5000mAh';
+              ;;
+            *)
+              DTBO_IMAGE=dtbo.img;
+              ui_print 'Bateria: stock';
+              ;;
+          esac;
 
           # Preserve the installed boot ramdisk and replace only the kernel.
           dump_boot;
           # Flash the matching active-slot DTBO before touching boot.
-          cp -f dtbo.img dtbo$SLOT.img;
+          cp -f "$DTBO_IMAGE" dtbo$SLOT.img;
           flash_generic dtbo$SLOT;
           repack_ramdisk;
           flash_boot;
@@ -125,19 +152,26 @@ jobs:
           unzip -p "$ZIP" dtbo.img | sha256sum | awk '{print $1}' > packaged-dtbo.sha
           sha256sum raw/dtbo.img | awk '{print $1}' > raw-dtbo.sha
           diff -u raw-dtbo.sha packaged-dtbo.sha
+          unzip -p "$ZIP" dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-dtbo.sha
+          sha256sum raw/dtbo-5k.img | awk '{print $1}' > raw-5k-dtbo.sha
+          diff -u raw-5k-dtbo.sha packaged-5k-dtbo.sha
           unzip -p "$ZIP" anykernel.sh | grep -q 'device.name1=alioth'
           unzip -p "$ZIP" anykernel.sh | grep -q 'supported.versions=16'
           unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
+          unzip -p "$ZIP" anykernel.sh | grep -Fq 'ZIP_BASENAME'
+          unzip -p "$ZIP" anykernel.sh | grep -Fq 'dtbo-5k.img'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'Battery: J3S Sun 5000mAh'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'Battery: stock'
           unzip -p "$ZIP" anykernel.sh | grep -q 'flash_boot'
-          if unzip -p "$ZIP" anykernel.sh | grep -Eq 'J3S|apollo-sun|j3s-batt-profile|write_boot|flash_generic (vendor_dlkm|system_dlkm)'; then
+          if unzip -p "$ZIP" anykernel.sh | grep -Eq 'write_boot|flash_generic (vendor_dlkm|system_dlkm)'; then
             echo 'ERROR: wrong battery branch or unrelated partition write detected' >&2
             exit 1
           fi
           unzip -l "$ZIP" | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|META-INF/com/google/android/update-binary|LICENSE'
           sha256sum "$ZIP"
 
-      - name: Upload flashable STOCK-battery installer
+      - name: Upload Flash Kernel alioth installer
         uses: actions/upload-artifact@v4
         with:
           name: Flash-Kernel-alioth-flashable
