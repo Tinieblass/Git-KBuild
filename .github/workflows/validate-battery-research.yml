@@ -8,6 +8,7 @@ on:
       - "research/battery/**"
       - "tools/extract_qg_battery_luts.py"
       - "tools/analyze_bn61_reference.py"
+      - "tools/compare_alioth_gen4_profiles.py"
       - "tools/validate_battery_research.py"
       - ".github/workflows/validate-battery-research.yml"
   workflow_dispatch:
@@ -55,5 +56,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bn61-reference-analysis
-          path: research/battery/BN61-Reference-Analysis.md
+          path: |
+            research/battery/BN61-Reference-Analysis.md
+            research/battery/Gen4-Comparison/**
           if-no-files-found: error
