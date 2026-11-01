@@ -1,4 +1,4 @@
-name: FD-release-alioth-builder
+name: Flash Kernel | alioth | Release
 
 on:
   pull_request:
@@ -22,7 +22,7 @@ on:
         required: false
       CUSTOM_SED:
         description: 'Custom Kernel Version'
-        default: '-FakeDreamer'
+        default: '-Tinieblass'
         required: false
       COMPILER:
         description: 'Choose compiler'
@@ -240,8 +240,8 @@ jobs:
           export PATH="$(pwd)/clang/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=ARM64
-          export KBUILD_BUILD_USER="renoroi"
-          export KBUILD_BUILD_HOST="dreamstate"
+          export KBUILD_BUILD_USER="Tinieblass"
+          export KBUILD_BUILD_HOST="FlashKernel"
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           cd kernel_tree
           make O=out vendor/alioth_defconfig
@@ -365,9 +365,9 @@ jobs:
             EXTRA2="-OPLUS"
           fi
           if [[ "${{ matrix.kernel }}" == "1" ]]; then
-            echo "ZIP_NAME=[FD-][ksu-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
+            echo "ZIP_NAME=[FlashKernel][ksu-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
           else
-            echo "ZIP_NAME=[FD-][noksu-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
+            echo "ZIP_NAME=[FlashKernel][noksu-${{ github.event.inputs.CODENAME }}-${COMPILED_DATE}${EXTRA2}]" >> $GITHUB_ENV
           fi
       
       - name: Upload Flashable Kernel Zip
