@@ -118,6 +118,8 @@ def main():
         f"- Profile revision: {metadata.get('Profile_Revision', 'not recorded')}",
         f"- DTSI payload: {len(payload)} bytes",
         f"- PM855GUI register bytes: {len(entries)}",
+        f"- SRAM word range: 0x041 through 0x110 (208 words)",
+        "- PM855GUI rows cover 207 words; word 0x110 is DTSI-only and equals 0x0000.",
         f"- Register addresses: 0x041 through 0x{entries[-1][0]:03X}",
         f"- Matched bytes: {len(entries)}/{len(payload)}",
         f"- Unmatched DTSI tail: {tail.hex(' ').upper()}",
@@ -131,7 +133,7 @@ def main():
     ]
     (args.out / "README.md").write_text("\n".join(report), encoding="utf-8")
     print("PASS: PM855GUI export matches J3S Gen4 payload bytes 0..413; unmatched tail is 00 00.")
-    print(f"PASS: wrote {len(entries)//2} register words to {csv_path}")
+    print(f"PASS: mapped {len(entries)//2} PM855GUI words plus one DTSI-only word (208 payload words) to {csv_path}")
 
 
 if __name__ == "__main__":
