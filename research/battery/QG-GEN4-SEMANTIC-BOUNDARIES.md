@@ -61,11 +61,23 @@ Sources:
 - [Surya qpnp-qg.c](https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/21aca2e848f6697311ad801176e4c4aa4ddc52c7/drivers/power/supply/qcom/qpnp-qg.c), around qg_load_battery_profile.
 - [Surya sdmmagpie-idp.dtsi](https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/21aca2e848f6697311ad801176e4c4aa4ddc52c7/arch/arm64/boot/dts/qcom/sdmmagpie-idp.dtsi), which includes both profiles in the same battery-data node.
 
-## 5. What this means for BN61
+## 5. BN61 association: strong match, not yet cell-level proof
 
-The M703 ATL 6000 profile is a useful 6000 mAh QG donor reference, but its DS page0 "61" identification is not evidence that a replacement BN61 pack contains the same cell or presents the same one-wire identity. The shared 100 kΩ battery-ID value is not discriminating.
+The M703 QG selection logic is a much stronger match to BN61 than capacity alone:
 
-No source found so far proves that BN61 has the same OCV, DCIR/impedance, thermal response, or 208-word PM855B Gen4 model as M703 ATL 6000.
+- The driver selects the 6000 mAh M703 ATL profile when DS page0 characters 3 and 4 are "61".
+- It selects the 5160 mAh M703 PM7150B profile when those characters are "57".
+- Commercial battery references identify BN61 as the 5850 mAh rated / 6000 mAh typical battery for POCO X3 (non-NFC), while BN57 is commonly listed for POCO X3 NFC / X3 Pro at 5160 mAh.
+- Xiaomi's official POCO X3 NFC specification is 5160 mAh typical.
+
+This creates a compelling correspondence: DS page0 "61" ↔ M703 ATL 6000 ↔ commercial BN61, and "57" ↔ M703 PM7150B 5160 ↔ commercial BN57. The source does not literally spell out "BN61", so retain this as a strong identification match rather than a manufacturer-certified cell identity.
+
+References:
+- [iFixit BN61 battery: Poco X3, 5850 mAh, 3.87 V, 22.6 Wh](https://www.ifixit.com/en-eu/products/xiaomi-poco-x3-battery)
+- [NOHON BN61 manual: BN61 5850/6000 mAh; BN57 for X3 NFC/X3 Pro 5160 mAh](https://manuals.plus/ae/1005005950829288)
+- [Xiaomi official POCO X3 NFC specification: 5160 mAh typical](https://www.po.co/global/poco-x3-nfc/specs/)
+
+The remaining unknown is whether the actual replacement BN61 cell installed in the project has the same OCV, impedance/DCIR, thermal response, and pack-identification behavior as the original M703 ATL 6000 pack. This matters because third-party replacement cells may differ even when their model label and headline capacity match.
 
 ## 6. Conversion status
 
