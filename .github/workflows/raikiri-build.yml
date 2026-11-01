@@ -1,4 +1,4 @@
-name: Raikiri v1.7 - alioth STOCK (KSU backslashxx + NoMount 2.2)
+name: Flash Kernel - alioth STOCK (KSU backslashxx + NoMount 2.2)
 
 on:
   push:
@@ -35,7 +35,7 @@ jobs:
           test -x clang/bin/clang
           clang/bin/clang --version
 
-      - name: Checkout pinned Raikiri v1.7 source
+      - name: Checkout pinned upstream kernel source (Raikiri v1.7 base)
         run: |
           set -euo pipefail
           git clone --no-checkout https://github.com/Sayemx18/kernel_xiaomi_sm8250.git kernel
@@ -86,13 +86,13 @@ jobs:
           git -C kernel diff --check
           echo "NoMount v2.2.0 commit: $NOMOUNT_COMMIT"
 
-      - name: Adapt Raikiri source for backslashxx KernelSU
+      - name: Adapt upstream kernel source for backslashxx KernelSU
         run: |
           set -euo pipefail
           python3 scripts/prepare_raikiri_backslashxx.py kernel
           git -C kernel diff --check
 
-      - name: Preserve original Raikiri v1.7 battery and DTBO configuration
+      - name: Preserve original stock battery and DTBO configuration
         working-directory: kernel
         run: |
           set -euo pipefail
@@ -103,7 +103,7 @@ jobs:
           ! grep -q 'apollo-sun-5000mah' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
           echo 'PASS: untouched original Raikiri v1.7 battery DTS; no J3S branch profile injected.'
 
-      - name: Configure alioth with Raikiri fragments
+      - name: Configure alioth with Flash Kernel fragments
         working-directory: kernel
         run: |
           set -euo pipefail
@@ -133,7 +133,7 @@ jobs:
           grep -qx 'CONFIG_KSU_LSM_SECURITY_HOOKS=y' out/.config
           grep -qx '# CONFIG_KSU_TAMPER_SYSCALL_TABLE is not set' out/.config
           grep -qx '# CONFIG_KPROBES is not set' out/.config
-          grep -qx 'CONFIG_LOCALVERSION="-Raikiri-v1.7"' out/.config
+          grep -qx 'CONFIG_LOCALVERSION="-FlashKernel"' out/.config
           {
             echo '## Final kernel configuration checks'
             grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_OVERLAY_FS=|CONFIG_KSU=|CONFIG_KSU_HACK_ARM64_BRANCH_LINK=|CONFIG_KSU_LSM_SECURITY_HOOKS=|CONFIG_NOMOUNT=|# CONFIG_KPROBES is not set|CONFIG_LOCALVERSION=)' out/.config
@@ -161,33 +161,33 @@ jobs:
           test -s "$BOOT/dts/vendor/qcom/kona.dtb"
           test -s "$BOOT/dts/vendor/qcom/kona-v2.dtb"
           test -s "$BOOT/dts/vendor/qcom/kona-v2.1.dtb"
-          mkdir -p "$GITHUB_WORKSPACE/raikiri-output"
-          cp "$BOOT/Image.gz" "$GITHUB_WORKSPACE/raikiri-output/"
-          cp "$BOOT/dtbo.img" "$GITHUB_WORKSPACE/raikiri-output/"
-          cp "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo" "$GITHUB_WORKSPACE/raikiri-output/"
-          cp "$BOOT/dts/vendor/qcom/kona.dtb" "$GITHUB_WORKSPACE/raikiri-output/"
-          cp "$BOOT/dts/vendor/qcom/kona-v2.dtb" "$GITHUB_WORKSPACE/raikiri-output/"
-          cp "$BOOT/dts/vendor/qcom/kona-v2.1.dtb" "$GITHUB_WORKSPACE/raikiri-output/"
-          cp "$GITHUB_WORKSPACE/config-report.txt" "$GITHUB_WORKSPACE/raikiri-output/"
-          (cd "$GITHUB_WORKSPACE/raikiri-output" && sha256sum * > SHA256SUMS.txt)
+          mkdir -p "$GITHUB_WORKSPACE/flash-kernel-output"
+          cp "$BOOT/Image.gz" "$GITHUB_WORKSPACE/flash-kernel-output/"
+          cp "$BOOT/dtbo.img" "$GITHUB_WORKSPACE/flash-kernel-output/"
+          cp "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo" "$GITHUB_WORKSPACE/flash-kernel-output/"
+          cp "$BOOT/dts/vendor/qcom/kona.dtb" "$GITHUB_WORKSPACE/flash-kernel-output/"
+          cp "$BOOT/dts/vendor/qcom/kona-v2.dtb" "$GITHUB_WORKSPACE/flash-kernel-output/"
+          cp "$BOOT/dts/vendor/qcom/kona-v2.1.dtb" "$GITHUB_WORKSPACE/flash-kernel-output/"
+          cp "$GITHUB_WORKSPACE/config-report.txt" "$GITHUB_WORKSPACE/flash-kernel-output/"
+          (cd "$GITHUB_WORKSPACE/flash-kernel-output" && sha256sum * > SHA256SUMS.txt)
           {
-            echo '# Raikiri v1.7 alioth STOCK battery build'
+            echo '# Flash Kernel - alioth STOCK battery build'
             echo
             echo '- Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d'
             echo '- Target: POCO F3 / alioth / HyperOS 3 / Android 16'
-            echo '- Battery/DTBO: original Raikiri v1.7 stock FMT/GY 4520mAh DTS retained unchanged; no 5000mAh profile'
+            echo '- Battery/DTBO: original upstream stock FMT/GY 4520mAh DTS retained unchanged; no 5000mAh profile'
             echo '- Built-in driver: backslashxx/KernelSU v3.3.1-35 (commit a9f3e2dd767ad77ac40f3874da39a7002998071f)'
             echo '- NoMount: v2.2.0 built-in CONFIG_NOMOUNT=y from pinned commit bf1847f98fed382369c43bfd652cd93774b9b8e3'
-            echo '- VoWiFi/IMS: based on the known-working Raikiri v1.7 source; no IMS source files changed by this workflow'
+            echo '- VoWiFi/IMS: based on the upstream Raikiri v1.7 codebase; no IMS source files changed by this workflow'
             echo '- Outputs: Image.gz, combined dtbo.img, alioth overlay DTBO, Kona base DTBs'
-            echo '- Battery profile: STOCK Raikiri v1.7 (FMT/GY 4520mAh DTS), unchanged'
-            echo '- Not a flashable ZIP; no AnyKernel packaging or device-side testing has been performed.'
-          } > "$GITHUB_WORKSPACE/raikiri-output/BUILD-REPORT.md"
+            echo '- Battery profile: STOCK (FMT/GY 4520mAh DTS), unchanged'
+            echo '- Upstream base: Raikiri v1.7. Not a flashable ZIP; no AnyKernel packaging or device-side testing has been performed.'
+          } > "$GITHUB_WORKSPACE/flash-kernel-output/BUILD-REPORT.md"
 
       - name: Upload raw stock-battery kernel and device-tree artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: raikiri-v17-alioth-stock-ksu-nm22-raw
-          path: raikiri-output/
+          name: flash-kernel-alioth-stock-ksu-nm22-raw
+          path: flash-kernel-output/
           if-no-files-found: error
           compression-level: 0
