@@ -3,7 +3,7 @@ name: Flash Kernel - alioth
 on:
   push:
     branches:
-      - Flash-Kernel
+      - Flash-Kernel-disabled-temporary
     paths:
       - '.github/workflows/flash-kernel-build.yml'
       - 'scripts/prepare_flash_kernel_backslashxx.py'
