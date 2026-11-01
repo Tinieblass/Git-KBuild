@@ -69,7 +69,7 @@ jobs:
           ## Unofficial package; built from pinned upstream kernel source (Raikiri v1.7 base).
 
           properties() { '
-          kernel.string=Flash Kernel alioth STOCK - KSU + NoMount 2.2.0 (Tinieblass)
+          kernel.string=Flash Kernel alioth (Tinieblass)
           do.devicecheck=0
           do.modules=0
           do.systemless=0
@@ -117,7 +117,7 @@ jobs:
       - name: Validate installer structure and embedded binaries
         run: |
           set -euo pipefail
-          ZIP=Flash-Kernel-alioth-stock-KSU-NoMount2.2.zip
+          ZIP=Flash-Kernel-alioth.zip
           unzip -t "$ZIP"
           unzip -p "$ZIP" Image.gz | sha256sum | awk '{print $1}' > packaged-image.sha
           sha256sum raw/Image.gz | awk '{print $1}' > raw-image.sha
@@ -141,6 +141,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Flash-Kernel-alioth-flashable
-          path: Flash-Kernel-alioth-stock-KSU-NoMount2.2.zip
+          path: Flash-Kernel-alioth.zip
           if-no-files-found: error
           compression-level: 0
