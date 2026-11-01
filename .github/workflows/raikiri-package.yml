@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - Raikiri-Midori-NM
+      - Flash-Kernel-alioth-miui5k
     paths:
       - '.github/workflows/raikiri-package.yml'
   workflow_dispatch:
