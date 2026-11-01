@@ -1,4 +1,4 @@
-name: Raikiri v1.7 - alioth MIUI5K (KowSU integration)
+name: Raikiri v1.7 - alioth MIUI5K (KowSU + backslashxx 3.3.1-35)
 
 on:
   workflow_dispatch:
@@ -34,9 +34,12 @@ jobs:
           git clone --no-checkout https://github.com/Sayemx18/kernel_xiaomi_sm8250.git kernel
           git -C kernel checkout --detach 4d8105023e3d1474323f4118abc3b4ce6485070d
           test "$(git -C kernel rev-parse HEAD)" = '4d8105023e3d1474323f4118abc3b4ce6485070d'
-          # This target is the original non-GKI KernelSU, not KernelSU-Next.
-          git clone --depth 1 --branch v0.9.5 https://github.com/tiann/KernelSU.git kernel/KernelSU
-          test "$(git -C kernel/KernelSU describe --tags --exact-match HEAD)" = 'v0.9.5'
+          # KowSU's compatible built-in driver: backslashxx KernelSU v3.3.1-35.
+          KSU_COMMIT='a9f3e2dd767ad77ac40f3874da39a7002998071f'
+          git clone --filter=blob:none --no-checkout https://github.com/backslashxx/KernelSU.git kernel/KernelSU
+          git -C kernel/KernelSU fetch --depth=1 origin refs/tags/v3.3.1-35
+          git -C kernel/KernelSU checkout --detach "$KSU_COMMIT"
+          test "$(git -C kernel/KernelSU rev-parse HEAD)" = "$KSU_COMMIT"
           test -f kernel/KernelSU/kernel/Kconfig
           test -f kernel/KernelSU/kernel/Makefile
           rm -rf kernel/KernelSU-Next
@@ -76,10 +79,10 @@ jobs:
           git -C kernel diff --check
           echo "NoMount v2.2.0 commit: $NOMOUNT_COMMIT"
 
-      - name: Adapt Raikiri manual hooks for legacy KernelSU
+      - name: Adapt Raikiri source for backslashxx KernelSU
         run: |
           set -euo pipefail
-          python3 scripts/prepare_raikiri_ksu_legacy.py kernel
+          python3 scripts/prepare_raikiri_backslashxx.py kernel
           git -C kernel diff --check
 
       - name: Preserve original Raikiri v1.7 battery and DTBO configuration
@@ -120,7 +123,7 @@ jobs:
           grep -qx 'CONFIG_LOCALVERSION="-Raikiri-v1.7"' out/.config
           {
             echo '## Final kernel configuration checks'
-            grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_OVERLAY_FS=|CONFIG_KSU=|CONFIG_NOMOUNT=|# CONFIG_KPROBES is not set|CONFIG_LOCALVERSION=)' out/.config
+            grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_OVERLAY_FS=|CONFIG_KSU=|CONFIG_KSU_HACK_ARM64_BRANCH_LINK=|CONFIG_KSU_LSM_SECURITY_HOOKS=|CONFIG_NOMOUNT=|# CONFIG_KPROBES is not set|CONFIG_LOCALVERSION=)' out/.config
           } | tee "$GITHUB_WORKSPACE/config-report.txt"
 
       - name: Build Image.gz, DTBs and DTBO
@@ -160,7 +163,7 @@ jobs:
             echo '- Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d'
             echo '- Target: POCO F3 / alioth / HyperOS 3 / Android 16'
             echo '- Battery/DTBO: original Raikiri v1.7 DTS retained unchanged; no J3S profile from the other branch'
-            echo '- KernelSU: integration pending KowSU + backslashxx v3.3.1-21 source verification'
+            echo '- KowSU-compatible built-in driver: backslashxx/KernelSU v3.3.1-35 (commit a9f3e2dd767ad77ac40f3874da39a7002998071f)'
             echo '- NoMount: v2.2.0 built-in CONFIG_NOMOUNT=y from pinned commit bf1847f98fed382369c43bfd652cd93774b9b8e3'
             echo '- VoWiFi/IMS: based on the known-working Raikiri v1.7 source; no IMS source files changed by this workflow'
             echo '- Outputs: Image.gz, combined dtbo.img, alioth overlay DTBO, Kona base DTBs'
