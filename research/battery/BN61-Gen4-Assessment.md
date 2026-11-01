@@ -49,7 +49,7 @@ The M703 source was parsed and all **16 LUTs / 4323 scalar entries** passed row/
 
 - Battery model: Nohon BN61, labelled 5850 mAh rated / 6000 mAh typical, 3.87 V nominal, 4.45 V charge limit (vendor listing/manual data; not an electrical characterization dataset).
 - Prior project notes specify a nominal target of 5850 mAh and a measured/observed battery-ID resistance around 100.5 kOhm. This is not sufficient to identify the cell chemistry or reconstruct its dynamic response.
-- No BN61-specific OCV-vs-SOC, DCIR/impedance-vs-SOC-and-temperature, thermal response, or validated Gen4 416-byte profile has been located in the public sources checked so far.
+- The M703 file supplies OCV, six impedance tables and temperature-dependent capacity data for the authenticated `61` battery identity. What remains missing is a PM855GUI/Gen4-generated payload for this same model, or the generator and documented mapping needed to produce one safely.
 
 
 
@@ -62,7 +62,7 @@ The M703 source was parsed and all **16 LUTs / 4323 scalar entries** passed row/
 
 ## Engineering conclusion
 
-The M703 ATL QG LUTs are useful as a **reference dataset** for comparative analysis, but they are not proof of the BN61 cell's electrical characteristics. The J3S 416-byte Gen4 payload is a format/reference example, not a conversion template. The 416-byte block contains proprietary PM855GUI-generated model data; changing only nominal capacity, the checksum, or a few header bytes would not produce a validated BN61 profile.
+The M703 ATL QG LUTs are now confirmed as the source profile selected for authenticated battery identifier `61`. The user's previously recorded BN61 battery ID of approximately 100.5 kOhm also falls within the 100 kOhm profile's ±15% matching range. This makes M703 the correct recovered QG reference for the BN61 identifier, while still not proving that every third-party Nohon replacement has identical cell chemistry or dynamic response. The J3S 416-byte Gen4 payload is a format/reference example, not a conversion template. The 416-byte block is a PM855GUI-generated Gen4 model. The J3S provision export demonstrates the 414-byte register map that feeds the DTSI payload, but no public PM855GUI generator or documented mapping from the QG OCV/Z/Y tables to those Gen4 registers was found. Changing only nominal capacity, the checksum, or a few header bytes would not produce a validated BN61 profile.
 
 Do not generate or ship a BN61 Gen4 profile/DTBO/flashable ZIP until a BN61-specific characterization or a legitimately generated PM855GUI profile exists and passes independent validation. Keep `-6K` reserved. The stock and J3S profiles remain separate.
 
