@@ -1,6 +1,13 @@
 name: Flash Kernel - alioth
 
 on:
+  workflow_run:
+    workflows:
+      - Flash Kernel - alioth
+    types:
+      - completed
+    branches:
+      - Flash-Kernel
   workflow_dispatch:
     inputs:
       RAW_RUN_ID:
@@ -14,6 +21,7 @@ permissions:
 
 jobs:
   package:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -25,7 +33,7 @@ jobs:
         with:
           name: flash-kernel-alioth-raw
           path: raw
-          run-id: ${{ inputs.RAW_RUN_ID }}
+          run-id: ${{ github.event.workflow_run.id || inputs.RAW_RUN_ID }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download verified J3S Sun 5000mAh DTBO
