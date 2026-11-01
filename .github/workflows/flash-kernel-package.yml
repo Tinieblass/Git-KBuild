@@ -184,6 +184,4 @@ jobs:
         run: |
           set -euo pipefail
           TAG="flash-kernel-alioth-${GITHUB_RUN_NUMBER}"
-          gh release create "$TAG" Flash-Kernel-alioth.zip Flash-Kernel-alioth-5k.zip \\
-            --title "Flash Kernel alioth - build ${GITHUB_RUN_NUMBER}" \\
-            --notes "Flash Kernel for POCO F3 / alioth. Installer scripts are ASCII-only and have no device, ROM or Android version gates. Rename the stock ZIP with suffix -5k only when selecting the 5000mAh profile."
+          gh release create "$TAG" Flash-Kernel-alioth.zip Flash-Kernel-alioth-5k.zip --title "Flash Kernel alioth - build ${GITHUB_RUN_NUMBER}" --notes "Flash Kernel for POCO F3 / alioth. Installer scripts are ASCII-only and have no device, ROM or Android version gates. Rename the stock ZIP with suffix -5k only when selecting the 5000mAh profile."
