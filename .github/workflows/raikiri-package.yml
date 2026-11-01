@@ -86,21 +86,17 @@ jobs:
             cp raw/dtbo-5k.img anykernel/dtbo-5k.img
           fi
           cat > anykernel/banner <<'BANNER'
-           ______ _      _____  _____ _    _
-          |  ____| |    / ____|/ ____| |  | |
-          | |__  | |   | (___ | |    | |  | |
-          |  __| | |    \___ \| |    | |  | |
-          | |    | |____ ____) | |____| |__| |
-          |_|    |______|_____/ \_____|\____/
-                    /|
-                   / |
-                  /  |
-                 /___|
-                     /
-                    /
-                   /____
-                   FLASH KERNEL
-                   POCO F3 / alioth
+                         /|
+                        / |
+                       /  |
+                      / / |
+                     / /  |
+                    /_/   |
+                        \ |
+                         \|
+          F L A S H
+          K E R N E L
+          POCO F3 / alioth
           BANNER
           cat > anykernel/anykernel.sh <<'AK3'
           ### Flash Kernel - POCO F3 / alioth
@@ -124,6 +120,41 @@ jobs:
           PATCH_VBMETA_FLAG=auto;
 
           . tools/ak3-core.sh;
+
+          # Recovery-friendly frame sequence: move the ASCII bolt left-to-right.
+          # Recovery ui_print is line-oriented, so frames are shown sequentially.
+          show_flash_animation() {
+            ui_print " "
+            ui_print "  /|"
+            ui_print " / |"
+            ui_print "/__|"
+            ui_print "   |"
+            ui_print "F L A S H"
+            ui_print "K E R N E L"
+            ui_print " "
+            ui_print "       /|"
+            ui_print "      / |"
+            ui_print "     /__|"
+            ui_print "        |"
+            ui_print "F L A S H"
+            ui_print "K E R N E L"
+            ui_print " "
+            ui_print "              /|"
+            ui_print "             / |"
+            ui_print "            /__|"
+            ui_print "               |"
+            ui_print "F L A S H"
+            ui_print "K E R N E L"
+            ui_print " "
+            ui_print "                     /|"
+            ui_print "                    / |"
+            ui_print "                   /__|"
+            ui_print "                      |"
+            ui_print "F L A S H"
+            ui_print "K E R N E L"
+            ui_print "POCO F3 / alioth"
+          }
+          show_flash_animation
 
           # Select the battery DTBO from the ZIP filename, not the recovery ROM name.
           ZIP_BASENAME="$(basename "$ZIPFILE" .zip)"
@@ -173,6 +204,10 @@ jobs:
           unzip -p "$ZIP" anykernel.sh | grep -q 'device.name1=alioth'
           unzip -p "$ZIP" anykernel.sh | grep -q 'supported.versions=16'
           unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth'
+          unzip -p "$ZIP" banner | grep -q 'F L A S H'
+          unzip -p "$ZIP" banner | grep -q 'K E R N E L'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'show_flash_animation'
+          if unzip -p "$ZIP" anykernel.sh | grep -qi 'raikiri'; then echo 'ERROR: Raikiri branding leaked into installer' >&2; exit 1; fi
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'ZIP_BASENAME'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'dtbo-5k.img'
