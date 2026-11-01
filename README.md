@@ -11,15 +11,13 @@
 - Kernel: Linux 4.19.325.
 - Root integration baseline: backslashxx/KernelSU (KowSU-compatible) with NoMount 2.2.0.
 - Preserve the working HyperOS 3 boot path and VoWiFi/IMS behavior.
-- Keep stock-battery and high-capacity variants separate until the exact alioth battery ID, DTS/DTBO and fuel-gauge tables are verified.
-
-## Battery safety status
-The pinned Raikiri source references the original alioth FMT/GY **4520 mAh** battery profiles. The previously tested ZIP name included `miui5k`, but its DTS was not changed to a verified 5000 mAh profile. This project therefore does **not** claim native 5000/5850 mAh battery support yet. CP5 is a separate runtime configuration.
+- The `-miui5k` package must retain the original Raikiri v1.7 alioth DTS/DTBO outputs unchanged; its suffix is a package variant name, not a claim about battery calibration.
+- Keep any future battery-profile changes separate until the physical battery ID and fuel-gauge data are verified.
 
 ## Build and release policy
 1. Pin upstream source, toolchain and installer dependencies.
-2. Build raw kernel/device-tree artifacts first.
-3. Verify hashes and config before packaging.
+2. Build raw kernel/device-tree artifacts first from the original Raikiri v1.7 alioth source.
+3. Verify hashes, kernel config and the presence of the original Raikiri DTBO artifacts.
 4. Validate the AnyKernel installer for alioth and the intended Android version.
 5. Publish complete corresponding source, build scripts, notices, changelog and SHA-256 checksums with every binary.
 6. Keep experimental performance, scheduler, thermal, charging and battery changes isolated until device-tested.
@@ -33,7 +31,7 @@ Flash Kernel is derivative work, not a claim of original authorship over upstrea
 - [x] Draft project identity and attribution documents.
 - [ ] Create dedicated `Tinieblass/Flash-Kernel` repository.
 - [ ] Import complete corresponding source and audit licenses.
-- [ ] Audit battery IDs, DTS/DTBO and CP5 interaction.
+- [ ] Reproduce original Raikiri v1.7 alioth DTBO outputs in Flash build.
 - [ ] Add reproducible build and flashable packaging workflows.
 - [ ] Publish first Flash Kernel test build after preflight checks pass.
 
