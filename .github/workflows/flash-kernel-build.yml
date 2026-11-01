@@ -1,0 +1,162 @@
+name: Flash Kernel - alioth
+
+on:
+  push:
+    branches:
+      - Flash-Kernel
+    paths:
+      - '.github/workflows/flash-kernel-build.yml'
+      - 'scripts/prepare_flash_kernel_backslashxx.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout builder
+        uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential flex libelf-dev libncurses-dev libssl-dev lz4 python3 rsync
+      - name: Download LLVM toolchain
+        run: |
+          set -euo pipefail
+          wget -q 'https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/747f0cceb48f48bf7cf497a3e01af1389266904b/clang-r614150.tar.gz' -O clang.tar.gz
+          mkdir clang
+          tar -xzf clang.tar.gz -C clang
+          test -x clang/bin/clang
+          clang/bin/clang --version
+      - name: Checkout pinned upstream kernel source
+        run: |
+          set -euo pipefail
+          git clone --no-checkout https://github.com/Sayemx18/kernel_xiaomi_sm8250.git kernel
+          git -C kernel checkout --detach 4d8105023e3d1474323f4118abc3b4ce6485070d
+          test "$(git -C kernel rev-parse HEAD)" = '4d8105023e3d1474323f4118abc3b4ce6485070d'
+          KSU_COMMIT='a9f3e2dd767ad77ac40f3874da39a7002998071f'
+          git clone --filter=blob:none --no-checkout https://github.com/backslashxx/KernelSU.git kernel/KernelSU
+          git -C kernel/KernelSU fetch --depth=1 origin refs/tags/v3.3.1-35
+          git -C kernel/KernelSU checkout --detach "$KSU_COMMIT"
+          test "$(git -C kernel/KernelSU rev-parse HEAD)" = "$KSU_COMMIT"
+          test -f kernel/KernelSU/kernel/Kconfig
+          test -f kernel/KernelSU/kernel/Makefile
+          rm -rf kernel/KernelSU-Next
+          rm -f kernel/drivers/kernelsu
+          ln -s ../KernelSU/kernel kernel/drivers/kernelsu
+          test -f kernel/drivers/kernelsu/Kconfig
+          test -f kernel/drivers/kernelsu/Makefile
+          git -C kernel diff --check
+      - name: Integrate pinned NoMount v2.2.0 source
+        run: |
+          set -euo pipefail
+          NOMOUNT_COMMIT='bf1847f98fed382369c43bfd652cd93774b9b8e3'
+          git clone --no-checkout https://github.com/maxsteeel/nomount.git NoMount
+          git -C NoMount fetch --depth=1 origin "$NOMOUNT_COMMIT"
+          git -C NoMount checkout --detach "$NOMOUNT_COMMIT"
+          test "$(git -C NoMount rev-parse HEAD)" = "$NOMOUNT_COMMIT"
+          grep -q '^version=v2.2.0$' NoMount/module/module.prop
+          test -s NoMount/kernel/src/nomount.c
+          test -s NoMount/kernel/src/Kconfig
+          test -s NoMount/kernel/src/Makefile
+          ln -s "$GITHUB_WORKSPACE/NoMount/kernel/src" "$GITHUB_WORKSPACE/kernel/fs/nomount"
+          grep -qF 'obj-$(CONFIG_NOMOUNT) += nomount/' kernel/fs/Makefile || printf '\nobj-$(CONFIG_NOMOUNT) += nomount/\n' >> kernel/fs/Makefile
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("kernel/fs/Kconfig")
+          s = p.read_text()
+          entry = 'source "fs/nomount/Kconfig"'
+          if entry not in s:
+              pos = s.rfind("\nendmenu")
+              if pos < 0:
+                  raise SystemExit("ERROR: fs/Kconfig has no endmenu insertion point")
+              s = s[:pos] + "\n" + entry + s[pos:]
+              p.write_text(s)
+          PY
+          git -C kernel diff --check
+      - name: Adapt source for backslashxx KernelSU
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_flash_kernel_backslashxx.py kernel
+          git -C kernel diff --check
+      - name: Preserve original stock battery and DTBO configuration
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-FMT-4520mah.dtsi arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-GY-4520mah.dtsi
+          grep -q 'fg-gen4-batterydata-alioth-FMT-4520mah.dtsi' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+          grep -q 'fg-gen4-batterydata-alioth-GY-4520mah.dtsi' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+          ! grep -q 'j3s-batt-profile' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+          ! grep -q 'apollo-sun-5000mah' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+      - name: Configure alioth with Flash Kernel fragments
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          export ARCH=arm64
+          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+          make O=out alioth_defconfig
+          scripts/kconfig/merge_config.sh -m -O out out/.config arch/arm64/configs/vendor/xiaomi/sm8250-common.config arch/arm64/configs/vendor/xiaomi/alioth.config arch/arm64/configs/vendor/xiaomi/raikiri.config
+          make O=out olddefconfig
+          grep -qx 'CONFIG_MACH_XIAOMI_ALIOTH=y' out/.config
+          grep -qx 'CONFIG_BUILD_ARM64_DT_OVERLAY=y' out/.config
+          grep -qx 'CONFIG_OVERLAY_FS=y' out/.config
+          grep -qx 'CONFIG_KSU=y' out/.config
+          scripts/config --file out/.config --disable KPROBES
+          scripts/config --file out/.config --enable KSU_HACK_ARM64_BRANCH_LINK
+          scripts/config --file out/.config --enable KSU_LSM_SECURITY_HOOKS
+          scripts/config --file out/.config --disable KSU_TAMPER_SYSCALL_TABLE
+          scripts/config --file out/.config --enable NOMOUNT
+          make O=out olddefconfig
+          grep -qx 'CONFIG_NOMOUNT=y' out/.config
+          grep -qx 'CONFIG_KSU=y' out/.config
+          grep -qx 'CONFIG_KSU_HACK_ARM64_BRANCH_LINK=y' out/.config
+          grep -qx 'CONFIG_KSU_LSM_SECURITY_HOOKS=y' out/.config
+          grep -qx '# CONFIG_KSU_TAMPER_SYSCALL_TABLE is not set' out/.config
+          grep -qx '# CONFIG_KPROBES is not set' out/.config
+          grep -qx 'CONFIG_LOCALVERSION="-FlashKernel"' out/.config
+          grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_OVERLAY_FS=|CONFIG_KSU=|CONFIG_KSU_HACK_ARM64_BRANCH_LINK=|CONFIG_KSU_LSM_SECURITY_HOOKS=|CONFIG_NOMOUNT=|# CONFIG_KPROBES is not set|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
+      - name: Build Image.gz, DTBs and DTBO
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          export ARCH=arm64 SUBARCH=arm64 PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+          export KBUILD_BUILD_USER='Tinieblass' KBUILD_BUILD_HOST='GitHub-Actions'
+          make O=out CC=clang LLVM=1 LLVM_IAS=1 -j"$(nproc)" Image.gz dtbs dtbo.img
+      - name: Verify original alioth outputs and overlay
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          BOOT=out/arch/arm64/boot
+          test -s "$BOOT/Image.gz"
+          test -s "$BOOT/dtbo.img"
+          test -s "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo"
+          test -s "$BOOT/dts/vendor/qcom/kona.dtb"
+          test -s "$BOOT/dts/vendor/qcom/kona-v2.dtb"
+          test -s "$BOOT/dts/vendor/qcom/kona-v2.1.dtb"
+          mkdir -p "$GITHUB_WORKSPACE/flash-kernel-output"
+          cp "$BOOT/Image.gz" "$BOOT/dtbo.img" "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo" "$BOOT/dts/vendor/qcom/kona.dtb" "$BOOT/dts/vendor/qcom/kona-v2.dtb" "$BOOT/dts/vendor/qcom/kona-v2.1.dtb" "$GITHUB_WORKSPACE/flash-kernel-output/"
+          cp "$GITHUB_WORKSPACE/config-report.txt" "$GITHUB_WORKSPACE/flash-kernel-output/"
+          (cd "$GITHUB_WORKSPACE/flash-kernel-output" && sha256sum * > SHA256SUMS.txt)
+          {
+            echo '# Flash Kernel - alioth STOCK battery build'
+            echo
+            echo '- Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d'
+            echo '- Target: POCO F3 / alioth / HyperOS 3 / Android 16'
+            echo '- Battery/DTBO: original stock FMT/GY 4520mAh DTS retained unchanged; no 5000mAh profile'
+            echo '- Built-in driver: backslashxx/KernelSU v3.3.1-35 (commit a9f3e2dd767ad77ac40f3874da39a7002998071f)'
+            echo '- NoMount: v2.2.0 built-in CONFIG_NOMOUNT=y from pinned commit bf1847f98fed382369c43bfd652cd93774b9b8e3'
+            echo '- VoWiFi/IMS: upstream code retained; no IMS source files changed by this workflow'
+            echo '- Outputs: Image.gz, combined dtbo.img, alioth overlay DTBO, Kona base DTBs'
+            echo '- Battery profile: STOCK (FMT/GY 4520mAh DTS), unchanged'
+            echo '- Upstream provenance: Raikiri v1.7 source base. Not a flashable ZIP; no device-side testing performed.'
+          } > "$GITHUB_WORKSPACE/flash-kernel-output/BUILD-REPORT.md"
+      - name: Upload raw stock-battery kernel and device-tree artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: flash-kernel-alioth-raw
+          path: flash-kernel-output/
+          if-no-files-found: error
+          compression-level: 0
