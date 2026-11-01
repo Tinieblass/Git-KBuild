@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - Raikiri-Midori-NM
+      - Flash-Kernel-alioth-miui5k
     paths:
       - '.github/workflows/raikiri-build.yml'
       - 'scripts/prepare_raikiri_backslashxx.py'
@@ -131,10 +132,14 @@ jobs:
           grep -qx 'CONFIG_KSU_LSM_SECURITY_HOOKS=y' out/.config
           grep -qx '# CONFIG_KSU_TAMPER_SYSCALL_TABLE is not set' out/.config
           grep -qx '# CONFIG_KPROBES is not set' out/.config
-          grep -qx 'CONFIG_LOCALVERSION="-Raikiri-v1.7"' out/.config
+          scripts/config --file out/.config --set-str LOCALVERSION '-Flash-Kernel'
+          scripts/config --file out/.config --disable LOCALVERSION_AUTO
+          make O=out olddefconfig
+          grep -qx 'CONFIG_LOCALVERSION="-Flash-Kernel"' out/.config
+          grep -qx '# CONFIG_LOCALVERSION_AUTO is not set' out/.config
           {
             echo '## Final kernel configuration checks'
-            grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_OVERLAY_FS=|CONFIG_KSU=|CONFIG_KSU_HACK_ARM64_BRANCH_LINK=|CONFIG_KSU_LSM_SECURITY_HOOKS=|CONFIG_NOMOUNT=|# CONFIG_KPROBES is not set|CONFIG_LOCALVERSION=)' out/.config
+            grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_OVERLAY_FS=|CONFIG_KSU=|CONFIG_KSU_HACK_ARM64_BRANCH_LINK=|CONFIG_KSU_LSM_SECURITY_HOOKS=|CONFIG_NOMOUNT=|# CONFIG_KPROBES is not set|CONFIG_LOCALVERSION=|# CONFIG_LOCALVERSION_AUTO is not set)' out/.config
           } | tee "$GITHUB_WORKSPACE/config-report.txt"
 
       - name: Build Image.gz, DTBs and DTBO
@@ -169,7 +174,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/config-report.txt" "$GITHUB_WORKSPACE/raikiri-output/"
           (cd "$GITHUB_WORKSPACE/raikiri-output" && sha256sum * > SHA256SUMS.txt)
           {
-            echo '# Raikiri v1.7 alioth stock build'
+            echo '# Flash Kernel alioth stock build'
             echo
             echo '- Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d'
             echo '- Target: POCO F3 / alioth / HyperOS 3 / Android 16'
@@ -178,6 +183,7 @@ jobs:
             echo '- NoMount: v2.2.0 built-in CONFIG_NOMOUNT=y from pinned commit bf1847f98fed382369c43bfd652cd93774b9b8e3'
             echo '- VoWiFi/IMS: based on the known-working Raikiri v1.7 source; no IMS source files changed by this workflow'
             echo '- Outputs: Image.gz, combined dtbo.img, alioth overlay DTBO, Kona base DTBs'
+            echo '- Kernel release branding: -Flash-Kernel (LOCALVERSION_AUTO disabled)'
             echo '- Artifact naming target: general stock alioth build'
             echo '- Not a flashable ZIP; no AnyKernel packaging or device-side testing has been performed.'
           } > "$GITHUB_WORKSPACE/raikiri-output/BUILD-REPORT.md"
