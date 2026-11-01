@@ -1,4 +1,4 @@
-name: Package Raikiri v1.7 - alioth MIUI5K (KowSU + NoMount 2.2)
+name: Package Raikiri v1.7 - alioth stock (KowSU + NoMount 2.2)
 
 on:
   push:
@@ -20,10 +20,10 @@ jobs:
       - name: Checkout builder
         uses: actions/checkout@v4
 
-      - name: Download exact verified MIUI5K raw build
+      - name: Download exact verified stock alioth raw build
         uses: actions/download-artifact@v4
         with:
-          name: raikiri-v17-alioth-miui5k-kowsu-nm22-raw
+          name: raikiri-v17-alioth-stock-kowsu-nm22-raw
           path: raw
           run-id: 41290067346
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -57,18 +57,18 @@ jobs:
           test -f anykernel/META-INF/com/google/android/update-binary
           rm -rf anykernel/.git anykernel/.github anykernel/README.md
 
-      - name: Assemble alioth MIUI5K installer
+      - name: Assemble general alioth stock installer
         run: |
           set -euo pipefail
           cp raw/Image.gz anykernel/Image.gz
           cp raw/dtbo.img anykernel/dtbo.img
           cat > anykernel/anykernel.sh <<'AK3'
-          ### Raikiri v1.7 - POCO F3 / alioth - MIUI5K
+          ### Flash Kernel - POCO F3 / alioth - stock
           ## KowSU-compatible backslashxx KernelSU 3.3.1-35 + NoMount 2.2.0
           ## Unofficial package; built from pinned Raikiri v1.7 source.
 
           properties() { '
-          kernel.string=Raikiri v1.7 alioth MIUI5K - KowSU + NoMount 2.2.0 (unofficial)
+          kernel.string=Flash Kernel alioth - stock DTBO - KowSU + NoMount 2.2.0 (unofficial)
           do.devicecheck=1
           do.modules=0
           do.systemless=0
@@ -93,7 +93,7 @@ jobs:
           repack_ramdisk;
           flash_boot;
           AK3
-          (cd anykernel && zip -qr9 ../Raikiri-v1.7-alioth-miui5k-KowSU-NoMount2.2.zip . -x '.git/*' '.github/*' 'README.md')
+          (cd anykernel && zip -qr9 ../Flash-Kernel-alioth-stock.zip . -x '.git/*' '.github/*' 'README.md')
 
       - name: Validate installer structure and embedded binaries
         run: |
@@ -108,7 +108,7 @@ jobs:
           diff -u raw-dtbo.sha packaged-dtbo.sha
           unzip -p "$ZIP" anykernel.sh | grep -q 'device.name1=alioth'
           unzip -p "$ZIP" anykernel.sh | grep -q 'supported.versions=16'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Raikiri v1.7 alioth MIUI5K'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth - stock DTBO'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
           unzip -p "$ZIP" anykernel.sh | grep -q 'flash_boot'
           if unzip -p "$ZIP" anykernel.sh | grep -Eq 'write_boot|flash_generic (vendor_dlkm|system_dlkm)'; then
@@ -118,10 +118,10 @@ jobs:
           unzip -l "$ZIP" | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|META-INF/com/google/android/update-binary|LICENSE'
           sha256sum "$ZIP"
 
-      - name: Upload flashable MIUI5K installer
+      - name: Upload general flashable alioth stock installer
         uses: actions/upload-artifact@v4
         with:
-          name: Raikiri-v1.7-alioth-miui5k-KowSU-NoMount2.2-flashable
+          name: Flash-Kernel-alioth-stock-flashable
           path: Raikiri-v1.7-alioth-miui5k-KowSU-NoMount2.2.zip
           if-no-files-found: error
           compression-level: 0
