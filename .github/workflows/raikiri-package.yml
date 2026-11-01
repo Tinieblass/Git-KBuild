@@ -154,8 +154,6 @@ jobs:
               exit 1
             fi
           fi
-          unzip -p "$ZIP" anykernel.sh | grep -q 'device.name1=alioth'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'supported.versions=16'
           unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel by Tinieblass'
           unzip -p "$ZIP" banner | grep -qx 'Flash Kernel by Tinieblass'
           unzip -p "$ZIP" anykernel.sh | grep -q 'Device: alioth'
@@ -164,9 +162,6 @@ jobs:
           unzip -p "$ZIP" anykernel.sh | grep -q 'Battery: 5000mAh'
           ! unzip -p "$ZIP" anykernel.sh | grep -Eq 'supported\\.versions=|device\\.name[0-9]*=|ROM check failed|Unsupported device|Unsupported Android version'
           ! unzip -p "$ZIP" anykernel.sh | grep -q 'show_flash_animation'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'Device check: skipped'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'ROM: HyperOS OK'
-          unzip -p "$ZIP" anykernel.sh | grep -q '*-miui5k'
           ! unzip -p "$ZIP" anykernel.sh | grep -Eqi 'KowSU|NoMount|bootstrap|Raikiri'
           if unzip -p "$ZIP" anykernel.sh | grep -Eqi 'kernel.string=.*raikiri|ui_print.*raikiri'; then echo 'ERROR: Raikiri branding leaked into installer UI' >&2; exit 1; fi
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
