@@ -27,15 +27,15 @@ def main() -> int:
     dtsi_words, dtsi_expected = parse_dtsi(dtsi_text)
 
     rows = re.findall(
-        r"^\\s*([0-9A-Fa-f]{3})\\s*,\\s*([0-9A-Fa-f]{3})"
-        r"\\s*,\\s*([01])\\s*,\\s*([0-9A-Fa-f]{2})\\s*$",
+        r"^\s*([0-9A-Fa-f]{3})\s*,\s*([0-9A-Fa-f]{3})"
+        r"\s*,\s*([01])\s*,\s*([0-9A-Fa-f]{2})\s*$",
         provision_text, re.M,
     )
     provision_bytes = [int(row[3], 16) for row in rows]
-    payload_match = re.search(r"qcom,fg-profile-data\\s*=\\s*\\[(.*?)\\]", dtsi_text, re.S)
+    payload_match = re.search(r"qcom,fg-profile-data\s*=\s*\[(.*?)\]", dtsi_text, re.S)
     if not payload_match:
         raise ValueError("Gen4 payload not found")
-    dtsi_bytes = [int(token, 16) for token in re.findall(r"\\b[0-9A-Fa-f]{2}\\b", payload_match.group(1))]
+    dtsi_bytes = [int(token, 16) for token in re.findall(r"\b[0-9A-Fa-f]{2}\b", payload_match.group(1))]
 
     differences = [
         (index, provision_bytes[index], dtsi_bytes[index])
@@ -69,7 +69,7 @@ def main() -> int:
         raise ValueError("expected NVT battery profile identity not found")
 
     print("UMI NVT PM855GUI ↔ Gen4 DTSI audit: PASS (known source discrepancy)")
-    print(f"Profile: NVTBM4N, 4780 mAh, PM855GUI 1.0.0.13")
+    print("Profile: NVTBM4N, 4780 mAh, PM855GUI 1.0.0.13")
     print(f"Known difference: SRAM 0x{address:03X}, offset {offset}: export 0x{export_byte:02X}, DTSI 0x{dtsi_byte:02X}")
     print(f"Export checksum: calculated 0x{export_checksum:04X}, declared 0x{provision_expected:04X} (does not validate)")
     print(f"DTSI checksum: calculated 0x{dtsi_checksum:04X}, declared 0x{dtsi_expected:04X} (valid)")
