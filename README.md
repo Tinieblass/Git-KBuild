@@ -1,49 +1,46 @@
 # Flash Kernel — POCO F3 (alioth)
 
-Kernel build and packaging workflow maintained by **Tinieblass**.
+**Flash Kernel** é un proxecto de compilación e empaquetado de kernel mantido por **Tinieblass**, dedicado exclusivamente ao dispositivo **POCO F3 (alioth)**.
 
-> **Device support:** POCO F3 / Redmi K40 / Mi 11X family using the **alioth** device tree.  
-> This project currently targets **alioth only**. Renoir, apollo, munch and other devices are not supported by this Flash Kernel branch.
+## Plataforma actual
 
-## Current target
+- Dispositivo: POCO F3 — `alioth`
+- ROM de destino: Xiaomi HyperOS 3
+- Android: 16
+- Base do kernel: Linux 4.19.325, fonte SM8250 fixada nun commit concreto
+- KernelSU: controlador backslashxx KernelSU
+- NoMount: integrado na compilación
+- VoWiFi/IMS: consérvase o código da fonte; este fluxo de traballo non modifica os ficheiros IMS.
 
-- Device: `alioth`
-- ROM target: Xiaomi HyperOS 3
-- Android target: Android 16
-- Kernel source: pinned upstream SM8250 source revision
-- KernelSU: backslashxx KernelSU
-- NoMount: integrated in the build
-- Wi-Fi calling / IMS: upstream implementation retained; this workflow does not modify IMS source files.
+## Paquetes instalables
 
-## Installer packages
+O workflow de empaquetado xera dous ZIP independentes:
 
-The packaging workflow produces two separate ZIPs:
-
-| File | Battery / DTBO profile |
+| Arquivo | Perfil de batería |
 |---|---|
-| `Flash-Kernel-alioth.zip` | Original stock battery profile |
-| `Flash-Kernel-alioth-5k.zip` | J3S Sun 5000 mAh profile |
+| `Flash-Kernel-alioth.zip` | Batería stock |
+| `Flash-Kernel-alioth-5k.zip` | Perfil J3S Sun de 5000 mAh |
 
-The installer checks that the device is `alioth` and that HyperOS is detected. The 5000 mAh profile is selected only when the ZIP filename ends in `-5k`; otherwise the stock profile is used.
+O instalador comproba que o dispositivo sexa `alioth` e que se detecte HyperOS. O perfil de 5000 mAh selecciónase unicamente co ZIP cuxo nome remata en `-5k`; o paquete normal utiliza o perfil stock.
 
-## Build and package
+## Compilar e empaquetar
 
-1. Open **Actions**.
-2. Run **Flash Kernel - alioth** to build the raw kernel artifact.
-3. After a successful build, run the packaging workflow and provide the raw build's Actions run ID in `RAW_RUN_ID`.
-4. Download the two ZIPs from the `Flash-Kernel-alioth-flashable` artifact.
+1. Abre a pestana **Actions**.
+2. Executa **Flash Kernel - alioth** para compilar o kernel.
+3. Só despois dunha compilación correcta, executa o workflow de empaquetado.
+4. Introduce en `RAW_RUN_ID` o identificador da execución que xerou o artefacto `flash-kernel-alioth-raw`.
+5. Descarga os dous ZIP do artefacto `Flash-Kernel-alioth-flashable`.
 
-## Important
+## Seguridade
 
-- This branch is dedicated to Flash Kernel for `alioth`; it is not the general multi-device FakeDreamer builder.
-- Builds and ZIPs must pass workflow validation before being considered ready to flash.
-- Do not flash artifacts from failed or incomplete workflow runs.
-- The 5000 mAh DTBO is a separately verified profile; do not rename the stock ZIP to request it. Use the generated `-5k.zip` package.
+- Non instales artefactos procedentes de execucións fallidas ou incompletas.
+- Unha compilación correcta non substitúe as probas reais no dispositivo.
+- Non cambies o nome do ZIP stock para obter o perfil de 5000 mAh: utiliza o paquete `-5k` xerado polo workflow.
 
-## Credits
+## Créditos
 
-- Kernel source and upstream contributors.
-- KernelSU by the backslashxx project.
-- NoMount contributors.
-- AnyKernel3 by osm0sis.
-- Build integration and packaging: **Tinieblass**.
+- Fonte do kernel e colaboradores upstream.
+- Proxecto backslashxx KernelSU.
+- NoMount.
+- AnyKernel3, de osm0sis.
+- Integración e empaquetado: **Tinieblass**.
