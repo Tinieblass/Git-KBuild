@@ -1,4 +1,4 @@
-name: Flash Kernel - alioth STOCK battery (KSU + NoMount 2.2)
+name: Flash Kernel - alioth
 
 on:
   workflow_dispatch:
@@ -23,7 +23,7 @@ jobs:
       - name: Download exact verified STOCK-battery raw build
         uses: actions/download-artifact@v4
         with:
-          name: flash-kernel-alioth-stock-ksu-nm22-raw
+          name: flash-kernel-alioth-raw
           path: raw
           run-id: ${{ inputs.RAW_RUN_ID }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -112,7 +112,7 @@ jobs:
           repack_ramdisk;
           flash_boot;
           AK3
-          (cd anykernel && zip -qr9 ../Flash-Kernel-alioth-stock-KSU-NoMount2.2.zip . -x '.git/*' '.github/*' 'README.md')
+          (cd anykernel && zip -qr9 ../Flash-Kernel-alioth.zip . -x '.git/*' '.github/*' 'README.md')
 
       - name: Validate installer structure and embedded binaries
         run: |
@@ -127,7 +127,7 @@ jobs:
           diff -u raw-dtbo.sha packaged-dtbo.sha
           unzip -p "$ZIP" anykernel.sh | grep -q 'device.name1=alioth'
           unzip -p "$ZIP" anykernel.sh | grep -q 'supported.versions=16'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth STOCK'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth'
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
           unzip -p "$ZIP" anykernel.sh | grep -q 'flash_boot'
           if unzip -p "$ZIP" anykernel.sh | grep -Eq 'J3S|apollo-sun|j3s-batt-profile|write_boot|flash_generic (vendor_dlkm|system_dlkm)'; then
@@ -140,7 +140,7 @@ jobs:
       - name: Upload flashable STOCK-battery installer
         uses: actions/upload-artifact@v4
         with:
-          name: Flash-Kernel-alioth-stock-KSU-NoMount2.2-flashable
+          name: Flash-Kernel-alioth-flashable
           path: Flash-Kernel-alioth-stock-KSU-NoMount2.2.zip
           if-no-files-found: error
           compression-level: 0
