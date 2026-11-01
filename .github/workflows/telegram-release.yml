@@ -1,0 +1,50 @@
+name: Telegram Release Announcement
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  announce:
+    name: Announce release on Telegram
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send release announcement
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${TELEGRAM_BOT_TOKEN}" ]]; then
+            echo "::error::Missing TELEGRAM_BOT_TOKEN repository secret."
+            exit 1
+          fi
+
+          title="${RELEASE_NAME:-${RELEASE_TAG}}"
+          body="${RELEASE_BODY:-Sen descrición adicional.}"
+          body="${body:0:2800}"
+
+          if [[ "${IS_PRERELEASE}" == "true" ]]; then
+            heading="🧪 NOVA VERSIÓN DE PROBA"
+          else
+            heading="🚀 NOVA VERSIÓN"
+          fi
+
+          message="$(printf '%s\n\n%s\nEtiqueta: %s\n\n%s\n\nDescarga e detalles: %s'             "${heading}" "${title}" "${RELEASE_TAG}" "${body}" "${RELEASE_URL}")"
+
+          payload="$(jq -n             --arg chat_id '@flashkernelbytinieblass'             --arg text "${message}"             '{chat_id: $chat_id, text: $text, disable_web_page_preview: false}')"
+
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --header "Content-Type: application/json" \
+            --data "${payload}"
