@@ -111,14 +111,14 @@ jobs:
             abort 'Dispositivo no compatible';
           fi;
           ui_print 'Dispositivo: alioth OK';
-          HYPEROS=$(getprop ro.miui.ui.version.name);
           INCREMENTAL=$(getprop ro.build.version.incremental);
-          case "$INCREMENTAL" in OS3*|*OS3*) HYPEROS=${HYPEROS:-HyperOS3} ;; esac;
-          if [ -z "$HYPEROS" ]; then
-            ui_print 'ERROR: no se detecta HyperOS';
-            abort 'ROM no compatible: se requiere HyperOS';
-          fi;
-          ui_print 'HyperOS: detectado';
+          case "$INCREMENTAL" in
+            OS3*) ui_print 'HyperOS: detectado' ;;
+            *)
+              ui_print 'ERROR: no se detecta HyperOS 3';
+              abort 'ROM no compatible: se requiere HyperOS 3';
+              ;;
+          esac;
           ZIP_BASENAME="$(basename "$ZIPFILE" .zip)";
           case "$ZIP_BASENAME" in
             *-5k)
