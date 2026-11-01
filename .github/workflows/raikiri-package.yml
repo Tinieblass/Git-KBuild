@@ -1,6 +1,11 @@
 name: Package Flash Kernel - alioth (KowSU + NoMount 2.2)
 
 on:
+  push:
+    branches:
+      - Flash-Kernel-alioth-miui5k
+    paths:
+      - '.github/workflows/raikiri-package.yml'
   workflow_dispatch:
 
 permissions:
