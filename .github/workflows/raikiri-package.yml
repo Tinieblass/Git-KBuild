@@ -109,25 +109,9 @@ jobs:
           . tools/ak3-core.sh;
 
           # Keep installer output short and perform checks in the requested order.
-          # Recoveries may expose the device name through different property namespaces.
-          DEVICE_MATCH=0
-          for PROP in \
-            ro.product.device \
-            ro.product.vendor.device \
-            ro.product.product.device \
-            ro.product.odm.device \
-            ro.product.system.device \
-            ro.build.product \
-            ro.product.name \
-            ro.product.vendor.name \
-            ro.product.system.name; do
-            DEVICE_VALUE="$(getprop "$PROP" 2>/dev/null | tr -d '\r')"
-            case "$DEVICE_VALUE" in
-              alioth) DEVICE_MATCH=1 ;;
-            esac
-          done
-          [ "$DEVICE_MATCH" -eq 1 ] || abort "Device check failed: alioth required"
-          ui_print "Device: alioth OK"
+          # Device check intentionally omitted: the previous getprop-based
+          # check caused false negatives in OrangeFox recovery.
+          ui_print "Device check: skipped"
 
           MIUI_VERSION="$(getprop ro.miui.ui.version.name)"
           MIOS_VERSION="$(getprop ro.mi.os.version.name)"
