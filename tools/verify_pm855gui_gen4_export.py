@@ -98,8 +98,12 @@ def main():
             writer.writerow([
                 word_index, f"0x{address:03X}", f"0x{low:02X}",
                 f"0x{high:02X}", f"0x{low | (high << 8):04X}",
-                word_index * 2
+                word_index * 2, "PM855GUI"
             ])
+        writer.writerow([
+            len(entries) // 2, "0x110", "0x00", "0x00",
+            "0x0000", len(entries), "DTSI-only"
+        ])
 
     report = [
         "# PM855GUI to PM855B Gen4 register export cross-check",
