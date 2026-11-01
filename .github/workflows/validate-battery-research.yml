@@ -7,7 +7,7 @@ on:
     paths:
       - "research/battery/**"
       - "tools/extract_qg_battery_luts.py"
-      - "tools/analyze_bn61_reference.py"
+      - "tools/analyze_bn61_reference.py"\n      - "tools/compare_m703_qg_profiles.py"
       - "tools/compare_alioth_gen4_profiles.py"
       - "tools/validate_battery_research.py"
       - ".github/workflows/validate-battery-research.yml"
@@ -52,6 +52,12 @@ jobs:
           grep -q 'pc-temp-y6-lut' "$OUT/SUMMARY.txt"
           cat "$OUT/SUMMARY.txt"
 
+      - name: Compare 6000 mAh and 5160 mAh M703 QG surfaces
+        run: |
+          set -euo pipefail
+          python3 tools/compare_m703_qg_profiles.py
+          test -s research/battery/M703-QG-Comparison/table-comparison.csv
+          grep -q "does not map QG values to PM855B Gen4 bytes" research/battery/M703-QG-Comparison/README.md
       - name: Upload reproducible BN61 research report
         uses: actions/upload-artifact@v4
         with:
