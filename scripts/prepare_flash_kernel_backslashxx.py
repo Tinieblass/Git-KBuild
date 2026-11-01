@@ -48,7 +48,7 @@ transform("drivers/input/input.c", [
     ("KSU-Next input hook call", r"\n#ifdef CONFIG_KSU\n\s*if \(unlikely\(ksu_input_hook\)\)\n\s*ksu_handle_input_handle_event\(&type, &code, &value\);\n#endif\n", 1),
 ])
 
-config = root / "arch/arm64/configs/vendor/xiaomi/raikiri.config"
+config = root / "arch/arm64/configs/vendor/xiaomi/flash-kernel.config"
 data = config.read_text()
 data, n = re.subn(r"^CONFIG_KSU_MANUAL_HOOK=y\n?", "", data, flags=re.M)
 if n != 1:
