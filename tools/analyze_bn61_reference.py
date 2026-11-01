@@ -70,7 +70,7 @@ def main():
         "",
         "**Status: analysis only. This is not a BN61 characterization and does not generate a Gen4 profile.**",
         "",
-        "The source is explicitly m703-atl-6000mah QG data. Its 100 kΩ battery-ID value is not unique: the companion M703 PM7150B 5160 mAh profile also declares 100 kΩ. Therefore the ID value alone does not identify BN61 or distinguish these packs. The 6000 mAh capacity class is consistent with commonly listed BN61 replacement-pack specifications, but does not prove identical cell chemistry, impedance, thermal response, or capacity curves.",
+        "The source is explicitly m703-atl-6000mah QG data. The QG driver selects this profile when authenticated DS page0 characters 3–4 are '61'; it selects the companion 5160 mAh PM7150B profile for '57'. Commercial references identify BN61 as 5850 mAh rated / 6000 mAh typical for POCO X3 and BN57 as the 5160 mAh X3 NFC/X3 Pro pack. This is a strong model/profile association, but the source does not certify that every third-party BN61 replacement uses the identical cell or electrochemical characterization.",
         "",
         "All values below are reported in source-native integer units. No conversion to ohms, milliohms, volts, or another physical unit is inferred.",
         "",
@@ -100,7 +100,7 @@ def main():
 
     lines += [
         "",
-        "## Impedance and auxiliary Y surfaces",
+        "## Auxiliary Z/Y VAR surfaces (units not identified)",
         "",
         "| Table family | Tables | SOC rows each | Temperature columns (°C) | Aggregate value range |",
         "|---|---:|---:|---|---:|",
@@ -121,7 +121,8 @@ def main():
         "",
         "- M703 supplies a dimension-checked QG reference: two FCC tables, two OCV tables, six Z tables and six Y tables.",
         "- FCC1 spans 5 713–6 012 mAh and FCC2 spans 5 881–5 958 mAh. These are M703 ATL source values, not measured Nohon BN61 values.",
-        "- The six Z and six Y tables remain separate surfaces; averaging them would discard model structure.",
+        "- The QG API exposes all six Z and six Y tables through a generic VAR interpolation function, with values clamped to 0–65535. The inspected source does not assign physical units; do not label these tables as resistance or ESR without additional evidence.",
+        "- The DS page0 '61' versus '57' selection path is a strong clue linking the M703 ATL 6000 profile to BN61 and the 5160 PM7150B profile to BN57; it is not proof of identical third-party replacement-cell chemistry.",
         "- The J3S alioth Gen4 profile is a format/provisioning reference only. Its 416-byte payload is opaque PM855GUI output; no documented transform maps QG surfaces into those bytes.",
         "- No synthetic Gen4 payload, BN61 DTSI, BN61 DTBO, or -6K flashable package is emitted.",
         "",
