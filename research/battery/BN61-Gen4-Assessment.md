@@ -8,7 +8,7 @@
    - Blob SHA: `03bbe29811956896b42bbef75a5edad28b99c48d`
    - This is a Qualcomm **QG** profile, not an alioth Gen4 profile.
    - Includes FCC-vs-temperature, OCV `pc-temp-v1/v2`, impedance `pc-temp-z1..z6`, and `pc-temp-y1..y6` LUTs.
-   - Header metadata includes 4.45 V max, 4.48 V FFC max, 100 kOhm battery ID, beta 4250, and QG profile version 100. Its battery type is `m703-atl-6000mah`; do not label it BN61.
+   - Header metadata includes 4.45 V max, 4.48 V FFC max, 100 kOhm battery ID, beta 4250, and QG profile version 100. Its battery type is `m703-atl-6000mah`; do not assume this proves the exact Nohon BN61 replacement cell has identical chemistry or characterization.
 
 2. **Alioth J3S Sun 5000 mAh Gen4 reference**
    - Snapshot: `alioth-J3S-Sun-5000mah.dtsi`
@@ -50,6 +50,15 @@ The M703 source was parsed and all **16 LUTs / 4323 scalar entries** passed row/
 - Battery model: Nohon BN61, labelled 5850 mAh rated / 6000 mAh typical, 3.87 V nominal, 4.45 V charge limit (vendor listing/manual data; not an electrical characterization dataset).
 - Prior project notes specify a nominal target of 5850 mAh and a measured/observed battery-ID resistance around 100.5 kOhm. This is not sufficient to identify the cell chemistry or reconstruct its dynamic response.
 - No BN61-specific OCV-vs-SOC, DCIR/impedance-vs-SOC-and-temperature, thermal response, or validated Gen4 416-byte profile has been located in the public sources checked so far.
+
+
+
+## Additional source cross-checks
+
+- The M703 numeric LUT arrays were compared against copies in `stormbreaker-project/kernel_xiaomi_surya`, `rd-stuffs/msm-4.14`, and `xiaomi-surya-devs/kernel_xiaomi_surya`. All four copies have identical numeric LUT values; comments and formatting differ.
+- The QG selection code in [stormbreaker-project/qpnp-qg.c](https://github.com/stormbreaker-project/kernel_xiaomi_surya/blob/07843c4a74f3fde3df48b941091ce41141fe886d/drivers/power/supply/qcom/qpnp-qg.c) selects `m703-atl-6000mah` when authenticated battery-page bytes 3 and 4 are `61`, and the 5160 mAh M703 profile for `57`. This associates the QG model with battery identifier `61`; it is not proof that every third-party BN61 replacement cell uses the same cell construction or response.
+- The J3S reference's [PM855GUI BATTERY.PROVISION2 export](https://github.com/Project-Aloha/mu_aloha_platforms/blob/ecac086b16e8f406e1629913e0f9ab9a7f6bb9d8/Platforms/KonaPkg/Device/xiaomi-umi/Binaries/RawFiles/BATTERY.PROVISION2) identifies PM855GUI 1.0.0.14, profile revision 24, 5000 mAh, 100 kOhm ID, and checksum `BE8D`. Its text register map contains 414 bytes; those match the first 414 bytes of the J3S DTSI's 416-byte payload exactly, with the final two DTSI bytes `00 00`. The checksum matches in both files.
+- This PM855GUI export is a known-good format reference only. No public PM855GUI converter or QG-LUT-to-Gen4 conversion routine was located. The Gen4 driver itself only validates the 416-byte length and copies the payload.
 
 ## Engineering conclusion
 
