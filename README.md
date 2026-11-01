@@ -1,45 +1,62 @@
-# FakeDreamer Kernel Builder
+# Flash Kernel by Tinieblass — Kernel Builder
 
-An automated kernel builder using GitHub Actions. 
+Automated Android kernel builds powered by GitHub Actions.
 
-## 📱 Supported Devices
-*   **alioth**
-*   **apollo**
-*   **munch**
-*(Note: Support for other Mi-Kona devices may be added in the future.)*
+This repository contains the build workflows and configuration used by **Flash Kernel by Tinieblass**. It is designed to build supported Xiaomi Mi-Kona devices from the selected kernel source and package the resulting files into flashable ZIP archives.
 
-## 🛠️ Features & Specifications
-*   **Supported Compilers:** Clang (`r547379`, `r574158`, `r614150`) and Neutron-Clang `24.0.0`.
-*   **GPU Frequencies:** Defaults to an undervolted GPU frequency, utilizing a patch to revert to stock GPU frequency (subject to change).
-*   **OPLUS Features:** Optional support for OPLUS ports to function properly. This can be easily toggled during the workflow setup (requires specific changes in the target kernel repository).
+## Supported devices
 
-## 🚀 How to Use
-1.  Navigate to the **Actions** tab in this repository.
-2.  Select either the **Tester** or **Release** workflow.
-3.  Click **Run workflow** and configure the following parameters:
-    *   **AnyKernel Repo:** Link to your preferred AnyKernel3 repository (e.g., `https://github.com/re-noroi/anykernel3-test`).
-    *   **Custom Kernel Version:** Suffix for your kernel build (e.g., `-FakeDreamer`).
-    *   **Choose compiler:** Select your preferred compiler (e.g., `neutron`).
-    *   **LTO_CHOICE:** Choose your Link-Time Optimization level (defaults to `full_lto`).
-    *   **OPLUS features toggle:** Select `yes` or `no` depending on if you need OPLUS specific features enabled.
-4.  Run the workflow. 
+- **POCO F3 / Redmi K40** — `alioth`
+- **Mi 10T / Mi 10T Pro** — `apollo`
+- **POCO X3 GT** — `munch`
 
-## 📦 Outputs
-The workflow will generate a single `.zip` archive containing the following:
-*   **Alioth:** 4 `dtbo`, 4 `dtb`, and 1 `Image.gz`
-*   **Apollo / Munch:** 2 `dtbo`, 4 `dtb`, and 1 `Image.gz`
+Support depends on the kernel source and its configuration. Not every source supports every device.
 
-**Workflow Differences:**
-*   **Tester Workflows:** Outputs a `TEST` version archive.
-*   **Release Workflows:** Outputs both `ksu` and `noksu` archives.
+## Build features
 
-## ⚠️ Notes & Deprecations
-*   Workflows now build directly from the main branch inputs (unified workflow).
-*   The `SUSFS` branch is officially deprecated.
-*   Execution with `nextpatch.sh` has been removed (as of 27/08/2026).
+- GitHub Actions workflows for test and release builds.
+- Selectable Clang toolchains, including the configured LLVM/Neutron-Clang options.
+- Configurable AnyKernel3 packaging repository.
+- Configurable kernel version suffix.
+- Selectable Link-Time Optimization (LTO).
+- Optional OPLUS-related build features where supported by the selected kernel source.
 
-## 📞 Contact
-If you find any issues, contact me on Telegram: [@KaminariKo](https://t.me/KaminariKo).
+## How to build
+
+1. Open the **Actions** tab.
+2. Select the appropriate **Tester** or **Release** workflow.
+3. Click **Run workflow** and complete the available inputs:
+   - **AnyKernel Repo:** URL of the AnyKernel3 repository to use.
+   - **Custom Kernel Version:** optional suffix for the build version.
+   - **Choose compiler:** select one of the toolchains offered by the workflow.
+   - **LTO_CHOICE:** select the supported LTO mode.
+   - **OPLUS features:** enable only when the target kernel source requires and supports them.
+4. Start the workflow and follow its progress in the Actions tab.
+
+The exact options and compatibility depend on the workflow and kernel source currently selected.
+
+## Build outputs
+
+The workflows package the generated kernel images and device-tree files into ZIP archives.
+
+- **Tester:** produces a test build archive.
+- **Release:** produces the release archives configured by the workflow.
+
+Check each workflow run's **Artifacts** section for the generated files. Always read the release notes and verify device compatibility before flashing.
+
+## Important notes
+
+- Builds use the source and configuration selected by the workflow.
+- A successful compilation does not by itself guarantee that a kernel is compatible with every ROM or device variant.
+- The deprecated `SUSFS` branch and the removed `nextpatch.sh` execution path are no longer part of the current build flow.
+
+## Project and support
+
+**Developer:** Tinieblass
+
+- GitHub: https://github.com/Tinieblass/Git-KBuild
+- Telegram channel: https://t.me/flashkernelbytinieblass
+
+For support, report the device codename, ROM/Android version, kernel source and the relevant GitHub Actions run.
 
 ---
-*Last Updated: 27/08/2026*
