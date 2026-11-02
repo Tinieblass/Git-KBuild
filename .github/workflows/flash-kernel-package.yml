@@ -7,6 +7,10 @@ on:
         description: 'Run ID da compilación de Flash Kernel (obrigatorio)'
         required: true
         type: string
+      J3S_RAW_RUN_ID:
+        description: 'Run ID do artefacto J3S Sun 5000mAh de Raikiri v1.7 (obrigatorio)'
+        required: true
+        type: string
 
 permissions:
   actions: read
@@ -33,7 +37,7 @@ jobs:
         with:
           name: raikiri-v17-alioth-j3s-raw
           path: raw-5k
-          run-id: 41160583371
+          run-id: ${{ inputs.J3S_RAW_RUN_ID }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify raw build manifest and configuration
