@@ -65,7 +65,7 @@ jobs:
           grep -qF 'Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d' BUILD-REPORT.md
           grep -qF 'Battery profile selected in alioth overlay: J3S Sun 5000 mAh' BUILD-REPORT.md
           grep -qF 'Target: POCO F3 / alioth' BUILD-REPORT.md
-          ! cmp -s ../raw/dtbo.img dtbo.img
+          if cmp -s ../raw/dtbo.img dtbo.img; then echo 'ERROR: stock and 5K DTBO must be distinct' >&2; exit 1; fi
           cp dtbo.img ../raw/dtbo-5k.img
           echo 'PASS: distinct J3S Sun 5000mAh DTBO verified from the same pinned kernel source.'
           cd ../raw
@@ -87,6 +87,7 @@ jobs:
 
       - name: Assemble Flash Kernel alioth installer
         run: |
+          # shellcheck disable=SC2016
           set -euo pipefail
           cp raw/Image.gz anykernel/Image.gz
           cp raw/dtbo.img anykernel/dtbo.img
