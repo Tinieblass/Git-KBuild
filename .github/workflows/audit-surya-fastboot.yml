@@ -7,6 +7,8 @@ on:
       - Flash-Kernel
     paths:
       - .github/workflows/audit-surya-fastboot.yml
+      - tools/audit_surya_fastboot_firmware.sh
+      - tools/extract_qualcomm_xbl_raw.py
 
 permissions:
   contents: read
