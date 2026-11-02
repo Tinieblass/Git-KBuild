@@ -24,9 +24,32 @@ def align(value: int, boundary: int) -> int:
 
 
 def find_firmware_volumes(data: bytes):
-    """Yield validated EDK II firmware volumes embedded as gzip streams."""
+    """Yield validated raw or gzip-embedded EDK II firmware volumes."""
     seen = set()
-    for match in re.finditer(b"\x1f\x8b\x08", data):
+
+    def validated_volume(buffer: bytes, base: int):
+        if base < 0 or base + 0x38 > len(buffer):
+            return None
+        if buffer[base + 0x10:base + 0x20] != FFS2_GUID.bytes_le:
+            return None
+        length = struct.unpack_from("<Q", buffer, base + 0x20)[0]
+        header_length = struct.unpack_from("<H", buffer, base + 0x30)[0]
+        if length < header_length or length > len(buffer) - base:
+            return None
+        return buffer[base:base + length]
+
+    # Some Qualcomm images contain a raw FV; others wrap it in a gzip stream.
+    for marker in re.finditer(b"_FVH", data):
+        base = marker.start() - 0x28
+        volume = validated_volume(data, base)
+        if volume is None:
+            continue
+        key = ("raw", base, len(volume))
+        if key not in seen:
+            seen.add(key)
+            yield base, volume
+
+    for match in re.finditer(b"\\x1f\\x8b\\x08", data):
         offset = match.start()
         decoder = zlib.decompressobj(16 + zlib.MAX_WBITS)
         try:
@@ -36,23 +59,16 @@ def find_firmware_volumes(data: bytes):
         if not decoder.eof:
             continue
         marker = expanded.find(b"_FVH")
-        if marker < 0x28:
+        if marker < 0:
             continue
         base = marker - 0x28
-        if expanded[base + 0x10:base + 0x20] != FFS2_GUID.bytes_le:
+        volume = validated_volume(expanded, base)
+        if volume is None:
             continue
-        length = struct.unpack_from("<Q", expanded, base + 0x20)[0]
-        header_length = struct.unpack_from("<H", expanded, base + 0x30)[0]
-        if length < header_length or length > len(expanded) - base:
-            continue
-        key = (offset, length)
-        if key in seen:
-            continue
-        seen.add(key)
-        key = (offset, length)
+        key = ("gzip", offset, base, len(volume))
         if key not in seen:
             seen.add(key)
-            yield offset, expanded[base:base + length]
+            yield offset, volume
 
 
 def iter_ffs_files(fv: bytes):
