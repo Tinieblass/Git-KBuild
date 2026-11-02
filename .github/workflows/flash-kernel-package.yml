@@ -1,6 +1,11 @@
 name: Flash Kernel - alioth
 
 on:
+  push:
+    branches:
+      - Flash-Kernel
+    paths:
+      - '.github/workflows/flash-kernel-package.yml'
   workflow_dispatch:
     inputs:
       RAW_RUN_ID:
@@ -29,7 +34,7 @@ jobs:
         with:
           name: flash-kernel-alioth-raw
           path: raw
-          run-id: ${{ inputs.RAW_RUN_ID }}
+          run-id: ${{ github.event.inputs.RAW_RUN_ID || '41418178305' }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download verified J3S Sun 5000mAh DTBO
@@ -37,7 +42,7 @@ jobs:
         with:
           name: raikiri-v17-alioth-j3s-raw
           path: raw-5k
-          run-id: ${{ inputs.J3S_RAW_RUN_ID }}
+          run-id: ${{ github.event.inputs.J3S_RAW_RUN_ID || '41160583371' }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify raw build manifest and configuration
