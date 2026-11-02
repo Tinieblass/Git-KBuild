@@ -32,7 +32,7 @@ grep -Ei '(^|/)(xbl|xbl_config|abl|tz|hyp|devcfg|uefi_sec|imagefv)([.]elf|[.]mbn
 
 echo | tee -a "$REPORT"
 echo "=== Selected boot-chain firmware members ===" | tee -a "$REPORT"
-cat "$OUT/image-members.txt" | tee -a "$REPORT"
+tee -a "$REPORT" < "$OUT/image-members.txt"
 
 while IFS= read -r member; do
   [[ -n "$member" ]] || continue
@@ -64,6 +64,6 @@ strings -a "$XBL" | grep -Ei 'battery|fuel.?gauge|pm855|qpnp|qg|provision|thermi
 
 echo | tee -a "$REPORT"
 echo "=== Extracted RAW inventory ===" | tee -a "$REPORT"
-cat "$OUT/xbl-raw/RAW-MANIFEST.tsv" | tee -a "$REPORT"
+tee -a "$REPORT" < "$OUT/xbl-raw/RAW-MANIFEST.tsv"
 echo | tee -a "$REPORT"
 echo "Audit complete. Any BATTERY.PROVISION recovered here is a firmware source artifact, not automatically an alioth Gen4 profile." | tee -a "$REPORT"
