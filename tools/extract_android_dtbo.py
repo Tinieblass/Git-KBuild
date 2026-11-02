@@ -17,7 +17,7 @@ def split_dtbo(data: bytes):
     if len(data) < HEADER_SIZE:
         raise ValueError("truncated DTBO header")
     magic, total_size, header_size, entry_size, count, entries_offset, page_size, version = struct.unpack_from(
-        "<8I", data, 0
+        ">8I", data, 0
     )
     if magic != DT_TABLE_MAGIC:
         raise ValueError(f"bad DTBO magic: 0x{magic:08x}")
@@ -33,7 +33,7 @@ def split_dtbo(data: bytes):
     result = []
     for index in range(count):
         pos = entries_offset + index * entry_size
-        dt_size, dt_offset, dt_id, dt_rev, *custom = struct.unpack_from("<8I", data, pos)
+        dt_size, dt_offset, dt_id, dt_rev, *custom = struct.unpack_from(">8I", data, pos)
         if dt_size < 40 or dt_offset < header_size or dt_offset + dt_size > total_size:
             raise ValueError(f"entry {index}: invalid DTB range")
         blob = data[dt_offset:dt_offset + dt_size]
