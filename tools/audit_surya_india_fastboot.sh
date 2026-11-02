@@ -6,7 +6,7 @@ FIRMWARE_PATH="V13.0.1.0.SJGINXM/${FIRMWARE_NAME}"
 FIRMWARE_HOSTS=(cdnorg.d.miui.com hugeota.d.miui.com bigota.d.miui.com)
 PROBE_CONNECTIONS=16
 PROBE_BYTES=65536
-MIN_PROBE_SPEED=400000
+MIN_PROBE_SPEED=300000
 FIRMWARE_URL=""
 EXPECTED_MD5="15727cb7de21880a9f0ff788f1e4a035"
 OUT="${1:-surya-india-firmware-audit}"
@@ -18,6 +18,7 @@ REPORT="$OUT/SURYA-INDIA-FASTBOOT-AUDIT.txt"
   echo "Firmware: $FIRMWARE_NAME"
   echo "Source: Xiaomi official bigota server, indexed by HyperOS Update / XM Firmware Updater"
   echo "Candidate Xiaomi CDN hosts: ${FIRMWARE_HOSTS[*]}"
+  echo "Minimum aggregate range-probe speed: ${MIN_PROBE_SPEED} B/s"
   echo "Expected MD5: $EXPECTED_MD5"
 } | tee "$REPORT"
 
@@ -66,11 +67,12 @@ if [[ ! -s "$OUT/$FIRMWARE_NAME" ]]; then
 
     local elapsed=$((SECONDS - started))
     (( elapsed > 0 )) || elapsed=1
-    PROBE_SPEED=$((total_bytes / elapsed))
     if [[ "$failed" -eq 0 ]]; then
+      PROBE_SPEED=$((total_bytes / elapsed))
       printf 'PASS: %s returned 16 valid HTTP range responses; aggregate probe speed %s B/s.\n' \
         "$host" "$PROBE_SPEED" | tee -a "$REPORT"
     else
+      PROBE_SPEED=0
       printf 'SKIP: %s failed the 16-connection HTTP range probe (received %s/%s bytes).\n' \
         "$host" "$total_bytes" "$((PROBE_CONNECTIONS * PROBE_BYTES))" | tee -a "$REPORT"
     fi
