@@ -115,17 +115,19 @@ jobs:
           ui_print 'Flash kernel by Tinieblass';
           DEVICE=$(getprop ro.product.device);
           [ -n "$DEVICE" ] || DEVICE=$(getprop ro.build.product);
-          if [ "$DEVICE" != "alioth" ]; then
-            abort "Dispositivo no compatible: $DEVICE (se requiere alioth)";
-          fi;
-          ui_print 'Dispositivo: alioth';
+          [ -n "$DEVICE" ] || DEVICE=unknown;
+          ui_print "Device: $DEVICE";
           HYPEROS_ID="$(getprop ro.build.version.incremental) $(getprop ro.miui.ui.version.name) $(getprop ro.mi.os.version.name)";
-          if ! printf '%s' "$HYPEROS_ID" | grep -Eiq 'HyperOS|OS[0-9]+\\.[0-9]+'; then
-            abort 'ROM no compatible: se requiere HyperOS';
+          if printf '%s' "$HYPEROS_ID" | grep -Eiq 'HyperOS|OS[0-9]+\\.[0-9]+'; then
+            ui_print 'ROM: HyperOS';
+          else
+            ui_print 'ROM: other (no compatibility gate)';
           fi;
-          ui_print 'ROM: HyperOS';
           ZIP_BASENAME="$(basename "$ZIPFILE" .zip)";
           case "$ZIP_BASENAME" in
+            *-MIUI5K|*-miui5k)
+              abort 'Suffix -MIUI5K is invalid; use -5K for the 5000mAh profile.';
+              ;;
             *-6K|*-6k)
               abort 'BN61 5850mAh (-6K) is reserved and is not available in this build.';
               ;;
@@ -165,12 +167,10 @@ jobs:
           unzip -p "$ZIP" dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-dtbo.sha
           sha256sum raw/dtbo-5k.img | awk '{print $1}' > raw-5k-dtbo.sha
           diff -u raw-5k-dtbo.sha packaged-5k-dtbo.sha
-          unzip -p "$ZIP" anykernel.sh | grep -q 'Dispositivo: alioth'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'ROM: HyperOS'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'abort "Dispositivo no compatible:'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'ROM no compatible: se requiere HyperOS'
-          if unzip -p "$ZIP" anykernel.sh | grep -q '(informativo)'; then
-            echo 'ERROR: device/ROM checks must not be informational only' >&2
+          unzip -p "$ZIP" anykernel.sh | grep -q 'ui_print "Device:'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'ROM: other (no compatibility gate)'
+          if unzip -p "$ZIP" anykernel.sh | grep -Eq 'abort.*(Dispositivo no compatible|ROM no compatible)'; then
+            echo 'ERROR: device and ROM compatibility gates are forbidden' >&2
             exit 1
           fi
           unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth'
@@ -187,6 +187,7 @@ jobs:
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'dtbo-5k.img'
           unzip -p "$ZIP" anykernel.sh | grep -q 'Bateria: J3S Sun 5000mAh'
           unzip -p "$ZIP" anykernel.sh | grep -q 'BN61 5850mAh (-6K) is reserved'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'Suffix -MIUI5K is invalid'
           unzip -p "$ZIP" anykernel.sh | grep -q 'Bateria: stock'
           unzip -p "$ZIP" anykernel.sh | grep -q 'flash_boot'
           if unzip -p "$ZIP" anykernel.sh | grep -Eq 'write_boot|flash_generic (vendor_dlkm|system_dlkm)'; then
