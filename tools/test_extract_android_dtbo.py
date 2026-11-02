@@ -19,9 +19,9 @@ class DtboParserTests(unittest.TestCase):
         struct.pack_into(">10I", fdt, 0, FDT_MAGIC, 40, 40, 40, 17, 16, 0, 0, 0, 0)
         total_size = dt_offset + len(fdt)
         data = bytearray(total_size)
-        struct.pack_into("<8I", data, 0, DT_TABLE_MAGIC, total_size, header_size,
+        struct.pack_into(">8I", data, 0, DT_TABLE_MAGIC, total_size, header_size,
                          entry_size, count, entries_offset, 4096, 0)
-        struct.pack_into("<8I", data, entries_offset, len(fdt), dt_offset,
+        struct.pack_into(">8I", data, entries_offset, len(fdt), dt_offset,
                          0x1234, 0x2, 1, 2, 3, 4)
         data[dt_offset:dt_offset + len(fdt)] = fdt
         return bytes(data)
@@ -47,7 +47,9 @@ class DtboParserTests(unittest.TestCase):
         self.assertEqual(find_embedded_fdt(bytes(fdt)), [])
 
     def test_extracts_one_fdt(self):
-        parsed = split_dtbo(self.make_table())
+        image = self.make_table()
+        self.assertEqual(image[:4], bytes.fromhex("d7b7ab1e"))
+        parsed = split_dtbo(image)
         self.assertEqual(len(parsed["entries"]), 1)
         self.assertEqual(parsed["entries"][0]["id"], 0x1234)
         self.assertEqual(parsed["entries"][0]["custom"], [1, 2, 3, 4])
@@ -59,7 +61,7 @@ class DtboParserTests(unittest.TestCase):
 
     def test_rejects_out_of_bounds_entry(self):
         data = bytearray(self.make_table())
-        struct.pack_into("<I", data, 32 + 4, 0xFFFFFFF0)
+        struct.pack_into(">I", data, 32 + 4, 0xFFFFFFF0)
         with self.assertRaises(ValueError):
             split_dtbo(bytes(data))
 
