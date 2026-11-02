@@ -7,13 +7,14 @@ on:
     paths:
       - '.github/workflows/flash-kernel-build.yml'
       - 'scripts/prepare_flash_kernel_backslashxx.py'
-      - 'tools/analyze_bn61_reference.py'
-      - 'tools/validate_battery_research.py'
-      - 'research/battery/**'
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: flash-kernel-alioth-build
+  cancel-in-progress: false
 
 jobs:
   build:
