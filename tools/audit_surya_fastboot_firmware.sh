@@ -26,33 +26,42 @@ if [[ "$ACTUAL_MD5" != "$EXPECTED_MD5" ]]; then
 fi
 
 tar -tzf "$OUT/$ROM_NAME" > "$OUT/archive-members.txt"
+grep -Ei '(^|/)(boot|vendor|odm|dtbo|system|system_ext|product|cust|super|vbmeta).*([.]img)$' \
+  "$OUT/archive-members.txt" > "$OUT/image-members.txt" || true
+
 echo | tee -a "$REPORT"
 echo "=== Archive image members ===" | tee -a "$REPORT"
-grep -Ei '(^|/)(boot|vendor|odm|dtbo|system|system_ext|product|cust|super|vbmeta).*\\.img$' \
-  "$OUT/archive-members.txt" | tee -a "$REPORT" || true
+cat "$OUT/image-members.txt" | tee -a "$REPORT"
 
-mapfile -t IMAGES < <(grep -Ei '(^|/)(boot|vendor|odm|dtbo|system|system_ext|product|cust|super|vbmeta).*\\.img$' "$OUT/archive-members.txt")
-for member in "${IMAGES[@]}"; do
-  base="$(basename "$member")"
-  echo "Extracting $member" | tee -a "$REPORT"
-  tar -xzf "$OUT/$ROM_NAME" -C "$OUT/images" "$member"
-  extracted="$OUT/images/$member"
-  [[ -f "$extracted" ]] || extracted="$(find "$OUT/images" -type f -name "$base" -print -quit)"
-  [[ -n "$extracted" && -f "$extracted" ]] || continue
+# Extract all selected partition images in one archive pass.
+if [[ -s "$OUT/image-members.txt" ]]; then
+  tar -xzf "$OUT/$ROM_NAME" -C "$OUT/images" -T "$OUT/image-members.txt"
+fi
+
+while IFS= read -r image; do
+  [[ -n "$image" ]] || continue
+  extracted="$OUT/images/$image"
+  [[ -f "$extracted" ]] || continue
+  base="$(basename "$extracted")"
+  echo | tee -a "$REPORT"
   file "$extracted" | tee -a "$REPORT"
-  if [[ "$base" =~ ^(boot|dtbo|vbmeta).*\\.img$ ]]; then
+  if [[ "$base" =~ ^(boot|dtbo|vbmeta).*([.]img)$ ]]; then
     strings -a "$extracted" | grep -Ei 'battery|fuel.?gauge|pm855|qpnp|qg|provision|thermistor|m703|bn61|bn57|atl' \
       | head -n 250 >> "$OUT/boot-dtbo-string-hits.txt" || true
   fi
-done
+done < "$OUT/image-members.txt"
 
-# Inspect filesystem partitions without modifying them.
-for image in $(find "$OUT/images" -type f \( -name 'vendor.img' -o -name 'odm.img' -o -name 'system.img' -o -name 'product.img' -o -name 'cust.img' \)); do
-  base="$(basename "$image" .img)"
-  fsimage="$image"
-  if file "$image" | grep -qi 'Android sparse image'; then
+# Inspect filesystem partitions read-only.
+while IFS= read -r image; do
+  [[ -n "$image" ]] || continue
+  extracted="$OUT/images/$image"
+  [[ -f "$extracted" ]] || continue
+  base="$(basename "$extracted" .img)"
+  case "$base" in vendor|odm|system|product|cust) ;; *) continue ;; esac
+  fsimage="$extracted"
+  if file "$extracted" | grep -qi 'Android sparse image'; then
     fsimage="$OUT/${base}-raw.img"
-    simg2img "$image" "$fsimage"
+    simg2img "$extracted" "$fsimage"
   fi
   mnt="$OUT/mounts/$base"
   mkdir -p "$mnt"
@@ -63,13 +72,13 @@ for image in $(find "$OUT/images" -type f \( -name 'vendor.img' -o -name 'odm.im
       | sed "s#^$mnt/##" | tee -a "$REPORT" || true
     find "$mnt" -type f \( -name '*.dtsi' -o -name '*.dts' -o -name '*.dtb' -o -name '*.dtbo' -o -name '*.xml' -o -name '*.conf' -o -name '*.prop' -o -name '*.rc' -o -name '*.ko' -o -name '*.bin' \) -print0 \
       | xargs -0 -r -n 40 sh -c 'for f do strings -a "$f" 2>/dev/null; done' sh \
-      | grep -Ei 'batterydata|battery.?profile|fuel.?gauge|pm855|qpnp.?fg|m703|bn61|bn57|atl.?6000|BATTERY\\.PROVISION|thermistor|ocv.?table|fcc.?table' \
+      | grep -Ei 'batterydata|battery.?profile|fuel.?gauge|pm855|qpnp.?fg|m703|bn61|bn57|atl.?6000|BATTERY[.]PROVISION|thermistor|ocv.?table|fcc.?table' \
       | head -n 1200 >> "$OUT/filesystem-string-hits.txt" || true
     umount "$mnt"
   else
     echo "Could not mount $base as ext4; retained image for manual inspection." | tee -a "$REPORT"
   fi
-done
+done < "$OUT/image-members.txt"
 
 {
   echo
