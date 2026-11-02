@@ -96,3 +96,25 @@ python3 tools/extract_qg_battery_luts.py research/battery/M703-ATL-6000mah.dtsi 
 ```
 
 This emits CSV files for each available QG LUT and verifies the declared row/column dimensions. It intentionally does not emit a Gen4 profile.
+
+
+## Direct alioth source comparison and BM4Y identity gap
+
+Pinned alioth kernel/device-source snapshot: [LineageOS/android_kernel_xiaomi_sm8250 at 6b34d24765327d746074c8e53b5ad0d24a51acc7](https://github.com/LineageOS/android_kernel_xiaomi_sm8250/tree/6b34d24765327d746074c8e53b5ad0d24a51acc7).
+
+Its [alioth device tree](https://github.com/LineageOS/android_kernel_xiaomi_sm8250/blob/6b34d24765327d746074c8e53b5ad0d24a51acc7/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi) includes two PM855B Gen4 profiles in the compiled battery-data node: [K11A FMT 4520 mAh](https://github.com/LineageOS/android_kernel_xiaomi_sm8250/blob/6b34d24765327d746074c8e53b5ad0d24a51acc7/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-FMT-4520mah.dtsi) and [K11A GY 4520 mAh](https://github.com/LineageOS/android_kernel_xiaomi_sm8250/blob/6b34d24765327d746074c8e53b5ad0d24a51acc7/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-GY-4520mah.dtsi). The source names these profiles `K11A_FMT_4520mah` and `K11A_GY_4520mah`; it does **not** name either profile `BM4Y`. I have not found a primary source mapping the physical BM4Y pack label to one of these two model profiles, so that equivalence remains unverified.
+
+| Source profile | Gauge format and capacity | Battery ID / thermistor metadata | Voltage fields in that source |
+|---|---|---|---|
+| M703 ATL 6000 mAh, Surya | QG LUT model, not Gen4; FCC tables give about 5955–5956 mAh at 25 °C | 100 kΩ; beta 4250; selected by authenticated DS28E16 page-0 identifier `61` | Profile max 4.45 V; separate FFC/JEITA entries reach 4.48 V |
+| Alioth K11A FMT / GY | Two separate 416-byte PM855GUI Gen4 profiles, each 4520 mAh | Both 100 kΩ; beta 4250; same thermistor coefficient set | Profile max 4.46 V; JEITA float ranges include 4.45/4.46 V; source also has FFC CC/CV thresholds of 4.47 V (FMT) and 4.48 V (GY) |
+| Alioth J3S Sun | PM855GUI Gen4 reference, 416 bytes, 5000 mAh, checksum `0xBE8D` | 100 kΩ; beta 4250; same thermistor coefficient set | Profile max 4.48 V |
+
+The shared 100 kΩ ID and thermistor metadata do not make the profiles interchangeable. The FMT and GY Gen4 byte arrays differ at 285 of 416 byte positions despite their shared 4520 mAh capacity, battery-ID value, and thermistor coefficient set. Byte differences are measured directly from the pinned source arrays; they do not decode the payload semantics. J3S also remains a format reference, not BN61 characterization.
+
+For the alioth charger node, the same source sets `qcom,fv-max-uv = <4460000>` and `qcom,non-fcc-fv-max-uv = <4450000>`. These are observations about that alioth configuration, not authorization to raise the BN61 limit. The M703 QG source itself has a 4.45 V profile maximum alongside higher FFC/JEITA entries; those higher entries must not be copied into a BN61 profile based on capacity or ID alone.
+
+### Transformation decision
+
+There is still no validated transformation from the M703 QG OCV/FCC/Z/Y tables to the PM855B Gen4 416-byte profile. QG and Gen4 use different profile formats; the alioth Gen4 driver loads the profile body as opaque bytes. Even two alioth profiles with the same stated capacity and nominal ID have substantially different payloads. Therefore no `-6K` Gen4 block, DTBO, or kernel profile is generated from M703, FMT/GY, or J3S. The safe next input is an authentic BN61-specific Gen4/PM855GUI export or a documented Qualcomm characterization workflow and measurements for the exact pack.
+
