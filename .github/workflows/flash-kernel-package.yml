@@ -97,7 +97,7 @@ jobs:
           ## Unofficial package by Tinieblass.
 
           properties() { '
-          kernel.string=Flash Kernel alioth (Tinieblass)
+          kernel.string=Flash Kernel by Tinieblass
           do.devicecheck=0
           do.modules=0
           do.systemless=0
@@ -112,7 +112,7 @@ jobs:
 
           . tools/ak3-core.sh;
 
-          ui_print 'Flash kernel by Tinieblass';
+          ui_print 'Flash Kernel by Tinieblass';
           DEVICE=$(getprop ro.product.device);
           [ -n "$DEVICE" ] || DEVICE=$(getprop ro.build.product);
           [ -n "$DEVICE" ] || DEVICE=unknown;
@@ -173,7 +173,7 @@ jobs:
             echo 'ERROR: device and ROM compatibility gates are forbidden' >&2
             exit 1
           fi
-          unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel by Tinieblass'
           if unzip -p "$ZIP" anykernel.sh | grep -Eq 'device.name[0-9]+=|supported.versions='; then
             echo 'ERROR: installer contains a device/ROM/Android restriction or abort gate' >&2
             exit 1
