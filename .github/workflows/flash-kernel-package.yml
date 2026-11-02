@@ -110,11 +110,15 @@ jobs:
           ui_print 'Flash kernel by Tinieblass';
           DEVICE=$(getprop ro.product.device);
           [ -n "$DEVICE" ] || DEVICE=$(getprop ro.build.product);
-          [ -n "$DEVICE" ] || DEVICE='desconocido';
-          ui_print "Dispositivo detectado: $DEVICE (informativo)";
-          INCREMENTAL=$(getprop ro.build.version.incremental);
-          [ -n "$INCREMENTAL" ] || INCREMENTAL='desconocida';
-          ui_print "ROM/build detectado: $INCREMENTAL (informativo)";
+          if [ "$DEVICE" != "alioth" ]; then
+            abort "Dispositivo no compatible: $DEVICE (se requiere alioth)";
+          fi;
+          ui_print 'Dispositivo: alioth';
+          HYPEROS_ID="$(getprop ro.build.version.incremental) $(getprop ro.miui.ui.version.name) $(getprop ro.mi.os.version.name)";
+          if ! printf '%s' "$HYPEROS_ID" | grep -Eiq 'HyperOS|OS[0-9]+\\.[0-9]+'; then
+            abort 'ROM no compatible: se requiere HyperOS';
+          fi;
+          ui_print 'ROM: HyperOS';
           ZIP_BASENAME="$(basename "$ZIPFILE" .zip)";
           case "$ZIP_BASENAME" in
             *-6K|*-6k)
@@ -139,7 +143,7 @@ jobs:
           flash_boot;
           AK3
           (cd anykernel && zip -qr9 ../Flash-Kernel-alioth.zip . -x '.git/*' '.github/*' 'README.md')
-          cp Flash-Kernel-alioth.zip Flash-Kernel-alioth-5k.zip
+          cp Flash-Kernel-alioth.zip Flash-Kernel-alioth-5K.zip
 
       - name: Validate installer structure and embedded binaries
         run: |
@@ -156,10 +160,12 @@ jobs:
           unzip -p "$ZIP" dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-dtbo.sha
           sha256sum raw/dtbo-5k.img | awk '{print $1}' > raw-5k-dtbo.sha
           diff -u raw-5k-dtbo.sha packaged-5k-dtbo.sha
-          unzip -p "$ZIP" anykernel.sh | grep -q 'Dispositivo detectado:'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'ROM/build detectado:'
-          if unzip -p "$ZIP" anykernel.sh | grep -Eq 'abort .*Dispositivo no compatible|abort .*ROM no compatible|supported.versions='; then
-            echo 'ERROR: quedan restricciones de dispositivo, ROM o Android' >&2
+          unzip -p "$ZIP" anykernel.sh | grep -q 'Dispositivo: alioth'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'ROM: HyperOS'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'abort "Dispositivo no compatible:'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'ROM no compatible: se requiere HyperOS'
+          if unzip -p "$ZIP" anykernel.sh | grep -q '(informativo)'; then
+            echo 'ERROR: device/ROM checks must not be informational only' >&2
             exit 1
           fi
           unzip -p "$ZIP" anykernel.sh | grep -q 'kernel.string=Flash Kernel alioth'
@@ -193,4 +199,4 @@ jobs:
         run: |
           set -euo pipefail
           TAG="flash-kernel-alioth-${GITHUB_RUN_NUMBER}"
-          gh release create "$TAG" Flash-Kernel-alioth.zip Flash-Kernel-alioth-5k.zip --title "Flash Kernel alioth - build ${GITHUB_RUN_NUMBER}" --notes "Flash Kernel for POCO F3 / alioth. Stock: no suffix. J3S Sun 5000mAh: suffix -5k. BN61 5850mAh (-6K) is reserved and is not included pending a validated Gen4 profile."
+          gh release create "$TAG" Flash-Kernel-alioth.zip Flash-Kernel-alioth-5k.zip --title "Flash Kernel alioth - build ${GITHUB_RUN_NUMBER}" --notes "Flash Kernel for POCO F3 / alioth. Stock: no suffix. J3S Sun 5000mAh: suffix -5K. BN61 5850mAh (-6K) is reserved and is not included pending a validated Gen4 profile."
