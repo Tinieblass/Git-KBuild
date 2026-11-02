@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from extract_android_dtbo import DT_TABLE_MAGIC, FDT_MAGIC, split_dtbo
+from extract_android_dtbo import DT_TABLE_MAGIC, FDT_MAGIC, find_embedded_fdt, split_dtbo
 
 
 class DtboParserTests(unittest.TestCase):
@@ -25,6 +25,26 @@ class DtboParserTests(unittest.TestCase):
                          0x1234, 0x2, 1, 2, 3, 4)
         data[dt_offset:dt_offset + len(fdt)] = fdt
         return bytes(data)
+
+
+    def make_fdt(self):
+        fdt = bytearray(72)
+        struct.pack_into(">10I", fdt, 0, FDT_MAGIC, 72, 56, 72, 40, 17, 16, 0, 0, 16)
+        struct.pack_into(">4I", fdt, 56, 1, 0, 2, 9)
+        return bytes(fdt)
+
+    def test_scans_embedded_fdt(self):
+        prefix = b"boot-header"
+        fdt = self.make_fdt()
+        found = find_embedded_fdt(prefix + fdt + b"trailing-data")
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0]["offset"], len(prefix))
+        self.assertEqual(found[0]["data"], fdt)
+
+    def test_ignores_false_fdt_magic_with_invalid_size(self):
+        fdt = bytearray(self.make_fdt())
+        struct.pack_into(">I", fdt, 4, 0xFFFFFFF0)
+        self.assertEqual(find_embedded_fdt(bytes(fdt)), [])
 
     def test_extracts_one_fdt(self):
         parsed = split_dtbo(self.make_table())
