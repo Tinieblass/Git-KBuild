@@ -1,93 +1,69 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROM_NAME="surya_global_images_V12.5.8.0.RJGMIXM_20220524.0000.00_11.0_global_e2a45f1e0f.tgz"
-ROM_URL="https://bigota.d.miui.com/V12.5.8.0.RJGMIXM/${ROM_NAME}"
-EXPECTED_MD5="e2a45f1e0fb395852e17814a878852c0"
+FIRMWARE_NAME="fw_surya_miui_SURYAGlobal_V12.5.8.0.RJGMIXM_e57b4eef74_11.0.zip"
+FIRMWARE_URL="https://sourceforge.net/projects/syahiddrakness/files/Project/Kernel/surya/OSS/Stable/firmware/${FIRMWARE_NAME}/download"
+EXPECTED_MD5="b3e15a6733140e8783995bc555c3aa60"
 OUT="${1:-surya-firmware-audit}"
-mkdir -p "$OUT/images" "$OUT/mounts"
+mkdir -p "$OUT/images" "$OUT/xbl-raw"
 REPORT="$OUT/SURYA-FIRMWARE-AUDIT.txt"
 
-echo "POCO X3 NFC surya — official fastboot ROM audit" | tee "$REPORT"
-echo "Package: $ROM_NAME" | tee -a "$REPORT"
-echo "Source: $ROM_URL" | tee -a "$REPORT"
+echo "POCO X3 NFC surya — official firmware XBL / UEFI battery audit" | tee "$REPORT"
+echo "Firmware package: $FIRMWARE_NAME" | tee -a "$REPORT"
+echo "Source: XM Firmware Updater mirror (firmware extracted from official MIUI)" | tee -a "$REPORT"
+echo "Download: $FIRMWARE_URL" | tee -a "$REPORT"
 echo "Expected MD5: $EXPECTED_MD5" | tee -a "$REPORT"
 
-if [[ ! -s "$OUT/$ROM_NAME" ]]; then
+if [[ ! -s "$OUT/$FIRMWARE_NAME" ]]; then
   curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 \
-    --output "$OUT/$ROM_NAME" "$ROM_URL"
+    --output "$OUT/$FIRMWARE_NAME" "$FIRMWARE_URL"
 fi
 
-ACTUAL_MD5="$(md5sum "$OUT/$ROM_NAME" | awk '{print $1}')"
+ACTUAL_MD5="$(md5sum "$OUT/$FIRMWARE_NAME" | awk '{print $1}')"
 echo "Actual MD5: $ACTUAL_MD5" | tee -a "$REPORT"
 if [[ "$ACTUAL_MD5" != "$EXPECTED_MD5" ]]; then
   echo "ERROR: MD5 mismatch; refusing to inspect an unverified archive." | tee -a "$REPORT"
   exit 2
 fi
 
-tar -tzf "$OUT/$ROM_NAME" > "$OUT/archive-members.txt"
-grep -Ei '(^|/)(boot|vendor|odm|dtbo|system|system_ext|product|cust|super|vbmeta).*([.]img)$' \
+unzip -Z1 "$OUT/$FIRMWARE_NAME" > "$OUT/archive-members.txt"
+grep -Ei '(^|/)(xbl|xbl_config|abl|tz|hyp|devcfg|uefi_sec|imagefv)([.]elf|[.]mbn|[.]img)$' \
   "$OUT/archive-members.txt" > "$OUT/image-members.txt" || true
 
 echo | tee -a "$REPORT"
-echo "=== Archive image members ===" | tee -a "$REPORT"
+echo "=== Selected boot-chain firmware members ===" | tee -a "$REPORT"
 cat "$OUT/image-members.txt" | tee -a "$REPORT"
 
-# Extract all selected partition images in one archive pass.
-if [[ -s "$OUT/image-members.txt" ]]; then
-  tar -xzf "$OUT/$ROM_NAME" -C "$OUT/images" -T "$OUT/image-members.txt"
+while IFS= read -r member; do
+  [[ -n "$member" ]] || continue
+  name="$(basename "$member")"
+  unzip -p "$OUT/$FIRMWARE_NAME" "$member" > "$OUT/images/$name"
+  test -s "$OUT/images/$name"
+  file "$OUT/images/$name" | tee -a "$REPORT"
+  sha256sum "$OUT/images/$name" | tee -a "$REPORT"
+done < "$OUT/image-members.txt"
+
+XBL="$OUT/images/xbl.elf"
+if [[ ! -s "$XBL" ]]; then
+  XBL="$OUT/images/xbl.img"
+fi
+if [[ ! -s "$XBL" ]]; then
+  echo "ERROR: verified firmware ZIP contains no xbl.elf or xbl.img member." | tee -a "$REPORT"
+  exit 3
 fi
 
-while IFS= read -r image; do
-  [[ -n "$image" ]] || continue
-  extracted="$OUT/images/$image"
-  [[ -f "$extracted" ]] || continue
-  base="$(basename "$extracted")"
-  echo | tee -a "$REPORT"
-  file "$extracted" | tee -a "$REPORT"
-  if [[ "$base" =~ ^(boot|dtbo|vbmeta).*([.]img)$ ]]; then
-    strings -a "$extracted" | grep -Ei 'battery|fuel.?gauge|pm855|qpnp|qg|provision|thermistor|m703|bn61|bn57|atl' \
-      | head -n 250 >> "$OUT/boot-dtbo-string-hits.txt" || true
-  fi
-done < "$OUT/image-members.txt"
-
-# Inspect filesystem partitions read-only.
-while IFS= read -r image; do
-  [[ -n "$image" ]] || continue
-  extracted="$OUT/images/$image"
-  [[ -f "$extracted" ]] || continue
-  base="$(basename "$extracted" .img)"
-  case "$base" in vendor|odm|system|product|cust) ;; *) continue ;; esac
-  fsimage="$extracted"
-  if file "$extracted" | grep -qi 'Android sparse image'; then
-    fsimage="$OUT/${base}-raw.img"
-    simg2img "$extracted" "$fsimage"
-  fi
-  mnt="$OUT/mounts/$base"
-  mkdir -p "$mnt"
-  if mount -o loop,ro,noload "$fsimage" "$mnt" 2>/dev/null; then
-    echo | tee -a "$REPORT"
-    echo "=== Filesystem scan: $base ===" | tee -a "$REPORT"
-    find "$mnt" -type f \( -iname '*battery*' -o -iname '*fuel*gauge*' -o -iname '*provision*' -o -iname '*m703*' -o -iname '*bn61*' -o -iname '*bn57*' -o -iname '*thermistor*' \) \
-      | sed "s#^$mnt/##" | tee -a "$REPORT" || true
-    find "$mnt" -type f \( -name '*.dtsi' -o -name '*.dts' -o -name '*.dtb' -o -name '*.dtbo' -o -name '*.xml' -o -name '*.conf' -o -name '*.prop' -o -name '*.rc' -o -name '*.ko' -o -name '*.bin' \) -print0 \
-      | xargs -0 -r -n 40 sh -c 'for f do strings -a "$f" 2>/dev/null; done' sh \
-      | grep -Ei 'batterydata|battery.?profile|fuel.?gauge|pm855|qpnp.?fg|m703|bn61|bn57|atl.?6000|BATTERY[.]PROVISION|thermistor|ocv.?table|fcc.?table' \
-      | head -n 1200 >> "$OUT/filesystem-string-hits.txt" || true
-    umount "$mnt"
-  else
-    echo "Could not mount $base as ext4; retained image for manual inspection." | tee -a "$REPORT"
-  fi
-done < "$OUT/image-members.txt"
-
-{
-  echo
-  echo "=== boot/dtbo/vbmeta string hits ==="
-  cat "$OUT/boot-dtbo-string-hits.txt" 2>/dev/null || true
-  echo
-  echo "=== filesystem string hits (capped at 1200 lines) ==="
-  cat "$OUT/filesystem-string-hits.txt" 2>/dev/null || true
-} >> "$REPORT"
+echo | tee -a "$REPORT"
+echo "=== Qualcomm XBL UEFI firmware-volume extraction ===" | tee -a "$REPORT"
+python3 tools/extract_qualcomm_xbl_raw.py --xbl "$XBL" --out "$OUT/xbl-raw" \
+  2>&1 | tee -a "$REPORT"
 
 echo | tee -a "$REPORT"
-echo "Audit complete. No profile is considered valid unless an authentic Gen4 payload and metadata are recovered and independently validated." | tee -a "$REPORT"
+echo "=== XBL boot-chain string hits ===" | tee -a "$REPORT"
+strings -a "$XBL" | grep -Ei 'battery|fuel.?gauge|pm855|qpnp|qg|provision|thermistor|m703|bn61|bn57|atl|DS28E16' \
+  | head -n 500 | tee "$OUT/xbl-string-hits.txt" | tee -a "$REPORT" || true
+
+echo | tee -a "$REPORT"
+echo "=== Extracted RAW inventory ===" | tee -a "$REPORT"
+cat "$OUT/xbl-raw/RAW-MANIFEST.tsv" | tee -a "$REPORT"
+echo | tee -a "$REPORT"
+echo "Audit complete. Any BATTERY.PROVISION recovered here is a firmware source artifact, not automatically an alioth Gen4 profile." | tee -a "$REPORT"
