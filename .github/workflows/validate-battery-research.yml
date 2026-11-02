@@ -16,6 +16,7 @@ on:
       - "tools/normalize_m703_qg_curves.py"
       - "tools/compare_alioth_gen4_profiles.py"
       - "tools/validate_battery_research.py"
+      - "tools/compare_gen4_profiles_extended.py"
       - ".github/workflows/validate-battery-research.yml"
   workflow_dispatch:
 
@@ -42,6 +43,18 @@ jobs:
           test -s research/battery/Gen4-Comparison/register-word-comparison.csv
           test -s research/battery/Gen4-Comparison/profile-metadata.csv
           grep -q "J3S provision cross-check: PASS" research/battery/Gen4-Comparison/README.md
+
+      - name: Compare nine authentic PM855GUI Gen4 profiles
+        run: |
+          set -euo pipefail
+          python3 tools/compare_gen4_profiles_extended.py
+          test -s research/battery/Gen4-Comparison-Extended/README.md
+          test -s research/battery/Gen4-Comparison-Extended/profile-metadata.csv
+          test -s research/battery/Gen4-Comparison-Extended/register-byte-comparison.csv
+          test -s research/battery/Gen4-Comparison-Extended/register-word-comparison.csv
+          test -s research/battery/Gen4-Comparison-Extended/pairwise-byte-differences.csv
+          grep -q "Profiles compared: 9" research/battery/Gen4-Comparison-Extended/README.md
+          grep -q "J3S PM855GUI export cross-check: PASS" research/battery/Gen4-Comparison-Extended/README.md
 
       - name: Quantitatively audit M703 reference surfaces
         run: |
