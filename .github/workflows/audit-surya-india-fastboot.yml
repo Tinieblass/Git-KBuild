@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/audit-surya-india-fastboot.yml'
       - 'tools/audit_surya_india_fastboot.sh'
+      - 'tools/extract_android_dtbo.py'
       - 'tools/extract_qualcomm_xbl_raw.py'
 
 permissions:
@@ -25,7 +26,7 @@ jobs:
       - name: Checkout research scripts
         uses: actions/checkout@v4
         with:
-          ref: Flash-Kernel
+          ref: ${{ github.sha }}
 
       - name: Install image inspection tools
         run: |
