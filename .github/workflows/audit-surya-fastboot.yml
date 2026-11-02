@@ -1,0 +1,49 @@
+name: Audit official surya firmware for battery profile data
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - Flash-Kernel
+    paths:
+      - .github/workflows/audit-surya-fastboot.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: surya-firmware-audit
+  cancel-in-progress: false
+
+jobs:
+  extract-and-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout research scripts
+        uses: actions/checkout@v4
+        with:
+          ref: Flash-Kernel
+
+      - name: Install image inspection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y android-sdk-libsparse-utils e2fsprogs file
+
+      - name: Download, verify, extract and inspect official Xiaomi fastboot ROM
+        run: |
+          bash tools/audit_surya_fastboot_firmware.sh surya-firmware-audit
+
+      - name: Upload compact audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surya-official-firmware-battery-audit
+          path: |
+            surya-firmware-audit/SURYA-FIRMWARE-AUDIT.txt
+            surya-firmware-audit/archive-members.txt
+            surya-firmware-audit/image-members.txt
+            surya-firmware-audit/boot-dtbo-string-hits.txt
+            surya-firmware-audit/filesystem-string-hits.txt
+          if-no-files-found: warn
+          retention-days: 14
