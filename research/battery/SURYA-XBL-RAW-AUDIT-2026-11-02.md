@@ -85,3 +85,7 @@ Relevant tools:
 Reference implementation used to understand Qualcomm's gzip-embedded FFS2 layout: https://github.com/qine233/uefi-clover/blob/8d36aac44623d52ccaa2f1456d6e384ecc83f84f/scripts/extract-clover-blobs.py
 
 The parser in this repository is a separate focused extractor; it does not import or run the reference project.
+
+## Variant scope clarification
+
+This audit examined the Global NFC firmware package `V12.5.8.0.RJGMIXM`. It is not the India 6000 mAh package `V13.0.1.0.SJGINXM`. POCO's official X3 NFC specification is 5160 mAh, while the India POCO X3 is the 6000 mAh variant. Therefore, the absence of `BATTERY.PROVISION` in this Global XBL sample must not be generalized to the BN61/India battery variant. A separate India fastboot audit is tracked in `.github/workflows/audit-surya-india-fastboot.yml`.
