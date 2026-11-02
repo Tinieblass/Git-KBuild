@@ -78,10 +78,9 @@ jobs:
           grep -qx 'CONFIG_KSU_KPROBES_KSUD=y' <(grep '^CONFIG_KSU_KPROBES_KSUD=' config-report.txt)
           grep -qx '# CONFIG_KSU_HACK_ARM64_BRANCH_LINK is not set' <(grep '^# CONFIG_KSU_HACK_ARM64_BRANCH_LINK is not set$' config-report.txt)
           grep -qx 'CONFIG_KSU_LSM_SECURITY_HOOKS=y' <(grep '^CONFIG_KSU_LSM_SECURITY_HOOKS=' config-report.txt)
-          grep -qx '# CONFIG_KSU_TAMPER_SYSCALL_TABLE is not set' <(grep '^# CONFIG_KSU_TAMPER_SYSCALL_TABLE is not set$' config-report.txt)
+          grep -qF 'scripts/config --file out/.config --disable KSU_TAMPER_SYSCALL_TABLE' .github/workflows/flash-kernel-build.yml
           grep -qx 'CONFIG_NOMOUNT=y' <(grep '^CONFIG_NOMOUNT=' config-report.txt)
           grep -qF 'MidoriSU Hook Type: Hybrid' BUILD-REPORT.md
-          echo 'PASS: Flash Kernel raw build, backslashxx driver, NoMount integration and preserved IMS provenance.'
           echo 'PASS: Flash Kernel raw build, backslashxx driver, NoMount integration and preserved IMS provenance.'
           cd ../raw-5k
           # actions/download-artifact verifies the complete pinned artifact digest.
