@@ -60,13 +60,67 @@ def split_dtbo(data: bytes):
     }
 
 
+
+def find_embedded_fdt(data: bytes):
+    """Find structurally plausible FDT blobs embedded in boot/vendor_boot images."""
+    marker_bytes = struct.pack(">I", FDT_MAGIC)
+    cursor = 0
+    found = []
+    while True:
+        offset = data.find(marker_bytes, cursor)
+        if offset < 0:
+            break
+        cursor = offset + len(marker_bytes)
+        if offset + 40 > len(data):
+            continue
+        fields = struct.unpack_from(">10I", data, offset)
+        magic, total, off_struct, off_strings, off_reserve, version, last_compat, _cpu, size_strings, size_struct = fields
+        if magic != FDT_MAGIC or total < 40 or offset + total > len(data):
+            continue
+        if version < 16 or last_compat > version:
+            continue
+        if not (40 <= off_reserve <= total - 16 and 40 <= off_struct <= total - 4 and off_strings <= total):
+            continue
+        if size_struct < 4 or off_struct + size_struct > total:
+            continue
+        if size_strings and off_strings + size_strings > total:
+            continue
+        if struct.unpack_from(">I", data, offset + off_struct)[0] != 1:
+            continue
+        blob = data[offset:offset + total]
+        found.append({"offset": offset, "size": total, "data": blob})
+        cursor = offset + total
+    return found
+
+
+def extract_embedded_fdt(image: bytes, out: pathlib.Path) -> int:
+    blobs = find_embedded_fdt(image)
+    if not blobs:
+        print("INFO: no valid embedded FDT blobs found")
+        return 2
+    out.mkdir(parents=True, exist_ok=True)
+    manifest = ["offset\tsize\tsha256\tfile"]
+    for index, blob in enumerate(blobs):
+        name = f"fdt-{index:02d}.dtb"
+        (out / name).write_bytes(blob["data"])
+        digest = hashlib.sha256(blob["data"]).hexdigest()
+        manifest.append(f"0x{blob['offset']:x}\t{blob['size']}\t{digest}\t{name}")
+    (out / "FDT-MANIFEST.tsv").write_text("\n".join(manifest) + "\n", encoding="utf-8")
+    print(f"PASS: found {len(blobs)} embedded FDT blob(s)")
+    print(f"Manifest: {out / 'FDT-MANIFEST.tsv'}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--image", required=True, type=pathlib.Path)
     ap.add_argument("--out", required=True, type=pathlib.Path)
+    ap.add_argument("--scan-fdt", action="store_true", help="scan a boot/vendor_boot image for embedded FDT blobs")
     args = ap.parse_args()
 
     image = args.image.read_bytes()
+    if args.scan_fdt:
+        return extract_embedded_fdt(image, args.out)
     table = split_dtbo(image)
     args.out.mkdir(parents=True, exist_ok=True)
     manifest = ["index\tid\trev\tcustom\toffset\tsize\tsha256\tfile"]
