@@ -45,6 +45,22 @@ The M703 source was parsed and all **16 LUTs / 4323 scalar entries** passed row/
 | `pc-temp-y5-lut` | 56 | 6 | 336 |
 | `pc-temp-y6-lut` | 56 | 6 | 336 |
 
+## Critical device-variant distinction: BN61 / karna versus BN57 / surya
+
+The 6000 mAh POCO X3 India variant and the 5160 mAh POCO X3 NFC Global variant must not be conflated:
+
+- POCO's own community codename list identifies POCO X3 NFC as `surya` and the India-only POCO X3 as `karna`: https://c.po.co/global/post/26914
+- POCO's official X3 NFC specification is 5160 mAh: https://www.po.co/global/poco-x3-nfc/specs/
+- The India POCO X3 was announced with a 6000 mAh battery, unlike the NFC model's 5160 mAh: https://www.gsmarena.com/poco_x3_specs_india_price_sale_date-news-45408.php
+- Nohon BN61 product documentation lists 5850 mAh rated / 6000 mAh typical, 3.87 V nominal and 4.45 V charge limit: https://nohon.com.ua/ua/p2390077415-akkumulyator-dlya-telefona.html
+- The India firmware is distributed as `surya_in_global` / `SURYAINGlobal`, build `V13.0.1.0.SJGINXM`; LineageOS lists this as the India variant separately from Global/EEA surya: https://lineageos.github.io/lineage_wiki/devices/surya/install/
+
+The nomenclature is inconsistent across communities and shared source trees: some device lists call the India model `karna`, while the unified kernel/firmware source uses `surya_in_global`. For firmware selection, use the exact region/build identifier `SJGINXM`, not a codename guess.
+
+The previously audited XBL package `V12.5.8.0.RJGMIXM` was the Global NFC firmware, not the India 6000 mAh build. Its negative result (no `BATTERY.PROVISION` among the extracted RAW sections) must not be generalized to the India firmware. The M703 ATL 6000 mAh QG profile is a much stronger lead for the BN61/6000 mAh variant, but its DS28E16 identifier `61` and QG data still do not constitute a PM855B Gen4 payload.
+
+A new reproducible audit now targets the official India fastboot ROM `V13.0.1.0.SJGINXM`, expected MD5 `15727cb7de21880a9f0ff788f1e4a035`. It extracts only boot-chain images from the verified archive and inspects XBL/UEFI RAW records without publishing proprietary binaries. Workflow: `.github/workflows/audit-surya-india-fastboot.yml`.
+
 ## BN61 data currently known
 
 - Battery model: Nohon BN61, labelled 5850 mAh rated / 6000 mAh typical, 3.87 V nominal, 4.45 V charge limit (vendor listing/manual data; not an electrical characterization dataset).
