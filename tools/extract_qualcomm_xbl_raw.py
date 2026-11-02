@@ -49,7 +49,10 @@ def find_firmware_volumes(data: bytes):
         if key in seen:
             continue
         seen.add(key)
-        yield offset, expanded[base:base + length]
+        key = (offset, length)
+        if key not in seen:
+            seen.add(key)
+            yield offset, expanded[base:base + length]
 
 
 def iter_ffs_files(fv: bytes):
@@ -153,8 +156,8 @@ def inventory_and_extract(xbl: pathlib.Path, out: pathlib.Path) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--xbl", required=True, type=pathlib.Path,
-                        help="raw XBL ELF/partition image containing Qualcomm UEFI")
+    parser.add_argument("--xbl", "--image", dest="xbl", required=True, type=pathlib.Path,
+                        help="raw Qualcomm boot-chain image containing a firmware volume")
     parser.add_argument("--out", required=True, type=pathlib.Path,
                         help="directory for extracted RAW sections and manifest")
     args = parser.parse_args()
