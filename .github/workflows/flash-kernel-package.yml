@@ -122,16 +122,73 @@ jobs:
           . tools/ak3-core.sh;
 
           ui_print 'Flash Kernel by Tinieblass';
-          DEVICE=$(getprop ro.product.device);
-          [ -n "$DEVICE" ] || DEVICE=$(getprop ro.build.product);
-          [ -n "$DEVICE" ] || DEVICE=unknown;
+          is_usable() {
+            case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" in
+              ""|unknown|default|null|none|n/a|unavailable) return 1 ;;
+            esac
+            return 0
+          }
+
+          read_build_prop() {
+            PROP_NAME="$1"
+            for PROP_FILE in /system/build.prop /system/system/build.prop /system_root/system/build.prop /system_root/system/system/build.prop /vendor/build.prop /system/vendor/build.prop /product/build.prop /system/product/build.prop /odm/build.prop /system/odm/build.prop /system_ext/build.prop /system/system_ext/build.prop /mnt/system/build.prop; do
+              [ -r "$PROP_FILE" ] || continue
+              PROP_VALUE="$(awk -F= -v key="$PROP_NAME" '$1 == key { sub(/^[^=]*=/, ""); print; exit }' "$PROP_FILE" 2>/dev/null)"
+              if is_usable "$PROP_VALUE"; then
+                printf '%s\n' "$PROP_VALUE"
+                return
+              fi
+            done
+          }
+
+          get_prop_value() {
+            PROP_NAME="$1"
+            PROP_VALUE="$(read_build_prop "$PROP_NAME")"
+            if is_usable "$PROP_VALUE"; then
+              printf '%s\n' "$PROP_VALUE"
+              return
+            fi
+            PROP_VALUE="$(getprop "$PROP_NAME" 2>/dev/null | tr -d '\r')"
+            if is_usable "$PROP_VALUE"; then
+              printf '%s\n' "$PROP_VALUE"
+            fi
+          }
+
+          first_prop() {
+            for PROP_KEY in "$@"; do
+              PROP_VALUE="$(get_prop_value "$PROP_KEY")"
+              if is_usable "$PROP_VALUE"; then
+                printf '%s\n' "$PROP_VALUE"
+                return
+              fi
+            done
+          }
+
+          DEVICE="$(first_prop ro.product.device ro.build.product ro.product.vendor.device ro.vendor.product.device ro.product.system.device ro.product.product.device ro.product.odm.device ro.odm.product.device ro.product.bootimage.device ro.boot.product.device)"
+          if ! is_usable "$DEVICE"; then
+            DEVICE="$(awk '{ for (i = 1; i <= NF; i++) if ($i ~ /^androidboot.product.device=/) { sub(/^androidboot.product.device=/, "", $i); print $i; exit } }' /proc/cmdline 2>/dev/null)"
+          fi
+          if ! is_usable "$DEVICE"; then DEVICE='not detected'; fi
           ui_print "Device: $DEVICE";
-          HYPEROS_ID="$(getprop ro.build.version.incremental) $(getprop ro.miui.ui.version.name) $(getprop ro.mi.os.version.name)";
-          if printf '%s' "$HYPEROS_ID" | grep -Eiq 'HyperOS|OS[0-9]+\\.[0-9]+'; then
-            ui_print 'ROM: HyperOS';
+
+          ROM_VERSION="$(first_prop ro.mi.os.version.name ro.miui.ui.version.name)"
+          ROM_BUILD="$(first_prop ro.build.display.id ro.build.version.incremental ro.system.build.version.incremental ro.product.build.version.incremental ro.build.fingerprint ro.system.build.fingerprint)"
+          if is_usable "$ROM_VERSION"; then
+            case "$ROM_VERSION" in
+              HyperOS*|OS[0-9]*) ROM_LABEL="HyperOS $ROM_VERSION" ;;
+              MIUI*|V[0-9]*) ROM_LABEL="MIUI $ROM_VERSION" ;;
+              *) ROM_LABEL="$ROM_VERSION" ;;
+            esac
+          elif is_usable "$ROM_BUILD"; then
+            if printf '%s' "$ROM_BUILD" | grep -Eiq 'HyperOS|OS[0-9]+\\.[0-9]+'; then
+              ROM_LABEL="HyperOS $ROM_BUILD"
+            else
+              ROM_LABEL="$ROM_BUILD"
+            fi
           else
-            ui_print 'ROM: other (no compatibility gate)';
-          fi;
+            ROM_LABEL='not detected'
+          fi
+          ui_print "ROM: $ROM_LABEL";
           ZIP_BASENAME="$(basename "$ZIPFILE" .zip)";
           case "$ZIP_BASENAME" in
             *-MIUI5K|*-miui5k)
@@ -179,7 +236,10 @@ jobs:
           sha256sum raw/dtbo-5k.img | awk '{print $1}' > raw-5k-dtbo.sha
           diff -u raw-5k-dtbo.sha packaged-5k-dtbo.sha
           unzip -p "$ZIP" anykernel.sh | grep -q 'ui_print "Device:'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'ROM: other (no compatibility gate)'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'ui_print "ROM:'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'ro.product.vendor.device'
+          unzip -p "$ZIP" anykernel.sh | grep -q 'ro.mi.os.version.name'
+          unzip -p "$ZIP" anykernel.sh | grep -q '/system_root/system/build.prop'
           if unzip -p "$ZIP" anykernel.sh | grep -Eq 'abort.*(Dispositivo no compatible|ROM no compatible)'; then
             echo 'ERROR: device and ROM compatibility gates are forbidden' >&2
             exit 1
