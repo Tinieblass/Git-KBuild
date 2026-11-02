@@ -9,7 +9,7 @@ mkdir -p "$OUT/extracted" "$OUT/xbl-raw"
 REPORT="$OUT/SURYA-INDIA-FASTBOOT-AUDIT.txt"
 
 {
-  echo "POCO X3 India — official SURYAINGlobal V13.0.1.0.SJGINXM boot-chain audit"
+  echo "POCO X3 India — official SURYAINGlobal V13.0.1.0.SJGINXM boot-chain and device-tree audit"
   echo "Firmware: $FIRMWARE_NAME"
   echo "Source: Xiaomi official bigota server, indexed by HyperOS Update / XM Firmware Updater"
   echo "URL: $FIRMWARE_URL"
@@ -29,7 +29,129 @@ if [[ "$ACTUAL_MD5" != "$EXPECTED_MD5" ]]; then
 fi
 
 tar -tzf "$OUT/$FIRMWARE_NAME" > "$OUT/archive-members.txt"
-grep -Ei '(^|/)(xbl|xbl_config|abl|tz|hyp|devcfg|uefi_sec|imagefv)([.]elf|[.]mbn|[.]img)$' \
+grep -Ei '(^|/)(xbl|xbl_config|abl|tz|hyp|devcfg|uefi_sec|imagefv|boot|vendor_boot|dtbo)([.]elf|[.]mbn|[.]img) \
+  "$OUT/archive-members.txt" > "$OUT/image-members.txt" || true
+if ! grep -Eiq '(^|/)xbl([.]elf|[.]img)$' "$OUT/image-members.txt"; then
+  echo "ERROR: verified India fastboot ROM contains no xbl.elf or xbl.img member." | tee -a "$REPORT"
+  exit 3
+fi
+
+echo | tee -a "$REPORT"
+echo "=== Selected India boot-chain and device-tree members ===" | tee -a "$REPORT"
+tee -a "$REPORT" < "$OUT/image-members.txt"
+
+tar -xzf "$OUT/$FIRMWARE_NAME" -C "$OUT/extracted" --files-from="$OUT/image-members.txt"
+
+while IFS= read -r member; do
+  [[ -n "$member" ]] || continue
+  image="$OUT/extracted/$member"
+  test -s "$image"
+  file "$image" | tee -a "$REPORT"
+  sha256sum "$image" | tee -a "$REPORT"
+done < "$OUT/image-members.txt"
+
+
+BATTERY_HITS="$OUT/india-device-tree-battery-hits.txt"
+: > "$BATTERY_HITS"
+
+decompile_battery_properties() {
+  local dtb="$1"
+  local label="$2"
+  local dts="$3"
+  dtc -q -I dtb -O dts -o "$dts" "$dtb"
+  if grep -nEi 'battery|fuel.?gauge|qcom,fg|fg-profile|nom-batt|batt-id|therm|jeita|m703|bn61|bn57|qg' "$dts" > /dev/null; then
+    {
+      printf '=== %s ===\\n' "$label"
+      grep -nEi 'battery|fuel.?gauge|qcom,fg|fg-profile|nom-batt|batt-id|therm|jeita|m703|bn61|bn57|qg' "$dts" || true
+    } >> "$BATTERY_HITS"
+  fi
+}
+
+DTBO_IMAGE="$(find "$OUT/extracted" -type f -name dtbo.img -print -quit)"
+if [[ -n "$DTBO_IMAGE" ]]; then
+  DTBO_OUT="$OUT/india-dtbo"
+  python3 tools/extract_android_dtbo.py --image "$DTBO_IMAGE" --out "$DTBO_OUT" 2>&1 | tee -a "$REPORT"
+  while IFS= read -r -d '' dtb; do
+    dts="${dtb%.dtb}.dts"
+    decompile_battery_properties "$dtb" "DTBO $(basename "$dtb")" "$dts"
+  done < <(find "$DTBO_OUT" -maxdepth 1 -type f -name 'dtbo-*.dtb' -print0)
+else
+  echo "No dtbo.img member in the verified India fastboot archive." | tee -a "$REPORT"
+fi
+
+for name in boot vendor_boot; do
+  boot_image="$(find "$OUT/extracted" -type f -name "$name.img" -print -quit)"
+  [[ -n "$boot_image" ]] || continue
+  fdt_out="$OUT/embedded-fdt/$name"
+  set +e
+  python3 tools/extract_android_dtbo.py --scan-fdt --image "$boot_image" --out "$fdt_out" 2>&1 | tee -a "$REPORT"
+  scan_status=${PIPESTATUS[0]}
+  set -e
+  if [[ "$scan_status" -ne 0 && "$scan_status" -ne 2 ]]; then
+    echo "ERROR: embedded FDT scan failed for $name.img (exit $scan_status)." | tee -a "$REPORT"
+    exit "$scan_status"
+  fi
+  if [[ "$scan_status" -eq 0 ]]; then
+    while IFS= read -r -d '' dtb; do
+      dts="${dtb%.dtb}.dts"
+      decompile_battery_properties "$dtb" "$name $(basename "$dtb")" "$dts"
+    done < <(find "$fdt_out" -maxdepth 1 -type f -name 'fdt-*.dtb' -print0)
+  fi
+done
+
+if [[ ! -s "$BATTERY_HITS" ]]; then
+  echo "No battery/fuel-gauge-related properties found in extracted India DTBs/DTBOs." > "$BATTERY_HITS"
+fi
+
+XBL="$(find "$OUT/extracted" -type f \( -name xbl.elf -o -name xbl.img \) -print -quit)"
+test -n "$XBL"
+
+echo | tee -a "$REPORT"
+echo "=== India XBL UEFI firmware-volume extraction ===" | tee -a "$REPORT"
+python3 tools/extract_qualcomm_xbl_raw.py --image "$XBL" --out "$OUT/xbl-raw" 2>&1 | tee -a "$REPORT"
+
+while IFS= read -r member; do
+  [[ -n "$member" ]] || continue
+  image="$OUT/extracted/$member"
+  [[ "$image" == "$XBL" ]] && continue
+  name="$(basename "$member")"
+  name="${name%.*}"
+  echo | tee -a "$REPORT"
+  echo "=== Additional India firmware-volume scan: $member ===" | tee -a "$REPORT"
+  set +e
+  python3 tools/extract_qualcomm_xbl_raw.py --image "$image" --out "$OUT/other-raw/$name" 2>&1 | tee -a "$REPORT"
+  scan_status=${PIPESTATUS[0]}
+  set -e
+  if [[ "$scan_status" -ne 0 && "$scan_status" -ne 2 ]]; then
+    echo "ERROR: parser failed for $member (exit $scan_status)." | tee -a "$REPORT"
+    exit "$scan_status"
+  fi
+  if [[ "$scan_status" -eq 2 ]]; then
+    echo "No UEFI firmware volume found in $member." | tee -a "$REPORT"
+  fi
+done < "$OUT/image-members.txt"
+
+echo | tee -a "$REPORT"
+echo "=== India QcomChargerCfg battery / thermal settings ===" | tee -a "$REPORT"
+CHARGER_CFG="$(find "$OUT/xbl-raw" -maxdepth 1 -type f -name '*QcomChargerCfg.cfg.raw' -print -quit)"
+if [[ -n "$CHARGER_CFG" ]]; then
+  grep -nEi '^\[Platform|^(LoadBatteryProfile|BattMissingCfg|BatteryIdTolerance|RegularBatteryIdMin|RegularBatteryIdMax|ProgramBattThermCoeffs|BattTherm(C1|C2|C3|GndSel|BiasWait)|ChgFvMax|ChgFccMax|Jeita.*|UnknownBatteryBehavior|EmergencyShutdownVbatt|SocBasedBoot)[[:space:]]*=' "$CHARGER_CFG" \
+    | tee -a "$REPORT" || true
+else
+  echo "QcomChargerCfg.cfg not present in India XBL RAW records." | tee -a "$REPORT"
+fi
+
+echo | tee -a "$REPORT"
+echo "=== India XBL battery / fuel-gauge strings ===" | tee -a "$REPORT"
+strings -a "$XBL" | grep -Ei 'battery|fuel.?gauge|pm855|qpnp|qg|provision|thermistor|m703|bn61|bn57|atl|DS28E16' \
+  | head -n 500 | tee "$OUT/xbl-string-hits.txt" | tee -a "$REPORT" || true
+
+echo | tee -a "$REPORT"
+echo "=== India XBL extracted RAW inventory ===" | tee -a "$REPORT"
+tee -a "$REPORT" < "$OUT/xbl-raw/RAW-MANIFEST.tsv"
+echo | tee -a "$REPORT"
+echo "Audit complete. This India firmware is a more relevant 6000mAh variant reference than the previously audited Global NFC package; it still does not prove a BN61 PM855B Gen4 profile." | tee -a "$REPORT"
+ \
   "$OUT/archive-members.txt" > "$OUT/image-members.txt" || true
 if ! grep -Eiq '(^|/)xbl([.]elf|[.]img)$' "$OUT/image-members.txt"; then
   echo "ERROR: verified India fastboot ROM contains no xbl.elf or xbl.img member." | tee -a "$REPORT"
