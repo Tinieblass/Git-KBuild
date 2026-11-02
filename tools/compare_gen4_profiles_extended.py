@@ -88,12 +88,23 @@ def main():
         i for i in range(416)
         if len({p["blob"][i] for p in profiles}) == 1
     ]
-    variable_positions = [i for i in range(416) if i not in set(common_positions)]
-    common_metadata = [
-        key for key in FIELDS
-        if len({p["props"][key] for p in profiles}) == 1
-    ]
-    variable_metadata = [key for key in FIELDS if key not in common_metadata]
+    common_set = set(common_positions)
+    variable_positions = [i for i in range(416) if i not in common_set]
+    common_metadata = []
+    variable_metadata = []
+    partial_metadata = []
+    missing_metadata = []
+    for key in FIELDS:
+        values = [p["props"][key] for p in profiles]
+        present = [value for value in values if value]
+        if not present:
+            missing_metadata.append(key)
+        elif len(present) != len(values):
+            partial_metadata.append(key)
+        elif len(set(present)) == 1:
+            common_metadata.append(key)
+        else:
+            variable_metadata.append(key)
     pairwise = []
     for i, a in enumerate(profiles):
         for b in profiles[i + 1:]:
@@ -180,6 +191,14 @@ def main():
         "**Different explicit DTS properties:**",
         "",
         ", ".join(variable_metadata) if variable_metadata else "None.",
+        "",
+        "**Present in only some profiles:**",
+        "",
+        ", ".join(partial_metadata) if partial_metadata else "None.",
+        "",
+        "**Not declared in any of the nine profiles:**",
+        "",
+        ", ".join(missing_metadata) if missing_metadata else "None.",
         "",
         "## Pairwise payload distances",
         "",
