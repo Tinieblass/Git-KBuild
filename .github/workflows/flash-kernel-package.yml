@@ -1,11 +1,6 @@
-name: Flash Kernel - alioth
+name: Validate Flash Kernel package without publishing ZIPs
 
 on:
-  push:
-    branches:
-      - Flash-Kernel
-    paths:
-      - '.github/workflows/flash-kernel-package.yml'
   workflow_dispatch:
     inputs:
       RAW_RUN_ID:
@@ -301,11 +296,3 @@ jobs:
           unzip -p "$FIVEK_ZIP" dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-named-dtbo.sha
           diff -u packaged-5k-dtbo.sha packaged-5k-named-dtbo.sha
           sha256sum "$ZIP" "$FIVEK_ZIP"
-
-
-      - name: Upload dated kernel ZIPs
-        uses: actions/upload-artifact@v4
-        with:
-          name: FlashKernel${{ github.run_number }}-${{ github.run_attempt }}
-          path: FlashKernel*-5k.zip
-          if-no-files-found: error
