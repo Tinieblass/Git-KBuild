@@ -32,7 +32,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y file unzip
 
-      - name: Download, verify, extract and inspect official Xiaomi fastboot ROM
+      - name: Download, verify, extract and inspect official Xiaomi firmware package
         run: |
           bash tools/audit_surya_fastboot_firmware.sh surya-firmware-audit
 
