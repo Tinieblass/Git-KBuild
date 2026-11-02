@@ -47,5 +47,6 @@ jobs:
             surya-firmware-audit/filesystem-string-hits.txt
             surya-firmware-audit/xbl-string-hits.txt
             surya-firmware-audit/xbl-raw/**
+            surya-firmware-audit/other-raw/**
           if-no-files-found: warn
           retention-days: 14
