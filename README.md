@@ -19,9 +19,9 @@ O workflow de empaquetado xera dous ZIP independentes:
 | Arquivo | Perfil de batería |
 |---|---|
 | `Flash-Kernel-alioth.zip` | Batería stock |
-| `Flash-Kernel-alioth-5k.zip` | Perfil J3S Sun de 5000 mAh |
+| `Flash-Kernel-alioth-5K.zip` | Perfil J3S Sun de 5000 mAh |
 
-O instalador comproba que o dispositivo sexa `alioth` e que se detecte HyperOS. O perfil de 5000 mAh selecciónase unicamente co ZIP cuxo nome remata en `-5k`; o paquete normal utiliza o perfil stock.
+O instalador verifica que o dispositivo sexa `alioth` e que a ROM sexa HyperOS. O perfil de 5000 mAh selecciónase unicamente co ZIP cuxo nome remata en `-5K`; o paquete normal, sen sufixo, utiliza o perfil stock. O sufixo `-6K` queda reservado para a variante BN61 ata dispoñer dun perfil Gen4 validado; non se debe instalar un perfil aproximado.
 
 ## Compilar e empaquetar
 
@@ -35,7 +35,7 @@ O instalador comproba que o dispositivo sexa `alioth` e que se detecte HyperOS. 
 
 - Non instales artefactos procedentes de execucións fallidas ou incompletas.
 - Unha compilación correcta non substitúe as probas reais no dispositivo.
-- Non cambies o nome do ZIP stock para obter o perfil de 5000 mAh: utiliza o paquete `-5k` xerado polo workflow.
+- Non cambies o nome do ZIP stock para obter o perfil de 5000 mAh: utiliza o paquete `-5K` xerado polo workflow. O sufixo `-6K` non se debe usar ata que exista un DTBO BN61 validado.
 
 ## Créditos
 
