@@ -97,6 +97,9 @@ jobs:
           cp raw/Image.gz anykernel/Image.gz
           cp raw/dtbo.img anykernel/dtbo.img
           cp raw/dtbo-5k.img anykernel/dtbo-5k.img
+          BUILD_DATE="$(date -u +%Y%m%d)"
+          STOCK_ZIP="FlashKernel${BUILD_DATE}.zip"
+          FIVEK_ZIP="FlashKernel${BUILD_DATE}-5k.zip"
           cat > anykernel/anykernel.sh <<'AK3'
           ### Flash Kernel - POCO F3 / alioth
           ## Unofficial package by Tinieblass.
@@ -154,15 +157,15 @@ jobs:
           repack_ramdisk;
           flash_boot;
           AK3
-          (cd anykernel && zip -qr9 ../Flash-Kernel-alioth.zip . -x '.git/*' '.github/*' 'README.md')
-          cp Flash-Kernel-alioth.zip Flash-Kernel-alioth-5K.zip
+          (cd anykernel && zip -qr9 "../$STOCK_ZIP" . -x '.git/*' '.github/*' 'README.md')
+          cp "$STOCK_ZIP" "$FIVEK_ZIP"
 
       - name: Validate installer structure and embedded binaries
         run: |
           set -euo pipefail
-          ZIP=Flash-Kernel-alioth.zip
+          ZIP="$STOCK_ZIP"
           unzip -t "$ZIP"
-          unzip -t Flash-Kernel-alioth-5K.zip
+          unzip -t $FIVEK_ZIP
           unzip -p "$ZIP" Image.gz | sha256sum | awk '{print $1}' > packaged-image.sha
           sha256sum raw/Image.gz | awk '{print $1}' > raw-image.sha
           diff -u raw-image.sha packaged-image.sha
@@ -200,7 +203,14 @@ jobs:
             exit 1
           fi
           unzip -l "$ZIP" | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|META-INF/com/google/android/update-binary|LICENSE'
-          unzip -p Flash-Kernel-alioth-5K.zip dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-named-dtbo.sha
+          unzip -p $FIVEK_ZIP dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-named-dtbo.sha
           diff -u packaged-5k-dtbo.sha packaged-5k-named-dtbo.sha
-          sha256sum "$ZIP" Flash-Kernel-alioth-5K.zip
+          sha256sum "$ZIP" $FIVEK_ZIP
 
+
+      - name: Upload dated kernel ZIPs
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlashKernel${{ github.run_number }}-${{ github.run_attempt }}
+          path: FlashKernel*.zip
+          if-no-files-found: error
