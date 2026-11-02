@@ -188,7 +188,7 @@ jobs:
             echo '- Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d'
             echo '- Target: POCO F3 / alioth / HyperOS 3 / Android 16'
             echo '- Stock profile: FMT/GY 4520mAh, original DTBO retained'
-            echo '- J3S Sun profile: 5000mAh, separate verified DTBO supplied by the pinned Raikiri v1.7 build'
+            echo '- J3S Sun profile: 5000mAh, separate verified DTBO from the pinned historical upstream build'
             echo '- BN61 profile: RESERVED (-6K); no DTBO generated pending validated Gen4 electrical characterization'
             echo '- BN61 research: M703 QG reference quantitatively audited; not converted to Gen4'
             echo '- Driver: qpnp-fg-gen4 synchronizes the selected qcom,nom-batt-capacity-mah to SRAM before capacity-learning initialization'
@@ -206,15 +206,3 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
-      - name: Dispatch verified stock and J3S ZIP packaging
-        if: success()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          gh workflow run flash-kernel-package.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            --ref Flash-Kernel \
-            -f RAW_RUN_ID="$GITHUB_RUN_ID" \
-            -f J3S_RAW_RUN_ID=41160583371
-          echo "Dispatched package workflow for build run $GITHUB_RUN_ID and verified Raikiri J3S run 41160583371."
