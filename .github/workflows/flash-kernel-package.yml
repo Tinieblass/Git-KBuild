@@ -34,7 +34,7 @@ jobs:
         with:
           name: flash-kernel-alioth-raw
           path: raw
-          run-id: ${{ github.event.inputs.RAW_RUN_ID || '41418178305' }}
+          run-id: ${{ github.event.inputs.RAW_RUN_ID || '41426933381' }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download verified J3S Sun 5000mAh DTBO
