@@ -67,9 +67,39 @@ def verify_j3s_provision(profile):
         raise ValueError("J3S provision does not match the first 414 DTSI bytes + 00 00 tail")
     return len(rows)
 
+def ranges(indices):
+    """Format contiguous zero-based payload-byte offsets without assigning semantics."""
+    out = []
+    for index in indices:
+        if not out or index > out[-1][1] + 1:
+            out.append([index, index])
+        else:
+            out[-1][1] = index
+    return [
+        f"0x{start:03X}" if start == end else f"0x{start:03X}–0x{end:03X}"
+        for start, end in out
+    ]
+
+
 def main():
     profiles = [parse_profile(name, path) for name, path in PROFILES.items()]
     j3s = next(p for p in profiles if p["name"] == "alioth-J3S-Sun-5000")
+    common_positions = [
+        i for i in range(416)
+        if len({p["blob"][i] for p in profiles}) == 1
+    ]
+    variable_positions = [i for i in range(416) if i not in set(common_positions)]
+    common_metadata = [
+        key for key in FIELDS
+        if len({p["props"][key] for p in profiles}) == 1
+    ]
+    variable_metadata = [key for key in FIELDS if key not in common_metadata]
+    pairwise = []
+    for i, a in enumerate(profiles):
+        for b in profiles[i + 1:]:
+            distance = sum(x != y for x, y in zip(a["blob"], b["blob"]))
+            pairwise.append((distance, a["name"], b["name"]))
+    pairwise.sort()
     provision_count = verify_j3s_provision(j3s)
     OUT.mkdir(parents=True, exist_ok=True)
 
@@ -126,7 +156,38 @@ def main():
             x["rslow-normal-coeffs"], x["rslow-low-coeffs"], x["checksum"]
         ]) + " |")
     lines += [
-        "", "## Interpretation", "",
+        "",
+        "## Byte-level invariant map",
+        "",
+        f"- Common byte offsets: {len(common_positions)}/416.",
+        f"- Variable byte offsets: {len(variable_positions)}/416.",
+        "- Offsets below are zero-based positions inside the opaque 416-byte payload. They are not decoded register meanings.",
+        "",
+        "**Identical offsets across all nine profiles:**",
+        "",
+        ", ".join(ranges(common_positions)),
+        "",
+        "**Offsets that vary across the nine profiles:**",
+        "",
+        ", ".join(ranges(variable_positions)),
+        "",
+        "## Explicit metadata split",
+        "",
+        "**Same explicit DTS property in all nine profiles:**",
+        "",
+        ", ".join(common_metadata) if common_metadata else "None.",
+        "",
+        "**Different explicit DTS properties:**",
+        "",
+        ", ".join(variable_metadata) if variable_metadata else "None.",
+        "",
+        "## Pairwise payload distances",
+        "",
+        f"- Minimum byte differences: {pairwise[0][0]}/416 ({pairwise[0][1]} vs {pairwise[0][2]}).",
+        f"- Maximum byte differences: {pairwise[-1][0]}/416 ({pairwise[-1][1]} vs {pairwise[-1][2]}).",
+        "- These are Hamming distances only; a smaller distance does not establish electrical similarity.",
+        "",
+        "## Interpretation", "",
         "- All nine examples declare profile revision 24.",
         "- Eight examples use 100 kOhm battery ID and beta 4250; Nabu Sunwoda 8720 uses 10 kOhm and beta 3800.",
         "- Eight examples share thermistor room resistance 100000, pull-up 100, center offset 0x70 and coefficients 0x2318 0xd0c 0xdaf7 0xc556 0x848d; Nabu uses a different coefficient set.",
