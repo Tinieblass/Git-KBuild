@@ -1,4 +1,4 @@
-name: Audit official surya firmware for battery profile data
+name: Audit surya XBL UEFI battery profile data
 
 on:
   workflow_dispatch:
@@ -28,7 +28,7 @@ jobs:
       - name: Install image inspection tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y android-sdk-libsparse-utils e2fsprogs file
+          sudo apt-get install -y file unzip
 
       - name: Download, verify, extract and inspect official Xiaomi fastboot ROM
         run: |
@@ -45,5 +45,7 @@ jobs:
             surya-firmware-audit/image-members.txt
             surya-firmware-audit/boot-dtbo-string-hits.txt
             surya-firmware-audit/filesystem-string-hits.txt
+            surya-firmware-audit/xbl-string-hits.txt
+            surya-firmware-audit/xbl-raw/**
           if-no-files-found: warn
           retention-days: 14
