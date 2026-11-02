@@ -1,0 +1,54 @@
+name: Audit POCO X3 India 6000mAh firmware battery data
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - Flash-Kernel
+    paths:
+      - '.github/workflows/audit-surya-india-fastboot.yml'
+      - 'tools/audit_surya_india_fastboot.sh'
+      - 'tools/extract_qualcomm_xbl_raw.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: surya-india-firmware-audit
+  cancel-in-progress: false
+
+jobs:
+  extract-and-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout research scripts
+        uses: actions/checkout@v4
+        with:
+          ref: Flash-Kernel
+
+      - name: Install image inspection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y file
+
+      - name: Download, verify, extract and inspect official India fastboot ROM
+        run: |
+          bash tools/audit_surya_india_fastboot.sh surya-india-firmware-audit
+
+      - name: Upload compact India audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surya-india-6000mah-firmware-audit
+          path: |
+            surya-india-firmware-audit/SURYA-INDIA-FASTBOOT-AUDIT.txt
+            surya-india-firmware-audit/archive-members.txt
+            surya-india-firmware-audit/image-members.txt
+            surya-india-firmware-audit/xbl-string-hits.txt
+            surya-india-firmware-audit/xbl-raw/RAW-MANIFEST.tsv
+            surya-india-firmware-audit/xbl-raw/BATTERY-STRING-HITS.txt
+            surya-india-firmware-audit/other-raw/**/RAW-MANIFEST.tsv
+            surya-india-firmware-audit/other-raw/**/BATTERY-STRING-HITS.txt
+          if-no-files-found: warn
+          retention-days: 14
