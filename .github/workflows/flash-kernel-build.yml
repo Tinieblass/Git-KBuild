@@ -33,7 +33,16 @@ jobs:
           set -euo pipefail
           python3 tools/validate_battery_research.py
           python3 tools/analyze_bn61_reference.py
+      - name: Restore LLVM toolchain cache
+        id: llvm_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: clang/
+          key: llvm-clang-r614150-${{ runner.os }}
+
       - name: Download LLVM toolchain
+        id: llvm_download
+        if: steps.llvm_cache.outputs.cache-hit != 'true'
         timeout-minutes: 20
         run: |
           set -euo pipefail
@@ -53,9 +62,20 @@ jobs:
           ls -lh clang.tar.gz
           mkdir clang
           tar -xzf clang.tar.gz -C clang
+          rm -f clang.tar.gz
+
+      - name: Save LLVM toolchain cache
+        if: steps.llvm_cache.outputs.cache-hit != 'true' && steps.llvm_download.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: clang/
+          key: llvm-clang-r614150-${{ runner.os }}
+
+      - name: Verify LLVM toolchain
+        run: |
+          set -euo pipefail
           test -x clang/bin/clang
           clang/bin/clang --version
-          rm -f clang.tar.gz
       - name: Checkout pinned upstream kernel source
         run: |
           # shellcheck disable=SC2016
