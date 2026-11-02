@@ -122,8 +122,11 @@ jobs:
           grep -qx 'CONFIG_BUILD_ARM64_DT_OVERLAY=y' out/.config
           grep -qx 'CONFIG_OVERLAY_FS=y' out/.config
           grep -qx 'CONFIG_KSU=y' out/.config
-          scripts/config --file out/.config --disable KPROBES
-          scripts/config --file out/.config --enable KSU_HACK_ARM64_BRANCH_LINK
+          scripts/config --file out/.config --enable KPROBES
+          scripts/config --file out/.config --enable KRETPROBES
+          scripts/config --file out/.config --enable DEPRECATED
+          scripts/config --file out/.config --enable KSU_KPROBES_KSUD
+          scripts/config --file out/.config --disable KSU_HACK_ARM64_BRANCH_LINK
           scripts/config --file out/.config --enable KSU_LSM_SECURITY_HOOKS
           scripts/config --file out/.config --disable KSU_TAMPER_SYSCALL_TABLE
           scripts/config --file out/.config --enable NOMOUNT
@@ -133,12 +136,15 @@ jobs:
           make O=out olddefconfig
           grep -qx 'CONFIG_NOMOUNT=y' out/.config
           grep -qx 'CONFIG_KSU=y' out/.config
-          grep -qx 'CONFIG_KSU_HACK_ARM64_BRANCH_LINK=y' out/.config
+          grep -qx 'CONFIG_KPROBES=y' out/.config
+          grep -qx 'CONFIG_KRETPROBES=y' out/.config
+          grep -qx 'CONFIG_DEPRECATED=y' out/.config
+          grep -qx 'CONFIG_KSU_KPROBES_KSUD=y' out/.config
+          grep -qx '# CONFIG_KSU_HACK_ARM64_BRANCH_LINK is not set' out/.config
           grep -qx 'CONFIG_KSU_LSM_SECURITY_HOOKS=y' out/.config
           grep -qx '# CONFIG_KSU_TAMPER_SYSCALL_TABLE is not set' out/.config
-          grep -qx '# CONFIG_KPROBES is not set' out/.config
           grep -qx 'CONFIG_LOCALVERSION="-FlashKernel"' out/.config
-          grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_OVERLAY_FS=|CONFIG_KSU=|CONFIG_KSU_HACK_ARM64_BRANCH_LINK=|CONFIG_KSU_LSM_SECURITY_HOOKS=|CONFIG_NOMOUNT=|# CONFIG_KPROBES is not set|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
+          grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_OVERLAY_FS=|CONFIG_KSU=|CONFIG_KPROBES=|CONFIG_KRETPROBES=|CONFIG_DEPRECATED=|CONFIG_KSU_KPROBES_KSUD=|# CONFIG_KSU_HACK_ARM64_BRANCH_LINK is not set|CONFIG_KSU_LSM_SECURITY_HOOKS=|CONFIG_NOMOUNT=|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
       - name: Build Image.gz and stock alioth DTBO
         working-directory: kernel
         run: |
@@ -193,6 +199,7 @@ jobs:
             echo '- BN61 research: M703 QG reference quantitatively audited; not converted to Gen4'
             echo '- Driver: qpnp-fg-gen4 synchronizes the selected qcom,nom-batt-capacity-mah to SRAM before capacity-learning initialization'
             echo '- Built-in driver: backslashxx/KernelSU v3.3.1-35 (commit a9f3e2dd767ad77ac40f3874da39a7002998071f)'
+            echo '- MidoriSU Hook Type: Hybrid (CONFIG_KSU_KPROBES_KSUD=y; Kprobes enabled for early-boot hooks; branch-link/syscall-table hooks disabled)'
             echo '- NoMount: v2.2.0 built-in CONFIG_NOMOUNT=y from pinned commit bf1847f98fed382369c43bfd652cd93774b9b8e3'
             echo '- VoWiFi/IMS: upstream code retained; no IMS source files changed by this workflow'
             echo '- Outputs: Image.gz, stock dtbo.img and overlay DTBO, Kona base DTBs, BN61 hold status'
