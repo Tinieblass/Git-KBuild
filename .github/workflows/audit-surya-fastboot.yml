@@ -46,7 +46,9 @@ jobs:
             surya-firmware-audit/boot-dtbo-string-hits.txt
             surya-firmware-audit/filesystem-string-hits.txt
             surya-firmware-audit/xbl-string-hits.txt
-            surya-firmware-audit/xbl-raw/**
-            surya-firmware-audit/other-raw/**
+            surya-firmware-audit/xbl-raw/RAW-MANIFEST.tsv
+            surya-firmware-audit/xbl-raw/BATTERY-STRING-HITS.txt
+            surya-firmware-audit/other-raw/**/RAW-MANIFEST.tsv
+            surya-firmware-audit/other-raw/**/BATTERY-STRING-HITS.txt
           if-no-files-found: warn
           retention-days: 14
