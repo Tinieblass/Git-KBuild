@@ -2,7 +2,12 @@
 set -euo pipefail
 
 FIRMWARE_NAME="surya_in_global_images_V13.0.1.0.SJGINXM_20220818.0000.00_12.0_in_15727cb7de.tgz"
-FIRMWARE_URL="https://bigota.d.miui.com/V13.0.1.0.SJGINXM/${FIRMWARE_NAME}"
+FIRMWARE_PATH="V13.0.1.0.SJGINXM/${FIRMWARE_NAME}"
+FIRMWARE_HOSTS=(cdnorg.d.miui.com hugeota.d.miui.com bigota.d.miui.com)
+PROBE_CONNECTIONS=16
+PROBE_BYTES=65536
+MIN_PROBE_SPEED=400000
+FIRMWARE_URL=""
 EXPECTED_MD5="15727cb7de21880a9f0ff788f1e4a035"
 OUT="${1:-surya-india-firmware-audit}"
 mkdir -p "$OUT/extracted" "$OUT/xbl-raw"
@@ -12,17 +17,95 @@ REPORT="$OUT/SURYA-INDIA-FASTBOOT-AUDIT.txt"
   echo "POCO X3 India — official SURYAINGlobal V13.0.1.0.SJGINXM boot-chain and device-tree audit"
   echo "Firmware: $FIRMWARE_NAME"
   echo "Source: Xiaomi official bigota server, indexed by HyperOS Update / XM Firmware Updater"
-  echo "URL: $FIRMWARE_URL"
+  echo "Candidate Xiaomi CDN hosts: ${FIRMWARE_HOSTS[*]}"
   echo "Expected MD5: $EXPECTED_MD5"
 } | tee "$REPORT"
 
 if [[ ! -s "$OUT/$FIRMWARE_NAME" ]]; then
-  curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 \
-    --max-time 7200 --output "$OUT/$FIRMWARE_NAME" "$FIRMWARE_URL"
+  if ! command -v aria2c >/dev/null 2>&1; then
+    echo "ERROR: aria2c is required for bounded parallel firmware download." | tee -a "$REPORT"
+    exit 4
+  fi
+
+  probe_firmware_host() {
+    local host="$1"
+    local url="https://$host/$FIRMWARE_PATH"
+    local probe_dir="$OUT/.firmware-probes/$host"
+    local started="$SECONDS"
+    local index start end pid
+    local -a pids=()
+    local failed=0
+    local total_bytes=0
+    mkdir -p "$probe_dir"
+    rm -f "$probe_dir"/range-*.bin "$probe_dir"/status-*.txt "$probe_dir"/error-*.txt
+
+    for ((index = 0; index < PROBE_CONNECTIONS; index++)); do
+      start=$((index * PROBE_BYTES))
+      end=$((start + PROBE_BYTES - 1))
+      curl --fail --silent --show-error --location \
+        --range "$start-$end" --connect-timeout 10 --max-time 45 \
+        --max-filesize "$PROBE_BYTES" --output "$probe_dir/range-$index.bin" \
+        --write-out '%{http_code}' "$url" \
+        > "$probe_dir/status-$index.txt" 2> "$probe_dir/error-$index.txt" &
+      pids+=("$!")
+    done
+
+    for pid in "${pids[@]}"; do
+      wait "$pid" || failed=1
+    done
+
+    for ((index = 0; index < PROBE_CONNECTIONS; index++)); do
+      local code size
+      code="$(cat "$probe_dir/status-$index.txt" 2>/dev/null || true)"
+      size="$(wc -c < "$probe_dir/range-$index.bin" 2>/dev/null || echo 0)"
+      if [[ "$code" != "206" || "$size" -ne "$PROBE_BYTES" ]]; then
+        failed=1
+      fi
+      total_bytes=$((total_bytes + size))
+    done
+
+    local elapsed=$((SECONDS - started))
+    (( elapsed > 0 )) || elapsed=1
+    PROBE_SPEED=$((total_bytes / elapsed))
+    if [[ "$failed" -eq 0 ]]; then
+      printf 'PASS: %s returned 16 valid HTTP range responses; aggregate probe speed %s B/s.\n' \
+        "$host" "$PROBE_SPEED" | tee -a "$REPORT"
+    else
+      printf 'SKIP: %s failed the 16-connection HTTP range probe (received %s/%s bytes).\n' \
+        "$host" "$total_bytes" "$((PROBE_CONNECTIONS * PROBE_BYTES))" | tee -a "$REPORT"
+    fi
+  }
+
+  BEST_HOST=""
+  BEST_SPEED=0
+  for host in "${FIRMWARE_HOSTS[@]}"; do
+    PROBE_SPEED=0
+    probe_firmware_host "$host"
+    if [[ "$PROBE_SPEED" -gt "$BEST_SPEED" ]]; then
+      BEST_HOST="$host"
+      BEST_SPEED="$PROBE_SPEED"
+    fi
+  done
+
+  if [[ -z "$BEST_HOST" || "$BEST_SPEED" -lt "$MIN_PROBE_SPEED" ]]; then
+    echo "ERROR: no Xiaomi CDN host passed the HTTP range probe at $MIN_PROBE_SPEED B/s; refusing a multi-hour single-stream download." | tee -a "$REPORT"
+    exit 5
+  fi
+
+  FIRMWARE_URL="https://$BEST_HOST/$FIRMWARE_PATH"
+  echo "Selected Xiaomi CDN URL: $FIRMWARE_URL (probe speed $BEST_SPEED B/s)" | tee -a "$REPORT"
+  aria2c --allow-overwrite=true --auto-file-renaming=false --file-allocation=none \
+    --max-connection-per-server="$PROBE_CONNECTIONS" --split="$PROBE_CONNECTIONS" \
+    --min-split-size=1M --max-tries=3 --retry-wait=5 --connect-timeout=30 \
+    --timeout=60 --summary-interval=30 --console-log-level=notice \
+    --dir="$OUT" --out="$FIRMWARE_NAME" "$FIRMWARE_URL" 2>&1 \
+    | tee "$OUT/firmware-download.log"
 fi
 
 ACTUAL_MD5="$(md5sum "$OUT/$FIRMWARE_NAME" | awk '{print $1}')"
+ACTUAL_SHA256="$(sha256sum "$OUT/$FIRMWARE_NAME" | awk '{print $1}')"
 echo "Actual MD5: $ACTUAL_MD5" | tee -a "$REPORT"
+echo "Actual SHA-256: $ACTUAL_SHA256" | tee -a "$REPORT"
 if [[ "$ACTUAL_MD5" != "$EXPECTED_MD5" ]]; then
   echo "ERROR: MD5 mismatch; refusing to inspect an unverified ROM." | tee -a "$REPORT"
   exit 2
