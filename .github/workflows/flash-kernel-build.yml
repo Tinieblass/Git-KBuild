@@ -108,6 +108,16 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/prepare_flash_kernel_backslashxx.py kernel
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('kernel/KernelSU/kernel/Kconfig')
+          s = p.read_text()
+          gate = '\\tdepends on DEPRECATED\\n'
+          if s.count(gate) != 1:
+              raise SystemExit(f'ERROR: expected one deprecated KSU hook gate, found {s.count(gate)}')
+          p.write_text(s.replace(gate, '', 1))
+          print('PATCHED: expose the early-boot Kprobes hook on this vendor kernel; its Kconfig does not define DEPRECATED.')
+          PY
           git -C kernel diff --check
       - name: Preserve original stock battery and DTBO configuration
         working-directory: kernel
@@ -133,7 +143,6 @@ jobs:
           grep -qx 'CONFIG_KSU=y' out/.config
           scripts/config --file out/.config --enable KPROBES
           scripts/config --file out/.config --enable KRETPROBES
-          scripts/config --file out/.config --enable DEPRECATED
           scripts/config --file out/.config --enable KSU_KPROBES_KSUD
           scripts/config --file out/.config --disable KSU_HACK_ARM64_BRANCH_LINK
           scripts/config --file out/.config --enable KSU_LSM_SECURITY_HOOKS
@@ -147,13 +156,12 @@ jobs:
           grep -qx 'CONFIG_KSU=y' out/.config
           grep -qx 'CONFIG_KPROBES=y' out/.config
           grep -qx 'CONFIG_KRETPROBES=y' out/.config
-          grep -qx 'CONFIG_DEPRECATED=y' out/.config
           grep -qx 'CONFIG_KSU_KPROBES_KSUD=y' out/.config
           grep -qx '# CONFIG_KSU_HACK_ARM64_BRANCH_LINK is not set' out/.config
           grep -qx 'CONFIG_KSU_LSM_SECURITY_HOOKS=y' out/.config
           grep -qx '# CONFIG_KSU_TAMPER_SYSCALL_TABLE is not set' out/.config
           grep -qx 'CONFIG_LOCALVERSION="-FlashKernel"' out/.config
-          grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_OVERLAY_FS=|CONFIG_KSU=|CONFIG_KPROBES=|CONFIG_KRETPROBES=|CONFIG_DEPRECATED=|CONFIG_KSU_KPROBES_KSUD=|# CONFIG_KSU_HACK_ARM64_BRANCH_LINK is not set|CONFIG_KSU_LSM_SECURITY_HOOKS=|CONFIG_NOMOUNT=|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
+          grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_OVERLAY_FS=|CONFIG_KSU=|CONFIG_KPROBES=|CONFIG_KRETPROBES=|CONFIG_KSU_KPROBES_KSUD=|# CONFIG_KSU_HACK_ARM64_BRANCH_LINK is not set|CONFIG_KSU_LSM_SECURITY_HOOKS=|CONFIG_NOMOUNT=|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
       - name: Build Image.gz and stock alioth DTBO
         working-directory: kernel
         run: |
