@@ -112,7 +112,7 @@ jobs:
           from pathlib import Path
           p = Path('kernel/KernelSU/kernel/Kconfig')
           s = p.read_text()
-          gate = '\\tdepends on DEPRECATED\\n'
+          gate = '\tdepends on DEPRECATED\n'
           if s.count(gate) != 1:
               raise SystemExit(f'ERROR: expected one deprecated KSU hook gate, found {s.count(gate)}')
           p.write_text(s.replace(gate, '', 1))
