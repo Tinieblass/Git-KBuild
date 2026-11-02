@@ -22,6 +22,11 @@
    - Driver defines `PROFILE_LEN = 416`, rejects any other length, copies the bytes as an opaque profile payload, and separately parses metadata such as nominal capacity, thermistor coefficients, and rslow coefficients.
    - The driver does not provide a QG-LUT-to-Gen4 profile conversion routine.
 
+
+### Battery-ID limitation
+
+The previously recorded approximately 100.5 kΩ measurement is consistent with a nominal 100 kΩ battery-ID profile, but it does not prove the BN61 cell identity. The Surya QG selection path documented in the source checks the authenticated DS28E16 page-0 identifier (`61` versus `57`) to choose between the M703 6000 mAh and 5160 mAh variants. A 100 kΩ resistor is not equivalent to that authenticated identifier. Unless the exact Nohon pack is shown to expose the same authenticated page value, M703 remains a relevant 6000 mAh reference, not a confirmed electrical match for that pack.
+
 ## Extracted QG data inventory
 
 The M703 source was parsed and all **16 LUTs / 4323 scalar entries** passed row/column dimension checks. The normalized long-form dataset is `M703-ATL-6000mah-LUTs.csv`; the extractor can regenerate per-table CSV files.
