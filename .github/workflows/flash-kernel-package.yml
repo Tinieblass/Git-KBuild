@@ -100,6 +100,7 @@ jobs:
           BUILD_DATE="$(date -u +%Y%m%d)"
           STOCK_ZIP="FlashKernel${BUILD_DATE}.zip"
           FIVEK_ZIP="FlashKernel${BUILD_DATE}-5k.zip"
+          printf '%s\n' "$BUILD_DATE" > build-date.txt
           cat > anykernel/anykernel.sh <<'AK3'
           ### Flash Kernel - POCO F3 / alioth
           ## Unofficial package by Tinieblass.
@@ -163,9 +164,11 @@ jobs:
       - name: Validate installer structure and embedded binaries
         run: |
           set -euo pipefail
-          ZIP="$STOCK_ZIP"
+          BUILD_DATE="$(cat build-date.txt)"
+          ZIP="FlashKernel${BUILD_DATE}.zip"
+          FIVEK_ZIP="FlashKernel${BUILD_DATE}-5k.zip"
           unzip -t "$ZIP"
-          unzip -t $FIVEK_ZIP
+          unzip -t "$FIVEK_ZIP"
           unzip -p "$ZIP" Image.gz | sha256sum | awk '{print $1}' > packaged-image.sha
           sha256sum raw/Image.gz | awk '{print $1}' > raw-image.sha
           diff -u raw-image.sha packaged-image.sha
@@ -203,9 +206,9 @@ jobs:
             exit 1
           fi
           unzip -l "$ZIP" | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|META-INF/com/google/android/update-binary|LICENSE'
-          unzip -p $FIVEK_ZIP dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-named-dtbo.sha
+          unzip -p "$FIVEK_ZIP" dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-named-dtbo.sha
           diff -u packaged-5k-dtbo.sha packaged-5k-named-dtbo.sha
-          sha256sum "$ZIP" $FIVEK_ZIP
+          sha256sum "$ZIP" "$FIVEK_ZIP"
 
 
       - name: Upload dated kernel ZIPs
