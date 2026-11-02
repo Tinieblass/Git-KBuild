@@ -94,13 +94,17 @@ jobs:
           grep -qF 'RESERVED / NOT BUILT' BN61-STATUS.txt
           echo 'PASS: BN61 is deliberately excluded until a validated Gen4 profile exists.'
 
-      - name: Save verified artifact caches
+      - name: Save verified Flash Kernel raw build cache
         uses: actions/cache/save@v4
         with:
-          path: |
-            raw
-            raw-5k
-          key: flash-kernel-package-cache-${{ github.event.inputs.RAW_RUN_ID || '41443719682' }}-j3s-4d8105023e3d1474323f4118abc3b4ce6485070d
+          path: raw
+          key: flash-kernel-raw-${{ github.event.inputs.RAW_RUN_ID || '41443719682' }}
+
+      - name: Save verified J3S Sun 5000mAh DTBO cache
+        uses: actions/cache/save@v4
+        with:
+          path: raw-5k
+          key: alioth-j3s-5k-raw-4d8105023e3d1474323f4118abc3b4ce6485070d
 
       - name: Fetch pinned AnyKernel3 template
         run: |
