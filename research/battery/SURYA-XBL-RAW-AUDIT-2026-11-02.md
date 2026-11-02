@@ -17,11 +17,13 @@ XM Firmware Updater describes its firmware packages as firmware extracted from o
 
 ## XBL UEFI result
 
-The Qualcomm XBL image contains one gzip-embedded EDK II firmware volume:
+The Qualcomm boot-chain scan found these firmware volumes:
 
-- Firmware-volume offset in the decompressed image: `0xC3940`
-- Firmware volumes found: 1
-- RAW sections extracted: 25
+- `xbl.elf`: 2 valid EDK II firmware volumes; the gzip-wrapped volume begins at stream offset `0xC3940` and contains the 25 RAW sections listed below. The other XBL volume contains no RAW records.
+- `imagefv.elf`: 1 valid firmware volume, 0 RAW sections.
+- `abl.elf`: 1 valid firmware volume, 0 RAW sections.
+- `xbl_config.elf`, `uefi_sec.mbn`, `tz.mbn`, `hyp.mbn`, and `devcfg.mbn`: no EDK II firmware volume found by this scanner.
+- RAW sections extracted from the boot-chain images: 25, all from the XBL gzip-wrapped volume.
 - Battery-named RAW record: **not found**
 - `BATTERY.PROVISION`: **not present** in the 25 RAW sections
 - `BATTERY_PROFILE` / `PM855GUI` strings in the extracted RAW sections: **not found**
@@ -73,7 +75,7 @@ The XBL also contains strings such as `battery Id: %d` and `pm_sbl_chg_check_wea
 
 ## Reproduction
 
-The workflow `Audit surya XBL UEFI battery profile data` downloads the 78.1 MB firmware package, verifies its MD5, extracts the boot-chain images, parses raw and gzip-embedded EDK II firmware volumes, and archives the RAW sections and manifests.
+The workflow `Audit surya XBL UEFI battery profile data` downloads the 78.1 MB firmware package, verifies its MD5, extracts the boot-chain images, parses raw and gzip-embedded EDK II firmware volumes, and archives the manifests and audit metadata. Proprietary RAW binary payloads are not included in the published artifact.
 
 Relevant tools:
 
