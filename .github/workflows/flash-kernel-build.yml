@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: read
 
 concurrency:
@@ -204,3 +205,16 @@ jobs:
           path: flash-kernel-output/
           if-no-files-found: error
           compression-level: 0
+
+      - name: Dispatch verified stock and J3S ZIP packaging
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh workflow run flash-kernel-package.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref Flash-Kernel \
+            -f RAW_RUN_ID="$GITHUB_RUN_ID" \
+            -f J3S_RAW_RUN_ID=41160583371
+          echo "Dispatched package workflow for build run $GITHUB_RUN_ID and verified Raikiri J3S run 41160583371."
