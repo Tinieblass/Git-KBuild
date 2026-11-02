@@ -37,10 +37,19 @@ jobs:
         timeout-minutes: 20
         run: |
           set -euo pipefail
-          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 --max-time 1200 \
-            'https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/747f0cceb48f48bf7cf497a3e01af1389266904b/clang-r614150.tar.gz' \
-            --output clang.tar.gz
+          TOOLCHAIN_URL='https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/747f0cceb48f48bf7cf497a3e01af1389266904b/clang-r614150.tar.gz'
+          for attempt in 1 2 3; do
+            rm -f clang.tar.gz
+            curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 --max-time 1200 \
+              "$TOOLCHAIN_URL" --output clang.tar.gz
+            if test -s clang.tar.gz && gzip -t clang.tar.gz; then
+              break
+            fi
+            echo "Toolchain archive failed integrity check (attempt $attempt/3); downloading again." >&2
+            rm -f clang.tar.gz
+          done
           test -s clang.tar.gz
+          gzip -t clang.tar.gz
           ls -lh clang.tar.gz
           mkdir clang
           tar -xzf clang.tar.gz -C clang
