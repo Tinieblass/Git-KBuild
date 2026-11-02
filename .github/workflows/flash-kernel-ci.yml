@@ -1,0 +1,62 @@
+name: Flash Kernel CI lint
+
+on:
+  push:
+    branches:
+      - Flash-Kernel
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/**'
+      - 'tools/**'
+  pull_request:
+    branches:
+      - Flash-Kernel
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/**'
+      - 'tools/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flash-kernel-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go for actionlint
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Install and run actionlint
+        run: |
+          set -euo pipefail
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          "$(go env GOPATH)/bin/actionlint" -color .github/workflows/*.yml
+
+      - name: Compile-check Python tooling
+        run: |
+          set -euo pipefail
+          python3 -m compileall -q scripts tools
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Lint shell research scripts
+        run: |
+          set -euo pipefail
+          find scripts tools -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
+
+      - name: Check patch whitespace
+        run: git diff --check
