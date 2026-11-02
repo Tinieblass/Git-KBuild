@@ -92,3 +92,18 @@ The first seven source profiles have matching calculated and declared checksums.
 We now have a stronger, reproducible PM855GUI/Gen4 reference corpus and an audit for a real-world source-byte error. This is solid groundwork for the existing alioth stock/J3S kernel profiles and for validating future Gen4 candidates.
 
 It is **not** a valid 5850/6000 mAh BN61 Gen4 profile. No 6000 mAh PM855GUI/Gen4 profile has been found in the indexed public sources checked. The surya M703 6000 mAh QG data cannot be compiled as if it were a PM855B Gen4 payload. Keep `-6K` reserved and non-flashable until an authentic Gen4 profile or a documented Qualcomm characterization workflow plus exact-cell measurements is obtained.
+
+## Variant identity correction and next firmware target
+
+A model-variant distinction materially changes which firmware is relevant:
+
+- POCO's own community codename list distinguishes POCO X3 NFC (`surya`) from the India-only POCO X3 (`karna`): https://c.po.co/global/post/26914
+- The official POCO X3 NFC specification is 5160 mAh: https://www.po.co/global/poco-x3-nfc/specs/
+- The India POCO X3 is the 6000 mAh version; it lacks NFC: https://www.gsmarena.com/poco_x3_specs_india_price_sale_date-news-45408.php
+- Nohon BN61 is listed as 5850 mAh rated / 6000 mAh typical, 3.87 V nominal and 4.45 V charge limit: https://nohon.com.ua/ua/p2390077415-akkumulyator-dlya-telefona.html
+- LineageOS firmware guidance lists India POCO X3 `V13.0.1.0.SJGINXM` separately from Global/EEA surya: https://lineageos.github.io/lineage_wiki/devices/surya/install/
+
+The previous XBL audit used Global `V12.5.8.0.RJGMIXM`, so its absence of a battery provision file is not a negative result for the India 6000 mAh firmware. A new audit workflow now downloads the official India fastboot ROM `surya_in_global_images_V13.0.1.0.SJGINXM_20220818.0000.00_12.0_in_15727cb7de.tgz`, verifies MD5 `15727cb7de21880a9f0ff788f1e4a035`, and scans the XBL/UEFI boot chain.
+
+This is the highest-priority firmware source to inspect next because it matches the 6000 mAh India POCO X3 family associated with BN61 more closely than the Global NFC build. The shared source-tree profile `m703-atl-6000mah` selected by authenticated DS28E16 identifier `61` remains a strong QG-side lead, but is not a Gen4 profile and is not yet proven to be an exact electrical match for every third-party Nohon BN61 pack.
+
