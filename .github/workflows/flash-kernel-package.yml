@@ -150,7 +150,7 @@ jobs:
           set -euo pipefail
           ZIP=Flash-Kernel-alioth.zip
           unzip -t "$ZIP"
-          unzip -t Flash-Kernel-alioth-5k.zip
+          unzip -t Flash-Kernel-alioth-5K.zip
           unzip -p "$ZIP" Image.gz | sha256sum | awk '{print $1}' > packaged-image.sha
           sha256sum raw/Image.gz | awk '{print $1}' > raw-image.sha
           diff -u raw-image.sha packaged-image.sha
@@ -189,9 +189,9 @@ jobs:
             exit 1
           fi
           unzip -l "$ZIP" | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|META-INF/com/google/android/update-binary|LICENSE'
-          unzip -p Flash-Kernel-alioth-5k.zip dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-named-dtbo.sha
+          unzip -p Flash-Kernel-alioth-5K.zip dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-named-dtbo.sha
           diff -u packaged-5k-dtbo.sha packaged-5k-named-dtbo.sha
-          sha256sum "$ZIP" Flash-Kernel-alioth-5k.zip
+          sha256sum "$ZIP" Flash-Kernel-alioth-5K.zip
 
       - name: Publish direct ZIP downloads
         env:
@@ -199,4 +199,4 @@ jobs:
         run: |
           set -euo pipefail
           TAG="flash-kernel-alioth-${GITHUB_RUN_NUMBER}"
-          gh release create "$TAG" Flash-Kernel-alioth.zip Flash-Kernel-alioth-5k.zip --title "Flash Kernel alioth - build ${GITHUB_RUN_NUMBER}" --notes "Flash Kernel for POCO F3 / alioth. Stock: no suffix. J3S Sun 5000mAh: suffix -5K. BN61 5850mAh (-6K) is reserved and is not included pending a validated Gen4 profile."
+          gh release create "$TAG" Flash-Kernel-alioth.zip Flash-Kernel-alioth-5K.zip --title "Flash Kernel alioth - build ${GITHUB_RUN_NUMBER}" --notes "Flash Kernel for POCO F3 / alioth. Stock: no suffix. J3S Sun 5000mAh: suffix -5K. BN61 5850mAh (-6K) is reserved and is not included pending a validated Gen4 profile."
