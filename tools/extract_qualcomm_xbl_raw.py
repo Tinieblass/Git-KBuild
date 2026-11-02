@@ -159,7 +159,7 @@ def inventory_and_extract(xbl: pathlib.Path, out: pathlib.Path) -> int:
         "\n".join("\t".join(map(str, row)) for row in hits) + ("\n" if hits else ""),
         encoding="utf-8",
     )
-    print(f"XBL: {xbl.name}; firmware volumes: {volumes}; RAW sections: {raw_count}")
+    print(f"IMAGE: {xbl.name}; firmware volumes: {volumes}; RAW sections: {raw_count}")
     print(f"Extracted RAW manifest: {out / 'RAW-MANIFEST.tsv'}")
     if hits:
         print("Battery-related RAW sections:")
