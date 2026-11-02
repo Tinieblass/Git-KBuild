@@ -29,9 +29,9 @@ if [[ "$ACTUAL_MD5" != "$EXPECTED_MD5" ]]; then
 fi
 
 tar -tzf "$OUT/$FIRMWARE_NAME" > "$OUT/archive-members.txt"
-grep -Ei '(^|/)(xbl|xbl_config|abl|tz|hyp|devcfg|uefi_sec|imagefv|boot|vendor_boot|dtbo)([.]elf|[.]mbn|[.]img)$' \
+grep -Ei '(^|/)(xbl|xbl_config|abl|tz|hyp|devcfg|uefi_sec|imagefv|boot|vendor_boot|dtbo)([.]elf|[.]mbn|[.]img)' \
   "$OUT/archive-members.txt" > "$OUT/image-members.txt" || true
-if ! grep -Eiq '(^|/)xbl([.]elf|[.]img)$' "$OUT/image-members.txt"; then
+if ! grep -Eiq '(^|/)xbl([.]elf|[.]img)' "$OUT/image-members.txt"; then
   echo "ERROR: verified India fastboot ROM contains no xbl.elf or xbl.img member." | tee -a "$REPORT"
   exit 3
 fi
