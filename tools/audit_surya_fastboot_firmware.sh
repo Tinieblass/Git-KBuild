@@ -53,9 +53,39 @@ if [[ ! -s "$XBL" ]]; then
 fi
 
 echo | tee -a "$REPORT"
-echo "=== Qualcomm XBL UEFI firmware-volume extraction ===" | tee -a "$REPORT"
-python3 tools/extract_qualcomm_xbl_raw.py --xbl "$XBL" --out "$OUT/xbl-raw" \
+echo "=== Qualcomm UEFI firmware-volume extraction ===" | tee -a "$REPORT"
+python3 tools/extract_qualcomm_xbl_raw.py --image "$XBL" --out "$OUT/xbl-raw" \
   2>&1 | tee -a "$REPORT"
+
+for candidate in xbl_config.elf imagefv.elf uefi_sec.mbn abl.elf tz.mbn hyp.mbn devcfg.mbn; do
+  image="$OUT/images/$candidate"
+  [[ -s "$image" ]] || continue
+  name="${candidate%.*}"
+  echo | tee -a "$REPORT"
+  echo "=== Additional firmware-volume scan: $candidate ===" | tee -a "$REPORT"
+  set +e
+  python3 tools/extract_qualcomm_xbl_raw.py --image "$image" --out "$OUT/other-raw/$name" \
+    2>&1 | tee -a "$REPORT"
+  scan_status=${PIPESTATUS[0]}
+  set -e
+  if [[ "$scan_status" -ne 0 && "$scan_status" -ne 2 ]]; then
+    echo "ERROR: parser failed for $candidate (exit $scan_status)." | tee -a "$REPORT"
+    exit "$scan_status"
+  fi
+  if [[ "$scan_status" -eq 2 ]]; then
+    echo "No UEFI firmware volume found in $candidate." | tee -a "$REPORT"
+  fi
+done
+
+echo | tee -a "$REPORT"
+echo "=== QcomChargerCfg battery / thermal settings ===" | tee -a "$REPORT"
+CHARGER_CFG="$(find "$OUT/xbl-raw" -maxdepth 1 -type f -name '*QcomChargerCfg.cfg.raw' -print -quit)"
+if [[ -n "$CHARGER_CFG" ]]; then
+  grep -nEi '^\\[Platform|^(LoadBatteryProfile|BattMissingCfg|BatteryIdTolerance|RegularBatteryIdMin|RegularBatteryIdMax|ProgramBattThermCoeffs|BattTherm(C1|C2|C3|GndSel|BiasWait)|ChgFvMax|ChgFccMax|Jeita.*|UnknownBatteryBehavior|EmergencyShutdownVbatt|SocBasedBoot)[[:space:]]*=' "$CHARGER_CFG" \
+    | tee -a "$REPORT" || true
+else
+  echo "QcomChargerCfg.cfg not present in XBL RAW records." | tee -a "$REPORT"
+fi
 
 echo | tee -a "$REPORT"
 echo "=== XBL boot-chain string hits ===" | tee -a "$REPORT"
