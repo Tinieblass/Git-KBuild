@@ -121,3 +121,35 @@ For the alioth charger node, the same source sets `qcom,fv-max-uv = <4460000>` a
 
 There is still no validated transformation from the M703 QG OCV/FCC/Z/Y tables to the PM855B Gen4 416-byte profile. QG and Gen4 use different profile formats; the alioth Gen4 driver loads the profile body as opaque bytes. Even two alioth profiles with the same stated capacity and nominal ID have substantially different payloads. Therefore no `-6K` Gen4 block, DTBO, or kernel profile is generated from M703, FMT/GY, or J3S. The safe next input is an authentic BN61-specific Gen4/PM855GUI export or a documented Qualcomm characterization workflow and measurements for the exact pack.
 
+
+
+## Official POCO X3 India firmware: M703 profile confirmed in stock DTBO
+
+A primary-source audit of Xiaomi's official India fastboot package was completed on 2026-11-02:
+
+- Package: "surya_in_global_images_V13.0.1.0.SJGINXM_20220818.0000.00_12.0_in_15727cb7de.tgz"
+- Official Xiaomi CDN URL: https://cdnorg.d.miui.com/V13.0.1.0.SJGINXM/surya_in_global_images_V13.0.1.0.SJGINXM_20220818.0000.00_12.0_in_15727cb7de.tgz
+- Expected and actual MD5: 15727cb7de21880a9f0ff788f1e4a035
+- Actual firmware SHA-256: 47ddd062f81d708c9c48865295cd365fae17f18d424f2860507e7c812b6e5556
+- dtbo.img SHA-256: 4ce6421507b45546374096eb00d1676b69ed329b552c85bf9173d5214cf50a78
+- Android DTBO table: 32 FDT entries, version 0, page size 4096.
+
+The official India DTBO decompilation contains both qcom,m703-atl-6000mah and qcom,m703-pm7150b-atl-5160mah battery-data nodes. The 6000 mAh node is present in multiple overlays, including dtbo-03.dtb (SHA-256 975c2fca29dbb9b7a3a8677195f24674ce049869a9f48b28d1368520e81cc30a), dtbo-05.dtb (8ce726cf54b11c29f927c1fe43f75b6b2a3ae1810a61ca2728ea16056833cb01) and dtbo-30.dtb (bc3c6fadd3cf8111ecf39cd2872da1d6f5ac4d466c2cc68461a581103c020abd). The decompiled node confirms:
+
+- qcom,battery-type = "m703-atl-6000mah"
+- qcom,batt-id-kohm = <100>
+- qcom,battery-beta = <4250>
+- qcom,battery-therm-kohm = <100>
+- qcom,qg-batt-profile-ver = <100>
+- mi,six-pin-battery
+- The PM6150 QG node references the battery-data node and enables the external-sense / fast-charge QG configuration.
+
+This proves that Xiaomi's official POCO X3 India firmware carries an M703 ATL 6000 mAh QG profile. It does not prove that a third-party Nohon BN61 replacement has the same cell construction, thermistor curve, authenticated pack ID, or dynamic impedance. The M703 source DTSI identifies 4.45 V profile maximum and a separate 4.48 V FFC maximum; the 4.48 V FFC value must not be copied into a BN61 profile whose stated limit is 4.45 V.
+
+The open Surya QG driver source at Stormbreaker commit 07843c4a74f3fde3df48b941091ce41141fe886d provides an important selection detail: with DS28E16 battery verification enabled, page-0 identifier bytes 57 select m703-pm7150b-atl-5160mah, while 61 select m703-atl-6000mah; unmatched identifiers fall back to the 5160 mAh node. This is a cross-check from that open kernel tree, not proof that the official MIUI boot image contains identical driver code. A 100 kΩ ID reading (including the previously recorded ~100.5 kΩ measurement) cannot substitute for the authenticated 61 identifier.
+
+The India XBL audit found two firmware volumes and 25 RAW sections. No battery-labelled strings were found in those RAW sections. Its QcomChargerCfg.cfg extraction reports LoadBatteryProfile = FALSE, BatteryIdTolerance = 8, RegularBatteryIdMin = 15000, RegularBatteryIdMax = 137000, and thermistor coefficient bytes A1/50/FF. Platform charger configuration also lists different ChgFvMax values for MTP (4350 mV), QRD (4400 mV) and IDP (4480 mV). These are bootloader/platform settings, not a BN61 Gen4 profile or permission to alter alioth charge limits.
+
+The first XBL parser only inventoried RAW sections, so its previous empty BATTERY-STRING-HITS.txt did not prove that no BATTERY.PROVISION FFS file existed. The audit tooling is being extended to inventory every FFS UI name and section type, identify exact BATTERY.PROVISION candidates, and capture the complete M703 6000/5160 profile nodes from the official DTBO. The parser will explicitly report that compressed and GUID-defined EFI sections are not decoded.
+
+Engineering decision unchanged: M703 is now a confirmed official Surya QG reference, not a BN61 PM855B Gen4 payload. The alioth PM855B Gen4 driver requires a 416-byte PM855GUI profile, while M703 supplies QG OCV/FCC/Z/Y tables. No documented conversion exists. Keep -6K reserved; do not change charge-voltage, current, NTC/ID or Gen4 payload values from this reference alone.
