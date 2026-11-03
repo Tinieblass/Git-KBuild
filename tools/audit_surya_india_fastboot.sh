@@ -158,7 +158,7 @@ decompile_battery_properties() {
 
   local node node_file node_sha node_bytes
   for node in qcom,m703-atl-6000mah qcom,m703-pm7150b-atl-5160mah; do
-    if grep -qE "\${node}[[:space:]]*\{" "$dts"; then
+    if grep -qE "${node}[[:space:]]*\{" "$dts"; then
       node_file="$(mktemp "$OUT/m703-node.XXXXXX")"
       awk -v target="$node" '
         index($0, target) && index($0, "{") { capture = 1; depth = 0 }
