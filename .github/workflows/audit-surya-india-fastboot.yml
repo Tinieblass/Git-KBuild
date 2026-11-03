@@ -47,11 +47,16 @@ jobs:
             surya-india-firmware-audit/archive-members.txt
             surya-india-firmware-audit/image-members.txt
             surya-india-firmware-audit/india-device-tree-battery-hits.txt
+            surya-india-firmware-audit/india-M703-profile-details.txt
+            surya-india-firmware-audit/india-M703-profile-manifest.tsv
             surya-india-firmware-audit/india-dtbo/DTBO-MANIFEST.tsv
             surya-india-firmware-audit/embedded-fdt/**/FDT-MANIFEST.tsv
             surya-india-firmware-audit/xbl-string-hits.txt
             surya-india-firmware-audit/xbl-raw/RAW-MANIFEST.tsv
+            surya-india-firmware-audit/xbl-raw/FFS-INVENTORY.tsv
             surya-india-firmware-audit/xbl-raw/BATTERY-STRING-HITS.txt
+            surya-india-firmware-audit/xbl-raw/SECTION-STRING-HITS.txt
+            surya-india-firmware-audit/xbl-raw/BATTERY-PROVISION-SEARCH.txt
             surya-india-firmware-audit/other-raw/**/RAW-MANIFEST.tsv
             surya-india-firmware-audit/other-raw/**/BATTERY-STRING-HITS.txt
           if-no-files-found: warn
