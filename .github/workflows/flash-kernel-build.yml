@@ -102,6 +102,21 @@ jobs:
           test -f kernel/drivers/kernelsu/Makefile
           # The source filename belongs to the pinned upstream tree; the local config and product identity are Flash Kernel.
           cp kernel/arch/arm64/configs/vendor/xiaomi/raikiri.config kernel/arch/arm64/configs/vendor/xiaomi/flash-kernel.config
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("kernel/arch/arm64/configs/vendor/xiaomi/flash-kernel.config")
+          s = p.read_text()
+          if s.count('CONFIG_LOCALVERSION="-Raikiri-v1.7"') != 1:
+              raise SystemExit("ERROR: expected one inherited local-version string")
+          s = s.replace('CONFIG_LOCALVERSION="-Raikiri-v1.7"', 'CONFIG_LOCALVERSION="-Flash-Kernel-v1.7"', 1)
+          if s.count("CONFIG_LOCALVERSION_AUTO=y") != 1:
+              raise SystemExit("ERROR: expected one CONFIG_LOCALVERSION_AUTO=y")
+          s = s.replace("CONFIG_LOCALVERSION_AUTO=y", "# CONFIG_LOCALVERSION_AUTO is not set", 1)
+          p.write_text(s)
+          print("PATCHED: kernel release branding is Flash-Kernel-v1.7; automatic upstream suffix disabled.")
+          PY
+          grep -qx 'CONFIG_LOCALVERSION="-Flash-Kernel-v1.7"' kernel/arch/arm64/configs/vendor/xiaomi/flash-kernel.config
+          grep -qx '# CONFIG_LOCALVERSION_AUTO is not set' kernel/arch/arm64/configs/vendor/xiaomi/flash-kernel.config
           git -C kernel diff --check
       - name: Integrate pinned NoMount v2.2.0 source
         run: |
@@ -168,6 +183,12 @@ jobs:
           make O=out olddefconfig
           grep -qx 'CONFIG_MACH_XIAOMI_ALIOTH=y' out/.config
           grep -qx 'CONFIG_BUILD_ARM64_DT_OVERLAY=y' out/.config
+          grep -qx 'CONFIG_LOCALVERSION="-Flash-Kernel-v1.7"' out/.config
+          grep -qx '# CONFIG_LOCALVERSION_AUTO is not set' out/.config
+          if grep -qi 'raikiri' out/.config; then
+            echo 'ERROR: inherited project branding remains in the final kernel config' >&2
+            exit 1
+          fi
           grep -qx 'CONFIG_OVERLAY_FS=y' out/.config
           grep -qx 'CONFIG_KSU=y' out/.config
           scripts/config --file out/.config --enable KPROBES
@@ -305,6 +326,14 @@ jobs:
           test -s "$BOOT/dts/vendor/qcom/kona.dtb"
           test -s "$BOOT/dts/vendor/qcom/kona-v2.dtb"
           test -s "$BOOT/dts/vendor/qcom/kona-v2.1.dtb"
+          KERNEL_RELEASE="$(make O=out ARCH=arm64 -s kernelrelease)"
+          case "$KERNEL_RELEASE" in
+            *Flash-Kernel-v1.7*) ;;
+            *) echo "ERROR: unexpected kernel release string: $KERNEL_RELEASE" >&2; exit 1 ;;
+          esac
+          case "$KERNEL_RELEASE" in
+            *[Rr]aikiri*) echo "ERROR: inherited product name found in kernel release: $KERNEL_RELEASE" >&2; exit 1 ;;
+          esac
           cp "$BOOT/Image.gz" "$GITHUB_WORKSPACE/flash-kernel-output/Image.gz"
           cp "$GITHUB_WORKSPACE/flash-kernel-output/dtbo-stock.img" "$GITHUB_WORKSPACE/flash-kernel-output/dtbo.img"
           cp "$GITHUB_WORKSPACE/flash-kernel-output/alioth-sm8250-overlay-stock.dtbo" "$GITHUB_WORKSPACE/flash-kernel-output/alioth-sm8250-overlay.dtbo"
@@ -316,6 +345,7 @@ jobs:
             echo '# Flash Kernel v1.7 - alioth battery profiles'
             echo
             echo '- Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d'
+            echo "- Kernel release: $KERNEL_RELEASE"
             echo '- Target: POCO F3 / alioth / HyperOS 3 / Android 16'
             echo '- Stock profile: FMT/GY 4520mAh, original DTBO retained'
             echo '- J3S Sun profile: 5000mAh, DTBO compiled from Flash Kernel repository source in this same run; separate DTBO, same Image.gz/KSU/NoMount'
