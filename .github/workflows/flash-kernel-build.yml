@@ -81,9 +81,11 @@ jobs:
         run: |
           # shellcheck disable=SC2016
           set -euo pipefail
-          git clone --no-checkout https://github.com/Sayemx18/kernel_xiaomi_sm8250.git kernel
-          git -C kernel checkout --detach 4d8105023e3d1474323f4118abc3b4ce6485070d
-          test "$(git -C kernel rev-parse HEAD)" = '4d8105023e3d1474323f4118abc3b4ce6485070d'
+          KERNEL_COMMIT='4d8105023e3d1474323f4118abc3b4ce6485070d'
+          git clone --no-checkout --depth=1 --single-branch --branch base --no-tags https://github.com/Sayemx18/kernel_xiaomi_sm8250.git kernel
+          test "$(git -C kernel rev-parse origin/base)" = "$KERNEL_COMMIT"
+          git -C kernel checkout --detach "$KERNEL_COMMIT"
+          test "$(git -C kernel rev-parse HEAD)" = "$KERNEL_COMMIT"
           KSU_COMMIT='a9f3e2dd767ad77ac40f3874da39a7002998071f'
           git clone --filter=blob:none --no-checkout https://github.com/backslashxx/KernelSU.git kernel/KernelSU
           # The selected backslashxx fork revision is pinned by its immutable commit SHA.
@@ -237,8 +239,14 @@ jobs:
           PY
           git diff --check
           grep -q 'fg-gen4-batterydata-alioth-J3S-Sun-5000mah.dtsi' "$DTSI"
-          ! grep -q 'fg-gen4-batterydata-alioth-FMT-4520mah.dtsi' "$DTSI"
-          ! grep -q 'fg-gen4-batterydata-alioth-GY-4520mah.dtsi' "$DTSI"
+          if grep -q 'fg-gen4-batterydata-alioth-FMT-4520mah.dtsi' "$DTSI"; then
+            echo 'ERROR: J3S DTBO source unexpectedly includes the stock FMT profile' >&2
+            exit 1
+          fi
+          if grep -q 'fg-gen4-batterydata-alioth-GY-4520mah.dtsi' "$DTSI"; then
+            echo 'ERROR: J3S DTBO source unexpectedly includes the stock GY profile' >&2
+            exit 1
+          fi
           BOOT=out/arch/arm64/boot
           rm -f "$BOOT/dtbo.img" "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo"
           make O=out CC=clang LLVM=1 LLVM_IAS=1 -j"$(nproc)" dtbs dtbo.img
