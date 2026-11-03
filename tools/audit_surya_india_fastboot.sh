@@ -137,7 +137,12 @@ done < "$OUT/image-members.txt"
 
 
 BATTERY_HITS="$OUT/india-device-tree-battery-hits.txt"
+M703_PROFILE_HITS="$OUT/india-M703-profile-details.txt"
+M703_PROFILE_MANIFEST="$OUT/india-M703-profile-manifest.tsv"
+M703_PROFILE_COUNT=0
 : > "$BATTERY_HITS"
+: > "$M703_PROFILE_HITS"
+printf 'dtbo\tprofile\tbytes\tsha256\n' > "$M703_PROFILE_MANIFEST"
 
 decompile_battery_properties() {
   local dtb="$1"
@@ -150,6 +155,38 @@ decompile_battery_properties() {
       grep -nEi 'battery|fuel.?gauge|qcom,fg|fg-profile|nom-batt|batt-id|therm|jeita|m703|bn61|bn57|qg' "$dts" || true
     } >> "$BATTERY_HITS"
   fi
+
+  local node node_file node_sha node_bytes
+  for node in qcom,m703-atl-6000mah qcom,m703-pm7150b-atl-5160mah; do
+    if grep -qE "\${node}[[:space:]]*\{" "$dts"; then
+      node_file="$(mktemp "$OUT/m703-node.XXXXXX")"
+      awk -v target="$node" '
+        index($0, target) && index($0, "{") { capture = 1; depth = 0 }
+        capture {
+          print
+          line = $0
+          opens = gsub(/\{/, "", line)
+          closes = gsub(/\}/, "", line)
+          depth += opens - closes
+          if (depth == 0) capture = 0
+        }
+      ' "$dts" > "$node_file"
+      if [[ -s "$node_file" ]]; then
+        node_sha="$(sha256sum "$node_file" | awk '{print $1}')"
+        node_bytes="$(wc -c < "$node_file" | tr -d '[:space:]')"
+        printf '%s\t%s\t%s\t%s\n' "$(basename "$dts")" "$node" "$node_bytes" "$node_sha" >> "$M703_PROFILE_MANIFEST"
+        if ! grep -qF "$node_sha" "$M703_PROFILE_HITS"; then
+          {
+            printf '=== %s: %s (sha256 %s) ===\n' "$label" "$node" "$node_sha"
+            cat "$node_file"
+            printf '\n'
+          } >> "$M703_PROFILE_HITS"
+        fi
+        M703_PROFILE_COUNT=$((M703_PROFILE_COUNT + 1))
+      fi
+      rm -f "$node_file"
+    fi
+  done
 }
 
 DTBO_IMAGE="$(find "$OUT/extracted" -type f -name dtbo.img -print -quit)"
@@ -162,6 +199,14 @@ if [[ -n "$DTBO_IMAGE" ]]; then
   done < <(find "$DTBO_OUT" -maxdepth 1 -type f -name 'dtbo-*.dtb' -print0)
 else
   echo "No dtbo.img member in the verified India fastboot archive." | tee -a "$REPORT"
+fi
+
+if [[ "$M703_PROFILE_COUNT" -gt 0 ]]; then
+  echo "PASS: extracted $M703_PROFILE_COUNT M703 QG profile node occurrence(s) from the official India DTBO." | tee -a "$REPORT"
+  echo "M703 profile manifest: $M703_PROFILE_MANIFEST" | tee -a "$REPORT"
+else
+  echo "WARNING: no M703 QG profile node was found in the official India DTBO." | tee -a "$REPORT"
+  echo "No M703 profile node was found in the official India DTBO." > "$M703_PROFILE_HITS"
 fi
 
 for name in boot vendor_boot; do
