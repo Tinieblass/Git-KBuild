@@ -1,14 +1,10 @@
-name: Validate Flash Kernel package without publishing ZIPs
+name: Validate Flash Kernel v1.7 package without publishing ZIPs
 
 on:
   workflow_dispatch:
     inputs:
       RAW_RUN_ID:
-        description: 'Run ID da compilación de Flash Kernel (obrigatorio)'
-        required: true
-        type: string
-      J3S_RAW_RUN_ID:
-        description: 'Run ID do artefacto histórico validado J3S Sun 5000mAh (obrigatorio)'
+        description: 'Run ID da compilación Flash Kernel v1.7 con perfís stock e J3S (obrigatorio)'
         required: true
         type: string
 
@@ -29,7 +25,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: raw
-          key: flash-kernel-raw-${{ github.event.inputs.RAW_RUN_ID || '41443719682' }}
+          key: flash-kernel-raw-${{ github.event.inputs.RAW_RUN_ID }}
 
       - name: Download exact verified Flash Kernel raw build
         if: steps.raw_cache.outputs.cache-hit != 'true'
@@ -37,37 +33,32 @@ jobs:
         with:
           name: flash-kernel-alioth-raw
           path: raw
-          run-id: ${{ github.event.inputs.RAW_RUN_ID || '41443719682' }}
+          run-id: ${{ github.event.inputs.RAW_RUN_ID }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Restore verified J3S Sun 5000mAh DTBO cache
-        id: fivek_cache
-        uses: actions/cache/restore@v4
-        with:
-          path: raw-5k
-          key: alioth-j3s-5k-raw-4d8105023e3d1474323f4118abc3b4ce6485070d
-
-      - name: Download verified J3S Sun 5000mAh DTBO
-        if: steps.fivek_cache.outputs.cache-hit != 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: raikiri-v17-alioth-j3s-raw
-          path: raw-5k
-          run-id: ${{ github.event.inputs.J3S_RAW_RUN_ID || '41160583371' }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Verify raw build manifest and configuration
+      - name: Verify Flash Kernel v1.7 raw build and same-run stock/J3S DTBOs
         run: |
           set -euo pipefail
-          grep -qF 'scripts/config --file out/.config --disable KSU_TAMPER_SYSCALL_TABLE' .github/workflows/flash-kernel-build.yml
           cd raw
           sha256sum -c SHA256SUMS.txt
           test -s Image.gz
           test -s dtbo.img
+          test -s dtbo-j3s.img
           test -s alioth-sm8250-overlay.dtbo
+          test -s alioth-sm8250-overlay-j3s.dtbo
+          test -s J3S-DTBO-VERIFICATION.txt
+          grep -qF 'Flash Kernel v1.7' BUILD-REPORT.md
+          grep -qF 'Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d' BUILD-REPORT.md
           grep -qF 'Target: POCO F3 / alioth / HyperOS 3 / Android 16' BUILD-REPORT.md
           grep -qF 'Stock profile: FMT/GY 4520mAh, original DTBO retained' BUILD-REPORT.md
-          grep -qF 'VoWiFi/IMS: upstream code retained; no IMS source files changed by this workflow' BUILD-REPORT.md
+          grep -qF 'J3S Sun profile: 5000mAh, DTBO compiled from Flash Kernel repository source in this same run; separate DTBO, same Image.gz/KSU/NoMount' BUILD-REPORT.md
+          grep -qF 'Profile nodes in combined DTBO:' J3S-DTBO-VERIFICATION.txt
+          grep -qF 'qcom,battery-type = "j3ssun_5000mah"' J3S-DTBO-VERIFICATION.txt
+          grep -qF 'qcom,nom-batt-capacity-mah = <5000>' J3S-DTBO-VERIFICATION.txt
+          grep -qF 'backslashxx/KernelSU v3.3.1-35' BUILD-REPORT.md
+          grep -qF 'MidoriSU Hook Type: Hybrid' BUILD-REPORT.md
+          grep -qF 'NoMount: v2.2.0 built-in' BUILD-REPORT.md
+          grep -qF 'BN61 profile: RESERVED (-6K)' BUILD-REPORT.md
           grep -qx 'CONFIG_KSU=y' <(grep '^CONFIG_KSU=' config-report.txt)
           grep -qx 'CONFIG_KPROBES=y' <(grep '^CONFIG_KPROBES=' config-report.txt)
           grep -qx 'CONFIG_KRETPROBES=y' <(grep '^CONFIG_KRETPROBES=' config-report.txt)
@@ -75,30 +66,19 @@ jobs:
           grep -qx '# CONFIG_KSU_HACK_ARM64_BRANCH_LINK is not set' <(grep '^# CONFIG_KSU_HACK_ARM64_BRANCH_LINK is not set$' config-report.txt)
           grep -qx 'CONFIG_KSU_LSM_SECURITY_HOOKS=y' <(grep '^CONFIG_KSU_LSM_SECURITY_HOOKS=' config-report.txt)
           grep -qx 'CONFIG_NOMOUNT=y' <(grep '^CONFIG_NOMOUNT=' config-report.txt)
-          grep -qF 'MidoriSU Hook Type: Hybrid' BUILD-REPORT.md
-          echo 'PASS: Flash Kernel raw build, backslashxx driver, NoMount integration and preserved IMS provenance.'
-          cd ../raw-5k
-          # actions/download-artifact verifies the complete pinned artifact digest.
-          # The historical 5k artifact has a legacy checksum manifest layout; validate its payload and provenance below.
-          test -s dtbo.img
-          test -s alioth-sm8250-overlay.dtbo
-          grep -qF 'Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d' BUILD-REPORT.md
-          grep -qF 'Battery profile selected in alioth overlay: J3S Sun 5000 mAh' BUILD-REPORT.md
-          grep -qF 'Target: POCO F3 / alioth' BUILD-REPORT.md
-          if cmp -s ../raw/dtbo.img dtbo.img; then echo 'ERROR: stock and 5K DTBO must be distinct' >&2; exit 1; fi
-          cp dtbo.img ../raw/dtbo-5k.img
-          echo 'PASS: distinct J3S Sun 5000mAh DTBO verified from the same pinned kernel source.'
-          cd ../raw
-          grep -qF 'BN61 profile: RESERVED (-6K); no DTBO generated pending validated Gen4 electrical characterization' BUILD-REPORT.md
+          cp dtbo-j3s.img dtbo-5k.img
+          if cmp -s dtbo.img dtbo-5k.img; then
+            echo 'ERROR: stock and J3S DTBO images must be distinct' >&2
+            exit 1
+          fi
           test -s BN61-STATUS.txt
           grep -qF 'RESERVED / NOT BUILT' BN61-STATUS.txt
-          echo 'PASS: BN61 is deliberately excluded until a validated Gen4 profile exists.'
-
+          echo 'PASS: Flash Kernel v1.7 kernel, current KSU/NoMount, stock DTBO and J3S DTBO are verified from the same raw build run; BN61 remains reserved.'
       - name: Save verified Flash Kernel raw build cache
         uses: actions/cache/save@v4
         with:
           path: raw
-          key: flash-kernel-raw-${{ github.event.inputs.RAW_RUN_ID || '41443719682' }}
+          key: flash-kernel-raw-${{ github.event.inputs.RAW_RUN_ID }}
 
       - name: Save verified J3S Sun 5000mAh DTBO cache
         uses: actions/cache/save@v4
