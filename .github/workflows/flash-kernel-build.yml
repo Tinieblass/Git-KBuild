@@ -33,6 +33,7 @@ jobs:
           set -euo pipefail
           python3 tools/validate_battery_research.py
           python3 tools/analyze_bn61_reference.py
+          python3 tools/verify_pm855gui_checksum.py research/battery/alioth-J3S-Sun-5000mah.dtsi
       - name: Restore LLVM toolchain cache
         id: llvm_cache
         uses: actions/cache/restore@v4
@@ -95,6 +96,7 @@ jobs:
           ln -s ../KernelSU/kernel kernel/drivers/kernelsu
           test -f kernel/drivers/kernelsu/Kconfig
           test -f kernel/drivers/kernelsu/Makefile
+          # The source filename belongs to the pinned upstream tree; the local config and product identity are Flash Kernel.
           cp kernel/arch/arm64/configs/vendor/xiaomi/raikiri.config kernel/arch/arm64/configs/vendor/xiaomi/flash-kernel.config
           git -C kernel diff --check
       - name: Integrate pinned NoMount v2.2.0 source
@@ -197,6 +199,74 @@ jobs:
           cp "$GITHUB_WORKSPACE/research/battery/BN61-Reference-Analysis.md" "$GITHUB_WORKSPACE/flash-kernel-output/"
           cp "$BOOT/dtbo.img" "$GITHUB_WORKSPACE/flash-kernel-output/dtbo-stock.img"
           cp "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo" "$GITHUB_WORKSPACE/flash-kernel-output/alioth-sm8250-overlay-stock.dtbo"
+      - name: Build J3S Sun 5000mAh DTBO in this Flash Kernel run
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          export ARCH=arm64 SUBARCH=arm64 PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+          export KBUILD_BUILD_USER='Tinieblass' KBUILD_BUILD_HOST='GitHub-Actions'
+          DTSI=arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+          J3S_SOURCE="$GITHUB_WORKSPACE/research/battery/alioth-J3S-Sun-5000mah.dtsi"
+          J3S_TARGET=arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-J3S-Sun-5000mah.dtsi
+          OUT="$GITHUB_WORKSPACE/flash-kernel-output"
+          DTC="$GITHUB_WORKSPACE/kernel/scripts/dtc/dtc"
+          test -s "$J3S_SOURCE"
+          python3 "$GITHUB_WORKSPACE/tools/verify_pm855gui_checksum.py" "$J3S_SOURCE"
+          grep -q 'qcom,battery-type = "j3ssun_5000mah"' "$J3S_SOURCE"
+          grep -q 'qcom,nom-batt-capacity-mah = <5000>' "$J3S_SOURCE"
+          grep -q 'qcom,batt-id-kohm = <100>' "$J3S_SOURCE"
+          grep -q 'qcom,battery-beta = <4250>' "$J3S_SOURCE"
+          cp "$J3S_SOURCE" "$J3S_TARGET"
+          python3 - "$DTSI" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          text = path.read_text()
+          old = '\t\t#include "fg-gen4-batterydata-alioth-FMT-4520mah.dtsi"\n\t\t#include "fg-gen4-batterydata-alioth-GY-4520mah.dtsi"'
+          new = '\t\t#include "fg-gen4-batterydata-alioth-J3S-Sun-5000mah.dtsi"'
+          if text.count(old) != 1:
+              raise SystemExit(f"ERROR: expected exactly one stock FMT/GY include pair, found {text.count(old)}")
+          path.write_text(text.replace(old, new, 1))
+          print("PATCHED: temporary J3S Sun 5000mAh battery-data include for the separate DTBO build.")
+          PY
+          git diff --check
+          grep -q 'fg-gen4-batterydata-alioth-J3S-Sun-5000mah.dtsi' "$DTSI"
+          ! grep -q 'fg-gen4-batterydata-alioth-FMT-4520mah.dtsi' "$DTSI"
+          ! grep -q 'fg-gen4-batterydata-alioth-GY-4520mah.dtsi' "$DTSI"
+          BOOT=out/arch/arm64/boot
+          rm -f "$BOOT/dtbo.img" "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo"
+          make O=out CC=clang LLVM=1 LLVM_IAS=1 -j"$(nproc)" dtbs dtbo.img
+          test -s "$BOOT/dtbo.img"
+          test -s "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo"
+          cp "$BOOT/dtbo.img" "$OUT/dtbo-j3s.img"
+          cp "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo" "$OUT/alioth-sm8250-overlay-j3s.dtbo"
+          test -x "$DTC"
+          "$DTC" -q -I dtb -O dts -o "$OUT/j3s-overlay-check.dts" "$OUT/alioth-sm8250-overlay-j3s.dtbo"
+          grep -q 'j3ssun_5000mah' "$OUT/j3s-overlay-check.dts"
+          grep -q 'qcom,nom-batt-capacity-mah' "$OUT/j3s-overlay-check.dts"
+          grep -q 'qcom,fg-profile-data' "$OUT/j3s-overlay-check.dts"
+          python3 "$GITHUB_WORKSPACE/tools/extract_android_dtbo.py" --image "$OUT/dtbo-j3s.img" --out "$OUT/j3s-dtbo-entries"
+          J3S_ENTRY_COUNT=0
+          for entry in "$OUT"/j3s-dtbo-entries/dtbo-*.dtb; do
+            if "$DTC" -q -I dtb -O dts "$entry" 2>/dev/null | grep -q 'j3ssun_5000mah'; then
+              J3S_ENTRY_COUNT=$((J3S_ENTRY_COUNT + 1))
+            fi
+          done
+          test "$J3S_ENTRY_COUNT" -gt 0
+          {
+            echo 'Flash Kernel J3S Sun 5000mAh profile verification'
+            echo "Source SHA-256: $(sha256sum "$J3S_SOURCE" | awk '{print $1}')"
+            echo "Overlay SHA-256: $(sha256sum "$OUT/alioth-sm8250-overlay-j3s.dtbo" | awk '{print $1}')"
+            echo "Combined DTBO SHA-256: $(sha256sum "$OUT/dtbo-j3s.img" | awk '{print $1}')"
+            echo "Profile nodes in combined DTBO: $J3S_ENTRY_COUNT"
+            grep -E 'qcom,(battery-type|nom-batt-capacity-mah|batt-id-kohm|battery-beta|therm-room-temp|therm-pull-up|max-voltage-uv|fastchg-current-ma|checksum)' "$J3S_SOURCE"
+          } > "$OUT/J3S-DTBO-VERIFICATION.txt"
+          rm -rf "$OUT/j3s-dtbo-entries" "$OUT/j3s-overlay-check.dts"
+          git checkout -- "$DTSI"
+          rm -f "$J3S_TARGET"
+          git diff --check
+          git diff --exit-code -- "$DTSI"
       - name: Reserve BN61 5850mAh profile pending validated Gen4 model
         run: |
           set -euo pipefail
@@ -224,25 +294,25 @@ jobs:
           cp "$GITHUB_WORKSPACE/flash-kernel-output/alioth-sm8250-overlay-stock.dtbo" "$GITHUB_WORKSPACE/flash-kernel-output/alioth-sm8250-overlay.dtbo"
           cp "$BOOT/dts/vendor/qcom/kona.dtb" "$BOOT/dts/vendor/qcom/kona-v2.dtb" "$BOOT/dts/vendor/qcom/kona-v2.1.dtb" "$GITHUB_WORKSPACE/flash-kernel-output/"
           cp "$GITHUB_WORKSPACE/config-report.txt" "$GITHUB_WORKSPACE/flash-kernel-output/"
-          (cd "$GITHUB_WORKSPACE/flash-kernel-output" && sha256sum Image.gz dtbo.img alioth-sm8250-overlay.dtbo kona.dtb kona-v2.dtb kona-v2.1.dtb config-report.txt BN61-STATUS.txt BN61-Reference-Analysis.md > SHA256SUMS.txt)
+          cp "$GITHUB_WORKSPACE/research/battery/BN61-Gen4-Assessment.md" "$GITHUB_WORKSPACE/flash-kernel-output/BN61-Gen4-Assessment.md"
+          (cd "$GITHUB_WORKSPACE/flash-kernel-output" && sha256sum Image.gz dtbo.img dtbo-j3s.img alioth-sm8250-overlay.dtbo alioth-sm8250-overlay-j3s.dtbo kona.dtb kona-v2.dtb kona-v2.1.dtb config-report.txt BN61-STATUS.txt BN61-Reference-Analysis.md BN61-Gen4-Assessment.md J3S-DTBO-VERIFICATION.txt > SHA256SUMS.txt)
           {
             echo '# Flash Kernel - alioth battery profiles'
             echo
             echo '- Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d'
             echo '- Target: POCO F3 / alioth / HyperOS 3 / Android 16'
             echo '- Stock profile: FMT/GY 4520mAh, original DTBO retained'
-            echo '- J3S Sun profile: 5000mAh, separate verified DTBO from the pinned historical upstream build'
+            echo '- J3S Sun profile: 5000mAh, DTBO compiled from Flash-Kernel source in this same run; separate DTBO, same Image.gz/KSU/NoMount'
             echo '- BN61 profile: RESERVED (-6K); no DTBO generated pending validated Gen4 electrical characterization'
             echo '- BN61 research: M703 QG reference quantitatively audited; not converted to Gen4'
             echo '- Driver: qpnp-fg-gen4 synchronizes the selected qcom,nom-batt-capacity-mah to SRAM before capacity-learning initialization'
             echo '- Built-in driver: backslashxx/KernelSU v3.3.1-35 (commit a9f3e2dd767ad77ac40f3874da39a7002998071f)'
             echo '- MidoriSU Hook Type: Hybrid (CONFIG_KSU_KPROBES_KSUD=y; Kprobes enabled for early-boot hooks; branch-link/syscall-table hooks disabled)'
             echo '- NoMount: v2.2.0 built-in CONFIG_NOMOUNT=y from pinned commit bf1847f98fed382369c43bfd652cd93774b9b8e3'
-            echo '- VoWiFi/IMS: upstream code retained; no IMS source files changed by this workflow'
-            echo '- Outputs: Image.gz, stock dtbo.img and overlay DTBO, Kona base DTBs, BN61 hold status'
+            echo '- Outputs: Image.gz, stock and J3S DTBO images/overlays, Kona base DTBs, J3S verification and BN61 hold status'
             echo '- This is a raw build artifact, not a flashable ZIP; no device-side testing performed.'
           } > "$GITHUB_WORKSPACE/flash-kernel-output/BUILD-REPORT.md"
-      - name: Upload raw stock-battery kernel and device-tree artifacts
+      - name: Upload Flash Kernel stock and J3S raw artifacts
         uses: actions/upload-artifact@v4
         with:
           name: flash-kernel-alioth-raw
