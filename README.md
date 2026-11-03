@@ -2,40 +2,45 @@
 
 **Flash Kernel** é un proxecto de compilación e empaquetado de kernel mantido por **Tinieblass**, dedicado exclusivamente ao dispositivo **POCO F3 (alioth)**.
 
-## Plataforma actual
+## Plataforma
 
 - Dispositivo: POCO F3 — `alioth`
 - ROM de destino: Xiaomi HyperOS 3
 - Android: 16
 - Base do kernel: Linux 4.19.325, fonte SM8250 fixada nun commit concreto
-- KernelSU: controlador backslashxx KernelSU
-- NoMount: integrado na compilación
-- VoWiFi/IMS: consérvase o código da fonte; este fluxo de traballo non modifica os ficheiros IMS.
+- KernelSU: backslashxx, revisión fixada por SHA
+- NoMount: v2.2.0, integración suxeita a compilación e validación
+- Batería: perfil stock FMT/GY 4520 mAh e DTBO J3S Sun 5000 mAh separado
+- BN61 -6K: reservado; non existe aínda un perfil Gen4 validado nin un DTBO instalable
 
-## Paquetes instalables
+## Empaquetado de validación
 
-O workflow de empaquetado xera dous ZIP independentes:
+O workflow manual de empaquetado constrúe temporalmente dous ZIPs para comprobar o contido e os hashes:
 
-| Arquivo | Perfil de batería |
+| Nome xerado no runner | Perfil |
 |---|---|
-| `Flash-Kernel-alioth.zip` | Batería stock |
-| `Flash-Kernel-alioth-5K.zip` | Perfil J3S Sun de 5000 mAh |
+| `FlashKernel<BUILD_DATE>.zip` | Batería stock |
+| `FlashKernel<BUILD_DATE>-5k.zip` | J3S Sun 5000 mAh |
 
-O instalador verifica que o dispositivo sexa `alioth` e que a ROM sexa HyperOS. O perfil de 5000 mAh selecciónase unicamente co ZIP cuxo nome remata en `-5K`; o paquete normal, sen sufixo, utiliza o perfil stock. O sufixo `-6K` queda reservado para a variante BN61 ata dispoñer dun perfil Gen4 validado; non se debe instalar un perfil aproximado.
+Este workflow é só de validación: non carga os ZIP como artefactos, non publica releases e non os distribúe. Non se debe interpretar a creación temporal dun ZIP como unha compilación validada no teléfono. O perfil `-6K` permanece reservado e non se xera.
 
-## Compilar e empaquetar
+O instalador mostra a información detectada do dispositivo e da ROM, pero non debe introducir bloqueos de compatibilidade por modelo, versión de HyperOS ou versión de Android.
+
+## Compilar e validar
 
 1. Abre a pestana **Actions**.
-2. Executa **Flash Kernel - alioth** para compilar o kernel.
-3. Só despois dunha compilación correcta, executa o workflow de empaquetado.
-4. Introduce en `RAW_RUN_ID` o identificador da execución que xerou o artefacto `flash-kernel-alioth-raw`.
-5. Descarga os dous ZIP do artefacto `Flash-Kernel-alioth-flashable`.
+2. Executa **Flash Kernel v1.7 - alioth** para compilar o kernel e os DTBO.
+3. Comproba que a compilación remata correctamente e que o artefacto bruto inclúe os hashes e o informe.
+4. Só para validación do empaquetado, executa manualmente o workflow de empaquetado co `RAW_RUN_ID` da compilación correcta.
+5. Revisa os resultados de integridade; o workflow non publica nin ofrece os ZIP para descarga.
 
 ## Seguridade
 
 - Non instales artefactos procedentes de execucións fallidas ou incompletas.
-- Unha compilación correcta non substitúe as probas reais no dispositivo.
-- Non cambies o nome do ZIP stock para obter o perfil de 5000 mAh: utiliza o paquete `-5K` xerado polo workflow. O sufixo `-6K` non se debe usar ata que exista un DTBO BN61 validado.
+- Unha compilación correcta e unha comprobación estática non substitúen as probas reais no POCO F3 alioth.
+- O perfil J3S Sun é independente do perfil stock e non debe confundirse coa BN61.
+- Non se debe crear un perfil BN61 cambiando só a capacidade nominal nin extrapolando as curvas QG a un payload Gen4.
+- Mantén sempre o DTBO stock como opción de recuperación; non instales a variante experimental -6K mentres non exista caracterización Gen4 auténtica e validación física.
 
 ## Créditos
 
