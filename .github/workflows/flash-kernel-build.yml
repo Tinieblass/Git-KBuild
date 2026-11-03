@@ -90,6 +90,7 @@ jobs:
           git -C kernel/KernelSU fetch --depth=1 origin "$KSU_COMMIT"
           git -C kernel/KernelSU checkout --detach "$KSU_COMMIT"
           test "$(git -C kernel/KernelSU rev-parse HEAD)" = "$KSU_COMMIT"
+          git -C kernel/KernelSU show -s --format='%H %s' "$KSU_COMMIT" | grep -Eq '^a9f3e2dd767ad77ac40f3874da39a7002998071f KernelSU v3\.3\.1\+'
           test -f kernel/KernelSU/kernel/Kconfig
           test -f kernel/KernelSU/kernel/Makefile
           rm -rf kernel/KernelSU-Next
