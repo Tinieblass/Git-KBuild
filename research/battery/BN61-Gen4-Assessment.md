@@ -153,3 +153,27 @@ The India XBL audit found two firmware volumes and 25 RAW sections. No battery-l
 The first XBL parser only inventoried RAW sections, so its previous empty BATTERY-STRING-HITS.txt did not prove that no BATTERY.PROVISION FFS file existed. The audit tooling is being extended to inventory every FFS UI name and section type, identify exact BATTERY.PROVISION candidates, and capture the complete M703 6000/5160 profile nodes from the official DTBO. The parser will explicitly report that compressed and GUID-defined EFI sections are not decoded.
 
 Engineering decision unchanged: M703 is now a confirmed official Surya QG reference, not a BN61 PM855B Gen4 payload. The alioth PM855B Gen4 driver requires a 416-byte PM855GUI profile, while M703 supplies QG OCV/FCC/Z/Y tables. No documented conversion exists. Keep -6K reserved; do not change charge-voltage, current, NTC/ID or Gen4 payload values from this reference alone.
+
+
+## Official India 6000 mAh fastboot audit — completed 2026-11-03
+
+The dedicated workflow `.github/workflows/audit-surya-india-fastboot.yml` completed successfully on 2026-11-03 (run #13, commit `df27a3824e323b77c4f127dacd3115330b7fbf87`).
+
+- Firmware: `surya_in_global_images_V13.0.1.0.SJGINXM_20220818.0000.00_12.0_in_15727cb7de.tgz`.
+- Source selected by the audit: Xiaomi CDN `cdnorg.d.miui.com`, exact URL path `/V13.0.1.0.SJGINXM/<firmware filename>`.
+- Expected and actual MD5: `15727cb7de21880a9f0ff788f1e4a035`.
+- Firmware archive SHA-256: `47ddd062f81d708c9c48865295cd365fae17f18d424f2860507e7c812b6e5556`.
+- Official India DTBO SHA-256: `4ce6421507b45546374096eb00d1676b69ed329b552c85bf9173d5214cf50a78`; Android DTBO table validated with 32 FDT entries, version 0, page size 4096.
+- The DTBO scan extracted 22 occurrences of the two M703 QG node families (`m703-atl-6000mah` and/or `m703-pm7150b-atl-5160mah`). The artifact includes `india-M703-profile-manifest.tsv` and `india-M703-profile-details.txt` with the per-node names, byte counts and SHA-256 values. This is QG data, not a PM855B Gen4 profile.
+- Extracted XBL SHA-256: `e7b8a33585777098dcd3413438e743c7eb65c820c07af0fed2c063c039321400`. The XBL scanner found 2 firmware volumes, 104 FFS files and 25 RAW sections; there were 0 FFS UI names equal to `BATTERY.PROVISION` and 0 battery-related hits in the exposed section/RAW payloads.
+- The XBL `QcomChargerCfg.cfg` RAW record is 12,600 bytes, SHA-256 `1f125e03e748a3e2b4d96a3a4a87d95c4aa63bf4b9100a708e5aae32fe1d1e12`. Its common settings include battery-ID tolerance 8%, generic ID range 15–137 kΩ, unknown-battery behavior 3 and `LoadBatteryProfile=FALSE`. It is generic charger/thermistor configuration, not a BN61 cell model.
+- The audit also scanned `uefi_sec.mbn`, `tz.mbn`, `devcfg.mbn`, `boot.img`, `imagefv.elf`, `hyp.mbn`, `dtbo.img`, `xbl_config.elf` and `abl.elf`. No additional BATTERY.PROVISION UI match or battery-related FFS section hit was found; only `imagefv.elf` and `abl.elf` exposed one firmware volume/FFS each, with no RAW records.
+- Uploaded audit artifact: `surya-india-6000mah-firmware-audit`, 63,310 bytes; GitHub artifact ZIP SHA-256 digest `971dae1eb77d0e86c0e8b347323f080f74edbe8e5bda5a69c08ec2a745386449`.
+
+### Limits of this negative result
+
+The XBL parser inventories FFS and extracts RAW sections, but it does not decompress EFI compression or GUID-defined sections. Therefore, “no BATTERY.PROVISION” means no matching FFS UI name and no hit in the exposed section/RAW payloads; it is not proof that a hidden compressed section or another partition contains no profile. The audit also did not unpack the full vendor/super partition. The next firmware-side investigation is to inspect the M703 node details from the artifact, expand compressed/GUID-defined XBL sections, and scan the India ROM's vendor-related partitions for PM855GUI/Gen4 profile material.
+
+### BN61 decision after the India audit
+
+The official India DTBO's M703 nodes strengthen the link between the 6000 mAh India POCO X3 firmware family and the M703 ATL 6000 mAh QG model. They still do not provide the 416-byte PM855B Gen4 payload required by alioth. The M703 QG profile's 4.45 V maximum is relevant evidence, but its 4.48 V FFC maximum remains incompatible with the BN61 replacement documentation's stated 4.45 V limit unless the exact cell maker approves it. No OCV/FCC/Z/Y data is being converted into Gen4 bytes; `-6K` remains reserved and non-flashable.
