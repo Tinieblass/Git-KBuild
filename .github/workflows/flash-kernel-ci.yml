@@ -48,6 +48,7 @@ jobs:
           set -euo pipefail
           python3 -m compileall -q scripts tools
           python3 tools/test_extract_android_dtbo.py
+          python3 tools/test_extract_qualcomm_xbl_raw.py
 
       - name: Install ShellCheck
         run: |
