@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Remove KernelSU-Next-only hooks from the pinned alioth kernel source.
+"""Adapt the pinned alioth kernel source for the backslashxx KernelSU integration.
 
-The backslashxx KernelSU driver v3.3.1-35 provides its own syscall/LSM hooks.
-This adapter removes only the old KernelSU-Next call-sites and config symbol;
-it does not modify IMS/VoWiFi, battery DTS, or unrelated kernel code.
+The adapter removes legacy KernelSU-Next call-sites/config and synchronizes
+the selected profile's nominal capacity into FG SRAM. It does not generate
+battery characterization data or change OCV, impedance, thermistor, voltage,
+or current safety parameters.
 """
 from pathlib import Path
 import re
@@ -61,7 +62,7 @@ for rel in ("fs/read_write.c", "kernel/reboot.c", "fs/open.c", "fs/exec.c", "fs/
     if re.search(r"ksu_(?:handle_sys_read|handle_sys_reboot|handle_faccessat|handle_execveat|handle_stat|handle_input_handle_event)|ksu_(?:vfs_read_hook|input_hook)", data):
         raise SystemExit(f"ERROR: stale KernelSU-Next hook remains in {rel}")
 print("PASS: all targeted KernelSU-Next hook symbols removed")
-print("PASS: IMS/VoWiFi and battery DTS files were not modified")
+print("PASS: battery characterization DTS data and safety limits were not modified")
 
 
 # Keep the Qualcomm FG SRAM nominal-capacity word synchronized with the
@@ -76,10 +77,9 @@ load_needle = """\trc = qpnp_fg_gen4_load_profile(chip);
 \t\tgoto out;
 """
 load_replacement = load_needle + """
-\t/* Read the selected profile's nominal capacity before initializing
-\t * capacity learning, then mirror it into FG SRAM NOM_CAP_WORD.
-\t * This keeps CC_SOC/charge-counter math aligned with the active
-\t * battery profile (4520 stock, 5000 J3S Sun, or 5850 BN61).
+\t/* The profile parser reads qcom,nom-batt-capacity-mah directly into
+\t * the legacy nom_cap_uah field in mAh. Keep the 16-bit FG SRAM word
+\t * aligned with the selected profile before capacity-learning starts.
 \t */
 \trc = fg_gen4_bp_params_config(fg);
 \tif (rc < 0) {
@@ -117,4 +117,4 @@ data = data.replace(late_block, "", 1)
 if data.count("fg_sram_write(fg, NOM_CAP_WORD, NOM_CAP_OFFSET") != 1:
     raise SystemExit("ERROR: FG SRAM nominal-capacity write was not inserted exactly once")
 driver.write_text(data)
-print("PATCHED: qpnp-fg-gen4 writes selected qcom,nom-batt-capacity-mah into SRAM NOM_CAP_WORD before capacity-learning initialization")
+print("PATCHED: qpnp-fg-gen4 mirrors the selected qcom,nom-batt-capacity-mah into FG SRAM NOM_CAP_WORD")

@@ -86,7 +86,8 @@ jobs:
           test "$(git -C kernel rev-parse HEAD)" = '4d8105023e3d1474323f4118abc3b4ce6485070d'
           KSU_COMMIT='a9f3e2dd767ad77ac40f3874da39a7002998071f'
           git clone --filter=blob:none --no-checkout https://github.com/backslashxx/KernelSU.git kernel/KernelSU
-          git -C kernel/KernelSU fetch --depth=1 origin refs/tags/v3.3.1-35
+          # The selected backslashxx fork revision is pinned by its immutable commit SHA.
+          git -C kernel/KernelSU fetch --depth=1 origin "$KSU_COMMIT"
           git -C kernel/KernelSU checkout --detach "$KSU_COMMIT"
           test "$(git -C kernel/KernelSU rev-parse HEAD)" = "$KSU_COMMIT"
           test -f kernel/KernelSU/kernel/Kconfig
@@ -149,7 +150,10 @@ jobs:
           grep -q 'fg-gen4-batterydata-alioth-FMT-4520mah.dtsi' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
           grep -q 'fg-gen4-batterydata-alioth-GY-4520mah.dtsi' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
           if grep -q 'j3s-batt-profile' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi; then echo 'ERROR: stock DTBO unexpectedly selects J3S profile' >&2; exit 1; fi
-          ! grep -q 'apollo-sun-5000mah' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+          if grep -q 'apollo-sun-5000mah' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi; then
+            echo 'ERROR: stale Apollo Sun profile reference found in stock DTBO source' >&2
+            exit 1
+          fi
       - name: Configure alioth with Flash Kernel fragments
         working-directory: kernel
         run: |
