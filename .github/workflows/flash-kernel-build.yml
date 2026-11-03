@@ -1,4 +1,4 @@
-name: Flash Kernel - alioth
+name: Flash Kernel v1.7 - alioth
 
 on:
   push:
@@ -286,6 +286,9 @@ jobs:
           BOOT=out/arch/arm64/boot
           test -s "$BOOT/Image.gz"
           test -s "$GITHUB_WORKSPACE/flash-kernel-output/dtbo-stock.img"
+          test -s "$GITHUB_WORKSPACE/flash-kernel-output/dtbo-j3s.img"
+          test -s "$GITHUB_WORKSPACE/flash-kernel-output/alioth-sm8250-overlay-j3s.dtbo"
+          test -s "$GITHUB_WORKSPACE/flash-kernel-output/J3S-DTBO-VERIFICATION.txt"
           test -s "$BOOT/dts/vendor/qcom/kona.dtb"
           test -s "$BOOT/dts/vendor/qcom/kona-v2.dtb"
           test -s "$BOOT/dts/vendor/qcom/kona-v2.1.dtb"
@@ -297,12 +300,12 @@ jobs:
           cp "$GITHUB_WORKSPACE/research/battery/BN61-Gen4-Assessment.md" "$GITHUB_WORKSPACE/flash-kernel-output/BN61-Gen4-Assessment.md"
           (cd "$GITHUB_WORKSPACE/flash-kernel-output" && sha256sum Image.gz dtbo.img dtbo-j3s.img alioth-sm8250-overlay.dtbo alioth-sm8250-overlay-j3s.dtbo kona.dtb kona-v2.dtb kona-v2.1.dtb config-report.txt BN61-STATUS.txt BN61-Reference-Analysis.md BN61-Gen4-Assessment.md J3S-DTBO-VERIFICATION.txt > SHA256SUMS.txt)
           {
-            echo '# Flash Kernel - alioth battery profiles'
+            echo '# Flash Kernel v1.7 - alioth battery profiles'
             echo
             echo '- Source commit: 4d8105023e3d1474323f4118abc3b4ce6485070d'
             echo '- Target: POCO F3 / alioth / HyperOS 3 / Android 16'
             echo '- Stock profile: FMT/GY 4520mAh, original DTBO retained'
-            echo '- J3S Sun profile: 5000mAh, DTBO compiled from Flash-Kernel source in this same run; separate DTBO, same Image.gz/KSU/NoMount'
+            echo '- J3S Sun profile: 5000mAh, DTBO compiled from Flash Kernel repository source in this same run; separate DTBO, same Image.gz/KSU/NoMount'
             echo '- BN61 profile: RESERVED (-6K); no DTBO generated pending validated Gen4 electrical characterization'
             echo '- BN61 research: M703 QG reference quantitatively audited; not converted to Gen4'
             echo '- Driver: qpnp-fg-gen4 synchronizes the selected qcom,nom-batt-capacity-mah to SRAM before capacity-learning initialization'
