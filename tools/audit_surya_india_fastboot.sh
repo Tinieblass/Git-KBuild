@@ -240,6 +240,75 @@ echo | tee -a "$REPORT"
 echo "=== India XBL UEFI firmware-volume extraction ===" | tee -a "$REPORT"
 python3 tools/extract_qualcomm_xbl_raw.py --image "$XBL" --out "$OUT/xbl-raw" 2>&1 | tee -a "$REPORT"
 
+echo | tee -a "$REPORT"
+echo "=== Deep EFI section extraction (uefi_firmware 1.16) ===" | tee -a "$REPORT"
+DEEP_ROOT="$OUT/uefi-deep"
+TOOL_DIR="$OUT/uefi-tooling"
+VENV="$OUT/uefi-venv"
+DEEP_MANIFEST="$DEEP_ROOT/DEEP-UEFI-MANIFEST.tsv"
+DEEP_HITS="$DEEP_ROOT/DEEP-UEFI-SEARCH.txt"
+mkdir -p "$DEEP_ROOT/xbl" "$TOOL_DIR"
+printf 'path\tbytes\tsha256\n' > "$DEEP_MANIFEST"
+: > "$DEEP_HITS"
+python3 -m venv "$VENV"
+set +e
+"$VENV/bin/python" -m pip download --disable-pip-version-check --no-deps --no-binary=:all: \
+  --dest "$TOOL_DIR" uefi_firmware==1.16 2>&1 | tee "$DEEP_ROOT/pip-download.log"
+pip_download_status=${PIPESTATUS[0]}
+set -e
+SDIST="$TOOL_DIR/uefi_firmware-1.16.tar.gz"
+if [[ "$pip_download_status" -eq 0 && -s "$SDIST" ]]; then
+  echo "1626b9930b1006f9ec10b75ef889ffc17c632e0b43a4aba07a1090d9023133ea  $SDIST" \
+    | sha256sum -c - | tee -a "$REPORT"
+  set +e
+  "$VENV/bin/python" -m pip install --disable-pip-version-check --no-deps "$SDIST" \
+    2>&1 | tee "$DEEP_ROOT/pip-install.log"
+  pip_install_status=${PIPESTATUS[0]}
+  set -e
+  if [[ "$pip_install_status" -eq 0 ]]; then
+    set +e
+    "$VENV/bin/uefi-firmware-parser" -b -e -o "$DEEP_ROOT/xbl" "$XBL" \
+      2>&1 | tee "$DEEP_ROOT/uefi-firmware-parser.log" | tee -a "$REPORT"
+    deep_parser_status=${PIPESTATUS[0]}
+    set -e
+    echo "Deep UEFI parser exit status: $deep_parser_status" | tee -a "$REPORT"
+    if [[ "$deep_parser_status" -ne 0 ]]; then
+      echo "WARNING: deep UEFI parser returned $deep_parser_status; inspect its log and partial extraction." \
+        | tee -a "$REPORT"
+    fi
+  else
+    echo "WARNING: uefi_firmware 1.16 installation failed (exit $pip_install_status); custom XBL parser results remain available." \
+      | tee -a "$REPORT"
+  fi
+else
+  echo "WARNING: could not download the pinned uefi_firmware 1.16 source distribution; deep extraction skipped." \
+    | tee -a "$REPORT"
+fi
+
+if [[ -d "$DEEP_ROOT/xbl" ]]; then
+  while IFS= read -r -d '' deep_file; do
+    rel="${deep_file#$DEEP_ROOT/xbl/}"
+    bytes="$(wc -c < "$deep_file" | tr -d '[:space:]')"
+    digest="$(sha256sum "$deep_file" | awk '{print $1}')"
+    printf '%s\t%s\t%s\n' "$rel" "$bytes" "$digest" >> "$DEEP_MANIFEST"
+    if strings -a "$deep_file" | grep -Ei 'BATTERY[.]PROVISION|M703|BN61|BN57|ATL|PM855|QP(NP|N)|qcom,fg|nom-batt-capacity|fg-profile-data|thermistor|DS28E16|fuel.?gauge' \
+      > "$DEEP_ROOT/deep-file-hits.tmp"; then
+      {
+        printf '=== %s ===\n' "$rel"
+        head -n 80 "$DEEP_ROOT/deep-file-hits.tmp"
+        printf '\n'
+      } >> "$DEEP_HITS"
+    fi
+  done < <(find "$DEEP_ROOT/xbl" -type f -print0 | sort -z)
+fi
+rm -f "$DEEP_ROOT/deep-file-hits.tmp"
+if [[ ! -s "$DEEP_HITS" ]]; then
+  echo "No matching battery/BN61/M703/PM855GUI strings in deep-extracted XBL sections." > "$DEEP_HITS"
+fi
+echo "Deep UEFI extracted files: $(($(wc -l < "$DEEP_MANIFEST") - 1))" | tee -a "$REPORT"
+echo "Deep UEFI manifest: $DEEP_MANIFEST" | tee -a "$REPORT"
+echo "Deep UEFI search report: $DEEP_HITS" | tee -a "$REPORT"
+
 while IFS= read -r member; do
   [[ -n "$member" ]] || continue
   image="$OUT/extracted/$member"
