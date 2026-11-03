@@ -31,7 +31,7 @@ jobs:
       - name: Install image inspection tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y aria2 file device-tree-compiler
+          sudo apt-get install -y aria2 file device-tree-compiler python3-venv python3-dev build-essential
 
       - name: Download, verify, extract and inspect official India fastboot ROM
         run: |
@@ -59,5 +59,10 @@ jobs:
             surya-india-firmware-audit/xbl-raw/BATTERY-PROVISION-SEARCH.txt
             surya-india-firmware-audit/other-raw/**/RAW-MANIFEST.tsv
             surya-india-firmware-audit/other-raw/**/BATTERY-STRING-HITS.txt
+            surya-india-firmware-audit/uefi-deep/DEEP-UEFI-MANIFEST.tsv
+            surya-india-firmware-audit/uefi-deep/DEEP-UEFI-SEARCH.txt
+            surya-india-firmware-audit/uefi-deep/uefi-firmware-parser.log
+            surya-india-firmware-audit/uefi-deep/pip-download.log
+            surya-india-firmware-audit/uefi-deep/pip-install.log
           if-no-files-found: warn
           retention-days: 14
