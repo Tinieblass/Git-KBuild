@@ -287,7 +287,7 @@ fi
 
 if [[ -d "$DEEP_ROOT/xbl" ]]; then
   while IFS= read -r -d '' deep_file; do
-    rel="${deep_file#$DEEP_ROOT/xbl/}"
+    rel="${deep_file#"$DEEP_ROOT"/xbl/}"
     bytes="$(wc -c < "$deep_file" | tr -d '[:space:]')"
     digest="$(sha256sum "$deep_file" | awk '{print $1}')"
     printf '%s\t%s\t%s\n' "$rel" "$bytes" "$digest" >> "$DEEP_MANIFEST"
@@ -308,6 +308,8 @@ fi
 echo "Deep UEFI extracted files: $(($(wc -l < "$DEEP_MANIFEST") - 1))" | tee -a "$REPORT"
 echo "Deep UEFI manifest: $DEEP_MANIFEST" | tee -a "$REPORT"
 echo "Deep UEFI search report: $DEEP_HITS" | tee -a "$REPORT"
+echo "=== Deep UEFI battery-string hits (first 600 lines) ===" | tee -a "$REPORT"
+sed -n '1,600p' "$DEEP_HITS" | tee -a "$REPORT"
 
 while IFS= read -r member; do
   [[ -n "$member" ]] || continue
