@@ -304,6 +304,42 @@ jobs:
           grep -Fq '#define MS_PRIVATE' include/uapi/linux/fs.h
           grep -Fq '#define MS_REC' include/uapi/linux/fs.h
 
+      - name: Disable incompatible SELinux hide backend on Linux 4.19
+        run: |
+          cd kernel_tree
+          # The pinned KowSU/MidoriSU selinux_hide.c uses post-5.10 SELinux
+          # internals (selinux_state.policy/status_page and selinux_cred).
+          # Linux 4.19 has a different policy representation. Keep normal
+          # SELinux policy/rule support, but compile no-op lifecycle hooks
+          # instead of shipping the unsupported optional SELinux-hide feature.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/Kbuild")
+          s = p.read_text()
+          old = "kernelsu-objs += feature/selinux_hide.o"
+          new = "kernelsu-objs += feature/selinux_hide_compat.o"
+          if s.count(old) != 1:
+              raise SystemExit("Expected exactly one SELinux hide object in KernelSU Kbuild")
+          p.write_text(s.replace(old, new, 1))
+          stub = Path("drivers/kernelsu/feature/selinux_hide_compat.c")
+          if stub.exists():
+              raise SystemExit("SELinux hide compatibility stub already exists")
+          stub.write_text("""/* Linux 4.19 compatibility: optional SELinux-hide backend is unavailable. */
+          #include <linux/init.h>
+          #include "selinux_hide.h"
+
+          void ksu_selinux_hide_init(void) {}
+          void ksu_selinux_hide_exit(void) {}
+          void ksu_selinux_hide_drop_backup_if_unused(void) {}
+          void ksu_selinux_hide_handle_second_stage(void) {}
+          void ksu_selinux_hide_handle_post_fs_data(void) {}
+          """)
+          PY
+          grep -Fq 'feature/selinux_hide_compat.o' drivers/kernelsu/Kbuild
+          ! grep -Fq 'feature/selinux_hide.o' drivers/kernelsu/Kbuild
+          test -s drivers/kernelsu/feature/selinux_hide_compat.c
+          grep -n 'ksu_selinux_hide_' drivers/kernelsu/feature/selinux_hide_compat.c
+
       - name: Integrate pinned NoMount 2.2.0 driver
         run: |
           cd kernel_tree
