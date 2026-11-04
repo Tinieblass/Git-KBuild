@@ -1,18 +1,18 @@
-name: Flash Kernel - FakeDreamer v2.1-W (KowSU + NoMount 2.2)
+name: Flash Kernel - FakeDreamer v2.1-W (KowSU, NoMount OFF diagnostic)
 
-run-name: FD v2.1-W | alioth | KowSU + NoMount 2.2 | j3s-miui-eff-uv
+run-name: FD v2.1-W | alioth | KowSU / NoMount OFF | j3s-miui-eff-uv
 
 on:
   push:
     branches:
-      - Flash-Kernel-FD21W-KowSU-NoMount22
+      - Flash-Kernel-FD21W-KowSU-NoMount-OFF-DIAG
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: fd21w-kowsu-nomount22-${{ github.ref }}
+  group: fd21w-kowsu-nomount-off-diag-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -394,7 +394,7 @@ jobs:
           grep -n 'ksyscall(mount' drivers/kernelsu/infra/su_mount_ns.c
           grep -n 'put_seccomp_filter(fake)' drivers/kernelsu/policy/app_profile.c
 
-      - name: Integrate pinned NoMount 2.2.0 driver
+      - name: Stage NoMount 2.2.0 source (disabled for diagnostic)
         run: |
           cd kernel_tree
           rm -rf NoMount fs/nomount
@@ -466,7 +466,7 @@ jobs:
           ! grep -Eq 'struct clone_args|__NR_clone3' drivers/kernelsu/preinit/runner/nolibc/sys.h
           ! grep -Fq '#include <linux/mount.h>' drivers/kernelsu/preinit/runner/nolibc/sys/mount.h
 
-      - name: Preserve original backslashxx/KowSU configuration and switch only root/NoMount
+      - name: Preserve KowSU configuration and disable NoMount for isolation
         run: |
           cd kernel_tree
           DEFCONFIG="arch/arm64/configs/vendor/alioth_defconfig"
@@ -480,7 +480,7 @@ jobs:
           ./scripts/config --file "${DEFCONFIG}" --enable MODULES
           ./scripts/config --file "${DEFCONFIG}" --enable KPROBES
           ./scripts/config --file "${DEFCONFIG}" --enable KSU
-          ./scripts/config --file "${DEFCONFIG}" --enable NOMOUNT
+          ./scripts/config --file "${DEFCONFIG}" --disable NOMOUNT
 
       - name: Select stock battery variant for matrix 3 and 4
         if: ${{ matrix.kernel == 3 || matrix.kernel == 4 }}
@@ -912,7 +912,7 @@ jobs:
           ./scripts/config --file out/.config --enable MODULES
           ./scripts/config --file out/.config --enable KPROBES
           ./scripts/config --file out/.config --enable KSU
-          ./scripts/config --file out/.config --enable NOMOUNT
+          ./scripts/config --file out/.config --disable NOMOUNT
           ./scripts/config --file out/.config --set-str LOCALVERSION "-FakeDreamer-W"
           make O=out olddefconfig
 
@@ -923,7 +923,7 @@ jobs:
             'CONFIG_KSU=y' \
             'CONFIG_KPROBES=y' \
             'CONFIG_EXT4_FS=y' \
-            'CONFIG_NOMOUNT=y' \
+            '# CONFIG_NOMOUNT is not set' \
             'CONFIG_LTO_CLANG_FULL=y' \
             'CONFIG_BPF=y' \
             'CONFIG_NTSYNC=y' \
@@ -1009,11 +1009,13 @@ jobs:
           from pathlib import Path
           p = Path("AnyKernel3/anykernel.sh")
           s = p.read_text()
-          old = "      mv alioth-j3s-dtbo-aosp.img alioth-aosp-dtbo.img"
-          new = "      if [ -f alioth-j3s-dtbo-aosp.img ]; then mv alioth-j3s-dtbo-aosp.img alioth-aosp-dtbo.img; fi"
-          if s.count(old) != 1:
-              raise SystemExit("Expected one J3S AOSP DTBO selector")
-          p.write_text(s.replace(old, new, 1))
+          import re
+          pattern = r"(?m)^(\\s*)mv alioth-j3s-dtbo-aosp\\.img alioth-aosp-dtbo\\.img[ \\t]*$"
+          replacement = r"\\1if [ -f alioth-j3s-dtbo-aosp.img ]; then mv alioth-j3s-dtbo-aosp.img alioth-aosp-dtbo.img; fi"
+          s, count = re.subn(pattern, replacement, s)
+          if count != 2:
+              raise SystemExit(f"Expected both J3S AOSP DTBO selectors, patched {count}")
+          p.write_text(s)
           PY
 
           ZIP_NAME="FlashKernel-FakeDreamer-v2.1-W-alioth-$(date -u +%Y%m%d)-j3s-miui-eff-uv.zip"
@@ -1026,11 +1028,11 @@ jobs:
           KowSU: KOWX712/KernelSU @ 6ecdd69224fe6769e6c8715a4ef2b91602b23362 (2026-10-30)
           KowSU manager signature: size 0x375, SHA-256 484fcba6e6c43b1fb09700633bf2fb4758f13cb0b2f4457b80d075084b26c588
           KowSU requires the matching ksu_toolkit module for custom manager / uname features.
-          NoMount: maxsteeel/nomount @ bf1847f98fed382369c43bfd652cd93774b9b8e3 (v2.2.0 / protocol v22)
+          NoMount: disabled for this diagnostic (CONFIG_NOMOUNT=n; source staged but not linked into the kernel)
           AnyKernel3: re-noroi/anykernel3-test @ 40b2a7fbea8f8e1b41cdfc9c7f929d0a5ba21446
           Toolchain: Neutron Clang 06092026
           LTO: full
-          Kernel config: MODULES=y, KPROBES=y, KSU=y, NOMOUNT=y, EXT4_FS=y, BPF=y, NTSYNC=y
+          Kernel config: MODULES=y, KPROBES=y, KSU=y, NOMOUNT=n, EXT4_FS=y, BPF=y, NTSYNC=y
           Build matrix: J3S / MIUI / efficient CPU / UV GPU only
           Flash variant selected by ZIP name: -j3s-miui-eff-uv
           EOF
