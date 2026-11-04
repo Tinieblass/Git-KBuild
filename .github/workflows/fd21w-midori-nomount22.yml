@@ -110,6 +110,24 @@ jobs:
           p.write_text(s.replace(old, new, 1))
           PY
           grep -n -B1 -A6 'MODULE_IMPORT_NS' drivers/kernelsu/core/init.c
+
+          # Linux 4.19 may expose only the non-priority syscall trace registration API
+          # when CONFIG_TRACEPOINTS is disabled. Preserve INT_MIN priority where supported.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/hook/syscall_hook_manager.c")
+          s = p.read_text()
+          old = "    ret = register_trace_prio_sys_enter(ksu_sys_enter_handler, NULL, INT_MIN);"
+          new = """#ifdef CONFIG_TRACEPOINTS
+              ret = register_trace_prio_sys_enter(ksu_sys_enter_handler, NULL, INT_MIN);
+          #else
+              ret = register_trace_sys_enter(ksu_sys_enter_handler, NULL);
+          #endif"""
+          if s.count(old) != 1:
+              raise SystemExit("Expected one priority sys_enter registration; refusing unsafe patch")
+          p.write_text(s.replace(old, new, 1))
+          PY
+          grep -n -B2 -A4 'register_trace_.*sys_enter' drivers/kernelsu/hook/syscall_hook_manager.c
           test -f drivers/kernelsu/Kconfig
           test -f drivers/kernelsu/Kbuild
           grep -Fq 'source "drivers/kernelsu/Kconfig"' drivers/Kconfig
