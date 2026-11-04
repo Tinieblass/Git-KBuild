@@ -588,7 +588,7 @@ jobs:
           anchor = "#include <linux/version.h>"
           if source.count(anchor) != 1:
               raise SystemExit("Unexpected historical 4.19 sepolicy source; refusing replacement")
-          source = source.replace(anchor, anchor + "\\n" + headers, 1)
+          source = source.replace(anchor, anchor + "\n" + headers, 1)
 
           # Match the public ksu_* API expected by the pinned KowSU/MidoriSU headers.
           rename = {
@@ -611,7 +611,7 @@ jobs:
               "genfscon": "ksu_genfscon",
           }
           for old, new in rename.items():
-              source, count = re.subn(r"(?m)^(bool|void)\\s+" + old + r"\\s*\\(", r"\\1 " + new + "(", source)
+              source, count = re.subn(r"(?m)^(bool|void)\s+" + old + r"\s*\(", r"\1 " + new + "(", source)
               if count != 1:
                   raise SystemExit(f"Expected one historical {old}() implementation, got {count}")
 
