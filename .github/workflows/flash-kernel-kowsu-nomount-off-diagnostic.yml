@@ -900,6 +900,35 @@ jobs:
           p.write_text(s)
           PY
           grep -n 'task_work_add(current, &tw->cb, true)' drivers/kernelsu/supercall/supercall.c
+      - name: Repair FakeDreamer scheduler diagnostics for Linux 4.19 build
+        run: |
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+
+          sched = Path("kernel/sched/sched.h")
+          s = sched.read_text()
+          anchor = "extern u64 avg_vruntime(struct cfs_rq *cfs_rq);"
+          declaration = "extern int entity_eligible(struct cfs_rq *cfs_rq, struct sched_entity *se);"
+          if s.count(anchor) != 1:
+              raise SystemExit("Expected one avg_vruntime declaration anchor")
+          if declaration not in s:
+              s = s.replace(anchor, declaration + "\\n" + anchor, 1)
+          sched.write_text(s)
+
+          debug = Path("kernel/sched/debug.c")
+          s = debug.read_text()
+          broken = '"prio         wait-time        sum-sleep       sum-block";'
+          fixed = '"prio         wait-time        sum-sleep       sum-block");'
+          if s.count(broken) != 1:
+              raise SystemExit("Expected exactly one unterminated scheduler SEQ_printf call")
+          s = s.replace(broken, fixed, 1)
+          if "entity_eligible(&rq->cfs, &p->se)" not in s or fixed not in s:
+              raise SystemExit("Scheduler diagnostics repair verification failed")
+          debug.write_text(s)
+          PY
+          grep -n 'entity_eligible(struct cfs_rq' kernel/sched/sched.h
+          grep -n -A2 'prio         wait-time' kernel/sched/debug.c
       - name: Configure and verify kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
