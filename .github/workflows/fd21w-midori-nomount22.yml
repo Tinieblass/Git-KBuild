@@ -440,6 +440,7 @@ jobs:
           grep -n 'selinux_cred(cred)' drivers/kernelsu/selinux/selinux.c
 
 
+
       - name: Backport SELinux policy access for Linux 4.19
         run: |
           cd kernel_tree
@@ -448,30 +449,28 @@ jobs:
           p = Path("drivers/kernelsu/selinux/rules.c")
           s = p.read_text()
 
-          old = """    struct selinux_policy *pol, *old_pol;
-              struct policydb *db;"""
-          new = """#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+          decl = "    struct selinux_policy *pol, *old_pol;\\n    struct policydb *db;"
+          compat_decl = """#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
               struct selinux_ss *ss;
               struct policydb *db;
           #else
-              struct selinux_policy *pol, *old_pol;
-              struct policydb *db;
+          """ + decl + """
           #endif"""
-          if s.count(old) != 2:
-              raise SystemExit(f"Expected two policy declarations, found {s.count(old)}")
-          s = s.replace(old, new, 2)
+          if s.count(decl) != 2:
+              raise SystemExit(f"Expected two SELinux policy declarations, got {s.count(decl)}")
+          s = s.replace(decl, compat_decl, 2)
 
-          old = """    mutex_lock(&selinux_state.policy_mutex);
-
-              old_pol = rcu_dereference_protected(selinux_state.policy, lockdep_is_held(&selinux_state.policy_mutex));
-              backup_sepolicy = ksu_dup_sepolicy(old_pol);"""
-          if s.count(old) != 1:
-              raise SystemExit("Could not locate apply_kernelsu_rules policy clone block")
-          # The remainder of the modern backup/clone sequence is kept only for >=5.10.
-          start = s.index(old)
-          dbline = "    db = &pol->policydb;\n"
-          end = s.index(dbline, start) + len(dbline)
-          modern = s[start:end]
+          # apply_kernelsu_rules(): use the Linux 4.19 selinux_state.ss policydb.
+          a = s.index("void apply_kernelsu_rules()")
+          b = s.index("#define KSU_SEPOLICY_MAX_BATCH_SIZE", a)
+          fn = s[a:b]
+          old_start = "    mutex_lock(&selinux_state.policy_mutex);"
+          old_db = "    db = &pol->policydb;"
+          if fn.count(old_start) != 1 or fn.count(old_db) != 1:
+              raise SystemExit("Unexpected apply_kernelsu_rules policy clone layout")
+          x = fn.index(old_start)
+          y = fn.index(old_db, x) + len(old_db)
+          modern = fn[x:y]
           compat = """#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
               rcu_read_lock();
               ss = rcu_dereference(selinux_state.ss);
@@ -482,11 +481,11 @@ jobs:
               write_lock(&ss->policy_rwlock);
               db = &ss->policydb;
           #else
-          """ + modern + """#endif
-          """
-          s = s[:start] + compat + s[end:]
+          """ + modern + """
+          #endif"""
+          fn = fn[:x] + compat + fn[y:]
 
-          old = """    rcu_assign_pointer(selinux_state.policy, pol);
+          swap = """    rcu_assign_pointer(selinux_state.policy, pol);
               synchronize_rcu();
               ksu_destroy_sepolicy(old_pol);
 
@@ -494,34 +493,30 @@ jobs:
           out_unlock:
               mutex_unlock(&selinux_state.policy_mutex);
           }"""
-          new = """#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+          replacement = """#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
               write_unlock(&ss->policy_rwlock);
               rcu_read_unlock();
               reset_avc_cache();
           #else
-              rcu_assign_pointer(selinux_state.policy, pol);
-              synchronize_rcu();
-              ksu_destroy_sepolicy(old_pol);
-              reset_avc_cache();
-          out_unlock:
-              mutex_unlock(&selinux_state.policy_mutex);
-          #endif
+          """ + swap[:-1] + """#endif
           }"""
-          if s.count(old) != 1:
-              raise SystemExit("Could not locate apply_kernelsu_rules policy swap block")
-          s = s.replace(old, new, 1)
+          if fn.count(swap) != 1:
+              raise SystemExit("Unexpected apply_kernelsu_rules policy swap layout")
+          fn = fn.replace(swap, replacement, 1)
+          s = s[:a] + fn + s[b:]
 
-          old = """    mutex_lock(&selinux_state.policy_mutex);
-
-              old_pol = rcu_dereference_protected(selinux_state.policy, lockdep_is_held(&selinux_state.policy_mutex));
-              pol = ksu_dup_sepolicy(old_pol);
-              if (IS_ERR(pol)) {
-                  ret = PTR_ERR(pol);
-                  pr_err("ksu_dup_sepolicy err: %d\\n", ret);
-                  goto out_unlock;
-              }
-              db = &pol->policydb;"""
-          new = """#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+          # handle_sepolicy(): retain the batch parser, but mutate the 4.19 ss policy
+          # under its policy_rwlock instead of cloning/swapping a newer selinux_policy.
+          a = s.index("int handle_sepolicy(")
+          fn = s[a:]
+          old_start = "    mutex_lock(&selinux_state.policy_mutex);"
+          old_db = "    db = &pol->policydb;"
+          if fn.count(old_start) != 1 or fn.count(old_db) != 1:
+              raise SystemExit("Unexpected handle_sepolicy policy clone layout")
+          x = fn.index(old_start)
+          y = fn.index(old_db, x) + len(old_db)
+          modern = fn[x:y]
+          compat = """#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
               rcu_read_lock();
               ss = rcu_dereference(selinux_state.ss);
               if (!ss) {
@@ -532,21 +527,11 @@ jobs:
               write_lock(&ss->policy_rwlock);
               db = &ss->policydb;
           #else
-              mutex_lock(&selinux_state.policy_mutex);
-              old_pol = rcu_dereference_protected(selinux_state.policy, lockdep_is_held(&selinux_state.policy_mutex));
-              pol = ksu_dup_sepolicy(old_pol);
-              if (IS_ERR(pol)) {
-                  ret = PTR_ERR(pol);
-                  pr_err("ksu_dup_sepolicy err: %d\\n", ret);
-                  goto out_unlock;
-              }
-              db = &pol->policydb;
+          """ + modern + """
           #endif"""
-          if s.count(old) != 1:
-              raise SystemExit("Could not locate handle_sepolicy policy clone block")
-          s = s.replace(old, new, 1)
+          fn = fn[:x] + compat + fn[y:]
 
-          old = """    rcu_assign_pointer(selinux_state.policy, pol);
+          tail = """    rcu_assign_pointer(selinux_state.policy, pol);
               synchronize_rcu();
               ksu_destroy_sepolicy(old_pol);
 
@@ -559,18 +544,8 @@ jobs:
           out_unlock:
               mutex_unlock(&selinux_state.policy_mutex);
           out_free:"""
-          new = """#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
-              rcu_assign_pointer(selinux_state.policy, pol);
-              synchronize_rcu();
-              ksu_destroy_sepolicy(old_pol);
-              reset_avc_cache();
-              ret = success_cmd_count;
-              goto out_unlock;
-
-          out_drop_new_policy:
-              ksu_destroy_sepolicy(pol);
-          out_unlock:
-              mutex_unlock(&selinux_state.policy_mutex);
+          tail_new = """#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+          """ + tail + """
           #else
               write_unlock(&ss->policy_rwlock);
               rcu_read_unlock();
@@ -584,15 +559,16 @@ jobs:
               rcu_read_unlock();
           #endif
           out_free:"""
-          if s.count(old) != 1:
-              raise SystemExit("Could not locate handle_sepolicy policy swap/cleanup block")
-          s = s.replace(old, new, 1)
+          if fn.count(tail) != 1:
+              raise SystemExit("Unexpected handle_sepolicy policy swap/cleanup layout")
+          fn = fn.replace(tail, tail_new, 1)
+          s = s[:a] + fn
 
-          if "Backport SELinux policy access for Linux 4.19" in s:
-              raise SystemExit("Unexpected marker collision")
+          if s.count("write_lock(&ss->policy_rwlock)") != 2:
+              raise SystemExit("SELinux 4.19 policy write-lock insertion count mismatch")
           p.write_text(s)
           PY
-          grep -n -E 'selinux_state\\.(ss|policy)|policy_rwlock|KERNEL_VERSION\\(5, 10, 0\\)' drivers/kernelsu/selinux/rules.c
+          grep -n -E 'selinux_state\\.(ss|policy)|policy_rwlock' drivers/kernelsu/selinux/rules.c
 
       - name: Configure and verify kernel
         run: |
