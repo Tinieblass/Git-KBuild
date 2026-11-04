@@ -1,19 +1,18 @@
-name: Flash Kernel - FakeDreamer v2.1-W (KowSU, NoMount OFF diagnostic)
+name: Flash Kernel - FakeDreamer v2.1-W (KowSU KALLSYMS diagnostic)
 
-run-name: FD v2.1-W | alioth | KowSU / NoMount OFF | j3s-miui-eff-uv
+run-name: FD v2.1-W | alioth | KowSU KALLSYMS + NoMount OFF | j3s-miui-eff-uv
 
 on:
   push:
     branches:
-      - Flash-Kernel-KowSU-NoMount-OFF-DIAG-CLEAN
-      - main
+      - Flash-Kernel-KowSU-KALLSYMS-DIAG
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: fd21w-kowsu-nomount-off-diag-clean-${{ github.ref }}
+  group: fd21w-kowsu-kallsyms-diag-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -480,6 +479,8 @@ jobs:
           # KPROBES depends on MODULES in this kernel; the upstream defconfig disables MODULES.
           ./scripts/config --file "${DEFCONFIG}" --enable MODULES
           ./scripts/config --file "${DEFCONFIG}" --enable KPROBES
+          ./scripts/config --file "${DEFCONFIG}" --enable KALLSYMS
+          ./scripts/config --file "${DEFCONFIG}" --enable KALLSYMS_ALL
           ./scripts/config --file "${DEFCONFIG}" --enable KSU
           ./scripts/config --file "${DEFCONFIG}" --disable NOMOUNT
 
@@ -912,17 +913,21 @@ jobs:
           # KPROBES is unavailable while CONFIG_MODULES is disabled.
           ./scripts/config --file out/.config --enable MODULES
           ./scripts/config --file out/.config --enable KPROBES
+          ./scripts/config --file out/.config --enable KALLSYMS
+          ./scripts/config --file out/.config --enable KALLSYMS_ALL
           ./scripts/config --file out/.config --enable KSU
           ./scripts/config --file out/.config --disable NOMOUNT
           ./scripts/config --file out/.config --set-str LOCALVERSION "-FakeDreamer-W"
           make O=out olddefconfig
 
           echo "=== Effective kernel configuration ==="
-          grep -E '^(CONFIG_(MODULES|KSU|KPROBES|EXT4_FS|NOMOUNT|LTO_CLANG_FULL|BPF|NTSYNC)=|CONFIG_LOCALVERSION=)' out/.config || true
+          grep -E '^(CONFIG_(MODULES|KSU|KPROBES|KALLSYMS|KALLSYMS_ALL|EXT4_FS|NOMOUNT|LTO_CLANG_FULL|BPF|NTSYNC)=|CONFIG_LOCALVERSION=)' out/.config || true
           for expected in \
             'CONFIG_MODULES=y' \
             'CONFIG_KSU=y' \
             'CONFIG_KPROBES=y' \
+            'CONFIG_KALLSYMS=y' \
+            'CONFIG_KALLSYMS_ALL=y' \
             'CONFIG_EXT4_FS=y' \
             '# CONFIG_NOMOUNT is not set' \
             'CONFIG_LTO_CLANG_FULL=y' \
@@ -965,6 +970,20 @@ jobs:
             mv out/arch/arm64/boot/dtbo.img ../alioth-stock-dtbo-miui.img
             mv out/arch/arm64/boot/dtb.img ../alioth-effcpu-gpustk-dtb
           fi
+
+      - name: Verify KowSU symbol resolver prerequisites in vmlinux
+        run: |
+          cd kernel_tree
+          test -s out/vmlinux
+          echo "=== KowSU required kernel symbols ==="
+          for symbol in sys_call_table security_hook_heads; do
+            if ! nm out/vmlinux | awk -v wanted="$symbol" '$NF == wanted { found=1 } END { exit !found }'; then
+              echo "::error::Required symbol missing from vmlinux: $symbol"
+              exit 1
+            fi
+            nm out/vmlinux | awk -v wanted="$symbol" '$NF == wanted { print }'
+          done
+          echo "KALLSYMS and KALLSYMS_ALL symbol prerequisites verified."
 
       - name: Checksum diagnostic kernel Image
         run: sha256sum Image.gz > Image.gz.sha256
