@@ -565,6 +565,70 @@ jobs:
           PY
           grep -n -E 'selinux_state\\.(ss|policy)|policy_rwlock' drivers/kernelsu/selinux/rules.c
 
+      - name: Backport SELinux policy engine to Linux 4.19
+        run: |
+          cd kernel_tree
+          # Use the upstream KernelSU 4.19 backport for policydb internals.
+          # Modern sepolicy.c assumes post-4.19 avtab/filename_trans/type maps.
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import urllib.request
+
+          url = "https://raw.githubusercontent.com/tiann/KernelSU/0e0a812a9c37078aab856d233bdef4fcc25bab7b/kernel/selinux/sepolicy.c"
+          source = urllib.request.urlopen(url, timeout=30).read().decode("utf-8")
+          p = Path("drivers/kernelsu/selinux/sepolicy.c")
+
+          headers = """#include "ss/avtab.h"
+          #include "ss/constraint.h"
+          #include "ss/ebitmap.h"
+          #include "ss/hashtab.h"
+          #include "ss/policydb.h"
+          #include "ss/services.h"
+          #include "ss/symtab.h"
+          #include <linux/gfp.h>
+          #include <linux/printk.h>
+          #include <linux/slab.h>
+          """
+          anchor = "#include <linux/version.h>"
+          if source.count(anchor) != 1:
+              raise SystemExit("Unexpected historical 4.19 sepolicy source; refusing replacement")
+          source = source.replace(anchor, anchor + "\\n" + headers, 1)
+
+          # Match the public ksu_* API expected by the pinned KowSU/MidoriSU headers.
+          rename = {
+              "type": "ksu_type",
+              "attribute": "ksu_attribute",
+              "permissive": "ksu_permissive",
+              "enforce": "ksu_enforce",
+              "typeattribute": "ksu_typeattribute",
+              "exists": "ksu_exists",
+              "allow": "ksu_allow",
+              "deny": "ksu_deny",
+              "auditallow": "ksu_auditallow",
+              "dontaudit": "ksu_dontaudit",
+              "allowxperm": "ksu_allowxperm",
+              "auditallowxperm": "ksu_auditallowxperm",
+              "dontauditxperm": "ksu_dontauditxperm",
+              "type_transition": "ksu_type_transition",
+              "type_change": "ksu_type_change",
+              "type_member": "ksu_type_member",
+              "genfscon": "ksu_genfscon",
+          }
+          for old, new in rename.items():
+              source, count = re.subn(r"(?m)^(bool|void)\\s+" + old + r"\\s*\\(", r"\\1 " + new + "(", source)
+              if count != 1:
+                  raise SystemExit(f"Expected one historical {old}() implementation, got {count}")
+
+          if "ksu_dup_sepolicy" in source or "ksu_destroy_sepolicy" in source:
+              raise SystemExit("Historical source unexpectedly contains policy clone APIs")
+          if "flex_array_get(db->type_attr_map_array" not in source:
+              raise SystemExit("Historical 4.19 flex_array compatibility implementation missing")
+          p.write_text(source)
+          PY
+          grep -n -E '^bool ksu_(allow|deny|permissive|typeattribute)|flex_array_get' drivers/kernelsu/selinux/sepolicy.c
+          ! grep -q 'type_val_to_struct\|policydb_filenametr_search\|filename_trans_key' drivers/kernelsu/selinux/sepolicy.c
+
       - name: Configure and verify kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
