@@ -81,7 +81,13 @@ jobs:
           s = s.replace("device.name2=aliothin", "device.name2=")
 
           # Keep recovery output minimal; retain only the required branding line.
-          lines = [line for line in s.splitlines() if not line.lstrip().startswith("ui_print ")]
+          lines = []
+          for line in s.splitlines():
+              stripped = line.lstrip()
+              if stripped.startswith("ui_print "):
+                  indent = line[:len(line) - len(stripped)]
+                  line = indent + ":"
+              lines.append(line)
           s = "\n".join(lines) + "\n"
           anchor = ". tools/ak3-core.sh;"
           if s.count(anchor) != 1:
