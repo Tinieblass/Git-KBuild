@@ -696,6 +696,23 @@ jobs:
           grep -n -E '^bool ksu_(allow|deny|permissive|typeattribute)|flex_array_get|add_rule_raw' drivers/kernelsu/selinux/sepolicy.c
           ! grep -q 'type_val_to_struct\|policydb_filenametr_search\|filename_trans_key' drivers/kernelsu/selinux/sepolicy.c
 
+      - name: Adapt KernelSU supercall task_work API to Linux 4.19
+        run: |
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/supercall/supercall.c")
+          s = p.read_text()
+          old = "task_work_add(current, &tw->cb, TWA_RESUME)"
+          new = "task_work_add(current, &tw->cb, true)"
+          if s.count(old) != 1:
+              raise SystemExit("Expected one supercall TWA_RESUME call; refusing unsafe patch")
+          s = s.replace(old, new, 1)
+          if "TWA_RESUME" in s:
+              raise SystemExit("Unexpected remaining TWA_RESUME in supercall.c")
+          p.write_text(s)
+          PY
+          grep -n 'task_work_add(current, &tw->cb, true)' drivers/kernelsu/supercall/supercall.c
       - name: Configure and verify kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
