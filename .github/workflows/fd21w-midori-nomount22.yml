@@ -25,9 +25,9 @@ jobs:
       matrix:
         kernel: [2]
     env:
-      SOURCE_BASE: dc1defa88f947e28a14666151d6af2d084caa345
+      SOURCE_BASE: afba74c277a858f7ee46463f5ff6b7bfbdb6546a
       SOURCE_STOCK_GPU: 4687149afb1d57eda185d279a6743d8e918fddb8
-      MIDORI_SHA: 4ea5dc916eb7ce0d84321ad7e32af6d5b2815ddf
+      MIDORI_SHA: 8986872e25cd09d58c0fb6d14206913e38bee09a
       NOMOUNT_SHA: bf1847f98fed382369c43bfd652cd93774b9b8e3
     steps:
       - name: Install build dependencies
@@ -36,25 +36,30 @@ jobs:
           sudo apt-get install -y bc bison build-essential flex gcc-aarch64-linux-gnu \
             libelf-dev libncurses-dev libssl-dev python3 rsync unzip zip zstd
 
+      - name: Cache original Neutron Clang
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/neutron-clang-06092026.tar.zst
+          key: neutron-clang-06092026-${{ runner.os }}-v1
+
       - name: Download original Neutron Clang
         run: |
-          wget -q https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/06092026/neutron-clang-06092026.tar.zst -O clang.tar.zst
+          mkdir -p ~/.cache
+          if [[ ! -s ~/.cache/neutron-clang-06092026.tar.zst ]]; then
+            wget -q https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/06092026/neutron-clang-06092026.tar.zst -O ~/.cache/neutron-clang-06092026.tar.zst
+          fi
+          cp ~/.cache/neutron-clang-06092026.tar.zst clang.tar.zst
           mkdir -p clang
           unzstd -f clang.tar.zst
           tar -xf clang.tar -C clang
 
       - name: Checkout historical W source snapshot
         run: |
-          git clone --filter=blob:none --no-checkout --depth=5 --branch stable \
-            https://github.com/re-noroi/kernel_sm8250.git kernel_tree
-          if [[ "${{ matrix.kernel }}" == "3" || "${{ matrix.kernel }}" == "4" ]]; then
-            git -C kernel_tree checkout --detach "${SOURCE_STOCK_GPU}"
-          else
-            git -C kernel_tree checkout --detach "${SOURCE_BASE}"
-          fi
+          git clone --filter=blob:none --no-checkout https://github.com/re-noroi/kernel_sm8250.git kernel_tree
+          git -C kernel_tree fetch --depth=1 origin "${SOURCE_BASE}"
+          git -C kernel_tree checkout --detach "${SOURCE_BASE}"
           echo "Kernel source: $(git -C kernel_tree rev-parse HEAD)"
-          test "$(git -C kernel_tree rev-parse HEAD)" = "${SOURCE_BASE}" -o \
-               "$(git -C kernel_tree rev-parse HEAD)" = "${SOURCE_STOCK_GPU}"
+          test "$(git -C kernel_tree rev-parse HEAD)" = "${SOURCE_BASE}"
 
       - name: Integrate pinned MidoriSU driver
         run: |
@@ -339,6 +344,60 @@ jobs:
           ! grep -Fq 'feature/selinux_hide.o' drivers/kernelsu/Kbuild
           test -s drivers/kernelsu/feature/selinux_hide_compat.c
           grep -n 'ksu_selinux_hide_' drivers/kernelsu/feature/selinux_hide_compat.c
+
+      - name: Adapt KowSU and MidoriSU APIs to Linux 4.19
+        run: |
+          cd kernel_tree
+          # The current drivers use path_mount(), introduced after this 4.19 base.
+          # Use the 4.19 mount syscall wrapper and a userspace-stack pathname instead.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/infra/su_mount_ns.c")
+          s = p.read_text()
+          old_decl = """extern int path_mount(const char *dev_name, struct path *path, const char *type_page, unsigned long flags,
+                      void *data_page);
+          """
+          if s.count(old_decl) != 1:
+              raise SystemExit("Expected one path_mount declaration; refusing unsafe replacement")
+          s = s.replace(old_decl, "", 1)
+          old_block = """    // make root mount private
+              struct path root_path;
+              get_fs_root(current->fs, &root_path);
+              int pm_ret = path_mount(NULL, &root_path, NULL, MS_PRIVATE | MS_REC, NULL);
+              path_put(&root_path);
+          """
+          new_block = """    // Linux 4.19 has no path_mount(); use its native mount syscall wrapper.
+              // userspace_stack_buffer() supplies the pathname in the calling task's address space.
+              int pm_ret = ksyscall(mount, NULL, userspace_stack_buffer("/", sizeof("/")),
+                                    NULL, MS_PRIVATE | MS_REC, NULL);
+          """
+          if s.count(old_block) != 1:
+              raise SystemExit("Expected one individual mount namespace block; refusing unsafe replacement")
+          s = s.replace(old_block, new_block, 1)
+          if "path_mount" in s:
+              raise SystemExit("path_mount references remain in su_mount_ns.c")
+          p.write_text(s)
+
+          # Linux 4.19 exports put_seccomp_filter(), which performs the same
+          # reference-count release on task->seccomp.filter as modern seccomp_filter_release().
+          p = Path("drivers/kernelsu/policy/app_profile.c")
+          s = p.read_text()
+          old_decl = "void seccomp_filter_release(struct task_struct *tsk);"
+          if s.count(old_decl) != 1:
+              raise SystemExit("Expected one seccomp_filter_release prototype")
+          s = s.replace(old_decl, "/* Linux 4.19 declares put_seccomp_filter() in linux/seccomp.h. */", 1)
+          if s.count("seccomp_filter_release(fake);") != 1:
+              raise SystemExit("Expected one seccomp_filter_release call")
+          s = s.replace("seccomp_filter_release(fake);", "put_seccomp_filter(fake);", 1)
+          if "seccomp_filter_release" in s:
+              raise SystemExit("seccomp_filter_release references remain in app_profile.c")
+          if "#include <linux/seccomp.h>" not in s:
+              raise SystemExit("linux/seccomp.h include missing")
+          p.write_text(s)
+          PY
+          ! grep -R -n -E 'path_mount|seccomp_filter_release' drivers/kernelsu/infra/su_mount_ns.c drivers/kernelsu/policy/app_profile.c
+          grep -n 'ksyscall(mount' drivers/kernelsu/infra/su_mount_ns.c
+          grep -n 'put_seccomp_filter(fake)' drivers/kernelsu/policy/app_profile.c
 
       - name: Integrate pinned NoMount 2.2.0 driver
         run: |
@@ -972,9 +1031,9 @@ jobs:
 
           cat > BUILD-INFO.txt <<'EOF'
           Target: FakeDreamer v2.1-W, POCO F3 alioth
-          Historical W source snapshot: re-noroi/kernel_sm8250 @ dc1defa88f947e28a14666151d6af2d084caa345 (2026-09-24)
+          Historical W source snapshot: re-noroi/kernel_sm8250 @ afba74c277a858f7ee46463f5ff6b7bfbdb6546a (2026-09-24)
           Stock-GPU matrix patch: re-noroi/kernel_sm8250 @ 4687149afb1d57eda185d279a6743d8e918fddb8
-          MidoriSU: midori01/KernelSU @ 4ea5dc916eb7ce0d84321ad7e32af6d5b2815ddf (2026-10-30)
+          MidoriSU: midori01/KernelSU @ 8986872e25cd09d58c0fb6d14206913e38bee09a (2026-10-30)
           NoMount: maxsteeel/nomount @ bf1847f98fed382369c43bfd652cd93774b9b8e3 (v2.2.0 / protocol v22)
           AnyKernel3: re-noroi/anykernel3-test @ 40b2a7fbea8f8e1b41cdfc9c7f929d0a5ba21446
           Toolchain: Neutron Clang 06092026
