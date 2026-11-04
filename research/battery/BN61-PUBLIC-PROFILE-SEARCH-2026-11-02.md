@@ -97,11 +97,11 @@ It is **not** a valid 5850/6000 mAh BN61 Gen4 profile. No 6000 mAh PM855GUI/Gen4
 
 A model-variant distinction materially changes which firmware is relevant:
 
-- POCO's own community codename list distinguishes POCO X3 NFC (`surya`) from the India-only POCO X3 (`karna`): https://c.po.co/global/post/26914
+- Community naming is inconsistent: some device trees call the India-only, non-NFC 6000 mAh SKU `karna`, while Xiaomi's checksum-verified India fastboot package is named `surya_in_global_images_...` and carries region/build `SJGINXM`. The audit therefore identifies the target by the exact Xiaomi CDN package, India region, verified MD5, and embedded M703 ATL 6000 mAh profile—not by a codename alias alone.
 - The official POCO X3 NFC specification is 5160 mAh: https://www.po.co/global/poco-x3-nfc/specs/
-- The India POCO X3 is the 6000 mAh version; it lacks NFC: https://www.gsmarena.com/poco_x3_specs_india_price_sale_date-news-45408.php
+- Contemporary reporting on the India launch confirms that the non-NFC India edition received a 6000 mAh battery while the NFC edition retained 5160 mAh: https://www.androidauthority.com/xiaomi-poco-x3-india-1160920/
 - Nohon BN61 is listed as 5850 mAh rated / 6000 mAh typical, 3.87 V nominal and 4.45 V charge limit: https://nohon.com.ua/ua/p2390077415-akkumulyator-dlya-telefona.html
-- LineageOS firmware guidance lists India POCO X3 `V13.0.1.0.SJGINXM` separately from Global/EEA surya: https://lineageos.github.io/lineage_wiki/devices/surya/install/
+- The exact India firmware build is indexed as POCO X3 India `V13.0.1.0.SJGINXM`, package `surya_in_global_images_V13.0.1.0.SJGINXM_20220818.0000.00_12.0_in_15727cb7de.tgz`: https://hyperosupdate.com/firmware/surya_in_global-Stable-V13.0.1.0.SJGINXM
 
 The previous XBL audit used Global `V12.5.8.0.RJGMIXM`, so its absence of a battery provision file was not a negative result for the India 6000 mAh firmware. The dedicated India fastboot audit completed successfully on 2026-11-03: it verified the archive MD5 `15727cb7de21880a9f0ff788f1e4a035` and SHA-256 `47ddd062f81d708c9c48865295cd365fae17f18d424f2860507e7c812b6e5556`, validated a 32-entry DTBO table, and extracted 22 M703 QG profile-node occurrences. XBL contained 104 FFS files and 25 exposed RAW sections but no `BATTERY.PROVISION` UI name or battery-related exposed section hit. The parser does not decompress EFI compression/GUID-defined sections, and the full vendor/super partitions remain unexamined. See `BN61-Gen4-Assessment.md` for the exact hashes and limits.
 
