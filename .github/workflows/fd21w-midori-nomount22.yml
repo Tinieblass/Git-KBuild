@@ -126,15 +126,32 @@ jobs:
           export SUBARCH=ARM64
           cd kernel_tree
           make O=out vendor/alioth_defconfig
+
+          # Apply required symbols to the generated config, not only the source defconfig.
+          # Kconfig may normalize or discard source-defconfig values during defconfig.
+          ./scripts/config --file out/.config --enable KPROBES
+          ./scripts/config --file out/.config --enable KSU
+          ./scripts/config --file out/.config --enable NOMOUNT
+          ./scripts/config --file out/.config --set-str LOCALVERSION "-FakeDreamer-W"
+          make O=out olddefconfig
+
+          echo "=== Effective kernel configuration ==="
+          grep -E '^(CONFIG_(KSU|KPROBES|EXT4_FS|NOMOUNT|LTO_CLANG_FULL|BPF|NTSYNC)=|CONFIG_LOCALVERSION=)' out/.config || true
+          for expected in \
+            'CONFIG_KSU=y' \
+            'CONFIG_KPROBES=y' \
+            'CONFIG_EXT4_FS=y' \
+            'CONFIG_NOMOUNT=y' \
+            'CONFIG_LTO_CLANG_FULL=y' \
+            'CONFIG_BPF=y' \
+            'CONFIG_NTSYNC=y' \
+            'CONFIG_LOCALVERSION="-FakeDreamer-W"'; do
+            if ! grep -Fqx "$expected" out/.config; then
+              echo "::error::Missing required config: $expected"
+              exit 1
+            fi
+          done
           make O=out ARCH=arm64 headers_install
-          grep -qx 'CONFIG_KSU=y' out/.config
-          grep -qx 'CONFIG_KPROBES=y' out/.config
-          grep -qx 'CONFIG_EXT4_FS=y' out/.config
-          grep -qx 'CONFIG_NOMOUNT=y' out/.config
-          grep -qx 'CONFIG_LTO_CLANG_FULL=y' out/.config
-          grep -qx 'CONFIG_BPF=y' out/.config
-          grep -qx 'CONFIG_NTSYNC=y' out/.config
-          grep -qx 'CONFIG_LOCALVERSION="-FakeDreamer-W"' out/.config
 
       - name: Build kernel and device trees
         run: |
