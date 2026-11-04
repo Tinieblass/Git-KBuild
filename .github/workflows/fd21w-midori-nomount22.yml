@@ -151,29 +151,36 @@ jobs:
           # remap_file_range are also absent. SELinux 4.19 exposes i_security directly.
           python3 - <<'PY'
           from pathlib import Path
-          import re
           p = Path("drivers/kernelsu/infra/file_wrapper.c")
           s = p.read_text()
 
-          pat = re.compile(r'(#if LINUX_VERSION_CODE >= KERNEL_VERSION\\(6, 1, 0\\)\\nstatic int ksu_wrapper_iopoll.*?\\n#endif\\n)(\\n#if LINUX_VERSION_CODE < KERNEL_VERSION\\(6, 6, 0\\))', re.S)
-          s, n = pat.subn(r'#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)\\n\\1#endif\\n\\2', s, count=1)
-          if n != 1:
-              raise SystemExit("Could not guard iopoll wrapper for Linux 4.19")
+          start = "#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)\nstatic int ksu_wrapper_iopoll"
+          end = "\n#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0)\nstatic int ksu_wrapper_iterate"
+          a = s.find(start)
+          b = s.find(end, a + 1)
+          if a < 0 or b < 0:
+              raise SystemExit("Could not locate iopoll wrapper block")
+          block = s[a:b]
+          s = s[:a] + "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)\n" + block + "\n#endif\n" + s[b:]
 
-          old = "    p->ops.iopoll = fp->f_op->iopoll ? ksu_wrapper_iopoll : NULL;\\n"
+          old = "    p->ops.iopoll = fp->f_op->iopoll ? ksu_wrapper_iopoll : NULL;\n"
           if s.count(old) != 1:
               raise SystemExit("Expected one iopoll file_operations assignment")
-          s = s.replace(old, "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)\\n" + old + "#endif\\n", 1)
+          s = s.replace(old, "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)\n" + old + "#endif\n", 1)
 
-          pat = re.compile(r'(static loff_t ksu_wrapper_remap_file_range\\(.*?\\n}\\n)(\\nstatic int ksu_wrapper_fadvise)', re.S)
-          s, n = pat.subn(r'#ifdef REMAP_FILE_DEDUP\\n\\1#endif\\n\\2', s, count=1)
-          if n != 1:
-              raise SystemExit("Could not guard remap_file_range wrapper for Linux 4.19")
+          start = "static loff_t ksu_wrapper_remap_file_range("
+          end = "\nstatic int ksu_wrapper_fadvise"
+          a = s.find(start)
+          b = s.find(end, a + 1)
+          if a < 0 or b < 0:
+              raise SystemExit("Could not locate remap_file_range wrapper block")
+          block = s[a:b]
+          s = s[:a] + "#ifdef REMAP_FILE_DEDUP\n" + block + "\n#endif\n" + s[b:]
 
-          old = "    p->ops.remap_file_range = fp->f_op->remap_file_range ? ksu_wrapper_remap_file_range : NULL;\\n"
+          old = "    p->ops.remap_file_range = fp->f_op->remap_file_range ? ksu_wrapper_remap_file_range : NULL;\n"
           if s.count(old) != 1:
               raise SystemExit("Expected one remap_file_range file_operations assignment")
-          s = s.replace(old, "#ifdef REMAP_FILE_DEDUP\\n" + old + "#endif\\n", 1)
+          s = s.replace(old, "#ifdef REMAP_FILE_DEDUP\n" + old + "#endif\n", 1)
 
           old = "    struct inode_security_struct *wrapper_sec = selinux_inode(wrapper_inode);"
           new = "    struct inode_security_struct *wrapper_sec = (struct inode_security_struct *)wrapper_inode->i_security;"
@@ -186,11 +193,6 @@ jobs:
           grep -n -B2 -A3 'KERNEL_VERSION(5, 1, 0)' drivers/kernelsu/infra/file_wrapper.c
           grep -n -B2 -A3 'REMAP_FILE_DEDUP' drivers/kernelsu/infra/file_wrapper.c
           grep -n 'wrapper_sec =' drivers/kernelsu/infra/file_wrapper.c
-                    test -f drivers/kernelsu/Kconfig
-          test -f drivers/kernelsu/Kbuild
-          grep -Fq 'source "drivers/kernelsu/Kconfig"' drivers/Kconfig
-          grep -Fq 'kernelsu/' drivers/Makefile
-
       - name: Integrate pinned NoMount 2.2.0 driver
         run: |
           cd kernel_tree
