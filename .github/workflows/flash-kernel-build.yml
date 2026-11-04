@@ -220,7 +220,7 @@ jobs:
           export KBUILD_BUILD_USER='Tinieblass' KBUILD_BUILD_HOST='GitHub-Actions'
           BOOT=out/arch/arm64/boot
           OUT="$GITHUB_WORKSPACE/flash-kernel-output"
-          DTC="$GITHUB_WORKSPACE/kernel/scripts/dtc/dtc"
+          DTC="$GITHUB_WORKSPACE/kernel/out/scripts/dtc/dtc"
           mkdir -p "$OUT"
           # DTBO_OBJS is expanded with $(shell find ...) when make parses the
           # Makefile. Build overlays first, then invoke dtbo.img in a new make
@@ -273,7 +273,7 @@ jobs:
           J3S_SOURCE="$GITHUB_WORKSPACE/research/battery/alioth-J3S-Sun-5000mah.dtsi"
           J3S_TARGET=arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-J3S-Sun-5000mah.dtsi
           OUT="$GITHUB_WORKSPACE/flash-kernel-output"
-          DTC="$GITHUB_WORKSPACE/kernel/scripts/dtc/dtc"
+          DTC="$GITHUB_WORKSPACE/kernel/out/scripts/dtc/dtc"
           test -s "$J3S_SOURCE"
           python3 "$GITHUB_WORKSPACE/tools/verify_pm855gui_checksum.py" "$J3S_SOURCE"
           grep -q 'qcom,battery-type = "j3ssun_5000mah"' "$J3S_SOURCE"
