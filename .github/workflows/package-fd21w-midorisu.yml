@@ -76,6 +76,34 @@ jobs:
           if s.count(old_brand) != 1:
               raise SystemExit("Expected original kernel.string branding")
           s = s.replace(old_brand, "kernel.string=Flash Kernel by Tinieblass", 1)
+
+          # Only alioth is an accepted device identity for this package.
+          s = s.replace("device.name2=aliothin", "device.name2=")
+
+          # Keep recovery output minimal; retain only the required branding line.
+          lines = [line for line in s.splitlines() if not line.lstrip().startswith("ui_print ")]
+          s = "\\n".join(lines) + "\\n"
+          anchor = ". tools/ak3-core.sh;"
+          if s.count(anchor) != 1:
+              raise SystemExit("Expected one AnyKernel3 core include")
+          quiet_ui = '''
+          # Minimal Flash Kernel recovery output; errors remain visible.
+          ak3_ui_print() {
+            echo "ui_print $1" >> /proc/self/fd/$OUTFD
+            echo "ui_print" >> /proc/self/fd/$OUTFD
+          }
+          ui_print() {
+            case "$*" in
+              "flash kernel by Tinieblass"|"ERROR:"*) ak3_ui_print "$@" ;;
+            esac
+          }
+          abort() {
+            ui_print "ERROR: $*"
+            exit 1
+          }
+          ui_print "flash kernel by Tinieblass"
+          '''
+          s = s.replace(anchor, anchor + quiet_ui, 1)
           p.write_text(s)
           PY
 
