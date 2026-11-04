@@ -476,8 +476,8 @@ jobs:
               raise SystemExit("sulog nofault helper already present")
           if s.count("strncpy_from_user_nofault(") != 2:
               raise SystemExit("Expected exactly two sulog nofault string call sites")
-          s = s.replace(marker, helper + "\n" + marker, 1)
           s = s.replace("strncpy_from_user_nofault(", "ksu_sulog_strncpy_from_user_nofault(")
+          s = s.replace(marker, helper + "\n" + marker, 1)
           p.write_text(s)
           PY
           grep -n 'ksu_sulog_strncpy_from_user_nofault' drivers/kernelsu/sulog/event.c
