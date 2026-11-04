@@ -200,3 +200,39 @@ The official India DTBO's M703 nodes strengthen the link between the 6000 mAh In
 - Checksum verification passed for the three matched PM855GUI export pairs. The separate UMI NVT export discrepancy remains flagged: the export declares `0x2F06` but calculates `0x2D06`; the DTSI's `0x2F06` checksum validates. It is not used as BN61 source data.
 - Research artifact ID `13288158339`, size 61,204 bytes, SHA-256 `291e1ed347e725a0efcf8ca7df0b409b1ce1595deb3fe878018871ded21285c4`; downloaded ZIP independently matched the GitHub artifact digest.
 - Result remains unchanged: no BN61 PM855B Gen4 payload is available, no `-6K` DTBO is generated, and no battery safety/charge limit is altered.
+
+
+### Exact official M703 QG node fingerprints — 2026-11-04
+
+The official India DTBO artifact from audit run #16 was re-inspected at node level. Its india-M703-profile-manifest.tsv contains 11 occurrences of each of the following decompiled profile nodes (22 rows total across the overlays):
+
+| Official DTBO node | Decompiled DTS node bytes | SHA-256 of decompiled node text |
+|---|---:|---|
+| qcom,m703-atl-6000mah | 38,714 | d0f6b368d91cbdd618b1bbabc29b05cc1a64c6f49af3e399a0922106fc22f1b1 |
+| qcom,m703-pm7150b-atl-5160mah | 38,729 | 683d1a0f706b1914ef385a7bd00ba6a6b338a4888d92c9378bffce7cf970005f |
+
+These hashes identify the extracted DTS text for each node, not the raw DTBO entry. The raw official DTBO SHA-256 remains 4ce6421507b45546374096eb00d1676b69ed329b552c85bf9173d5214cf50a78; the firmware archive SHA-256 remains 47ddd062f81d708c9c48865295cd365fae17f18d424f2860507e7c812b6e5556.
+
+The 6000 mAh ATL node's scalar metadata decodes as:
+
+- qcom,max-voltage-uv = 4,450,000 (4.45 V).
+- qcom,ffc-max-voltage-uv = 4,480,000 (4.48 V).
+- qcom,fastchg-current-ma = 6000 (6 A).
+- qcom,batt-id-kohm = 100 (100 kΩ).
+- qcom,battery-beta = 4250.
+- qcom,battery-therm-kohm = 100 (100 kΩ).
+- qcom,qg-batt-profile-ver = 100, qcom,oem-batt-profile-ver = 6, and mi,six-pin-battery.
+
+The node includes source-native qcom,pc-temp-v1-lut, qcom,pc-temp-v2-lut, qcom,pc-temp-z1-lut through z6, and qcom,pc-temp-y1-lut through y6, plus JEITA FCC/FV ranges. The 5160 mAh profile is a separate node with a different OEM profile revision and different LUT values; its tables must not be substituted for the 6000 mAh profile. The repository copy of the 6000 mAh QG source is research/battery/M703-ATL-6000mah.dtsi (Git blob SHA 03bbe29811956896b42bbef75a5edad28b99c48d).
+
+Important safety boundary: the official 6000 mAh node permits a 4.48 V FFC/JEITA range and advertises a 6 A fast-charge current. Those values are specific to the Surya/PM7150B platform and the ATL profile. They exceed the BN61 replacement documentation's stated 4.45 V limit and are not transferable to alioth/PM855B. The shared 100 kΩ ID/thermistor nominal values and beta value do not prove that an aftermarket BN61 pack uses the same cell chemistry or NTC R/T curve.
+
+The source-code distinction was checked against the exact alioth kernel base commit 4d8105023e3d1474323f4118abc3b4ce6485070d:
+
+- drivers/power/supply/qcom/qpnp-qg.c and qg-battery-profile.c consume the QG qcom,pc-temp-* LUT families and qcom,qg-batt-profile-ver.
+- drivers/power/supply/qcom/qpnp-fg-gen4.c defines PROFILE_LEN = 416, requires a qcom,fg-profile-data property of exactly 416 bytes, copies it as an opaque payload into Gen4 SRAM, and reads nominal capacity, float voltage, fast-charge current, thermistor coefficients/pull-up and Rslow coefficients as separate DT properties.
+- The official M703 QG node has no Gen4 416-byte qcom,fg-profile-data payload. The Gen4 driver does not decode QG OCV/Z/Y LUTs into that payload. No QG-to-Gen4 conversion has been demonstrated.
+
+The UEFI QcomChargerCfg.cfg observation LoadBatteryProfile=FALSE is also retained: it is generic bootloader charger configuration, not a substitute for the QG profile already embedded in the official DTBO. The XBL/deep-UEFI search still found no BATTERY.PROVISION record. The newly extended run #20 is inspecting super.img vendor/odm partitions; until that completes, the dynamic-partition search remains pending.
+
+Decision: keep -6K reserved and non-flashable. Do not transplant the M703 4.48 V/6 A settings, do not copy its QG LUTs into Gen4, and do not infer the aftermarket pack's thermistor curve from a 100 kΩ nominal value.
