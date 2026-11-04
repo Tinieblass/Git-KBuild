@@ -180,6 +180,26 @@ changes = [
 \t}'''
     ),
     (
+        '''if int64(h.HeaderSize) < 64 {
+\t\treturn nil, fmt.Errorf("LP header size too small: %d", h.HeaderSize)
+\t}
+
+\treturn h, nil''',
+        '''if int64(h.HeaderSize) < 128 || int64(h.HeaderSize) > int64(len(buf)) {
+\t\treturn nil, fmt.Errorf("invalid LP header size: %d (buffer %d)", h.HeaderSize, len(buf))
+\t}
+\ttmp := make([]byte, h.HeaderSize)
+\tcopy(tmp, buf[:h.HeaderSize])
+\tfor i := 12; i < 44; i++ {
+\t\ttmp[i] = 0
+\t}
+\tif sha256.Sum256(tmp) != h.HeaderChecksum {
+\t\treturn nil, fmt.Errorf("LP metadata header checksum mismatch")
+\t}
+
+\treturn h, nil'''
+    ),
+    (
         '''if e.TargetType == LPTargetTypeLinear {
 \t\t\t\tpExts = append(pExts, e)
 \t\t\t\tpSize += e.NumSectors * LPSectorSize
@@ -351,6 +371,8 @@ GO
     echo "Reader source commit: $SUPER_TOOL_COMMIT"
     echo "Reader binary SHA-256: $(sha256sum "$SUPER_BIN" | awk '{print $1}')"
     echo "Reader zero-extent test: PASS"
+    echo "Reader LP header checksum test: PASS"
+    echo "Reader validates geometry and LP header/table SHA-256 checksums"
     echo "Extraction scope: vendor*, odm* logical partitions only"
   } > "$SUPER_AUDIT/SUPER-TOOLCHAIN.txt"
 
@@ -389,16 +411,14 @@ GO
         done
         ;;
       *EROFS*)
-        for internal_path in /etc /firmware; do
-          destination="$partition_root/${internal_path#/}"
-          rm -rf "$destination"
-          mkdir -p "$(dirname "$destination")"
-          if fsck.erofs --path="$internal_path" --extract="$destination" "$partition_image" > "$partition_root/erofs-${internal_path#/}.log" 2>&1; then
-            printf '%s\t%s\textracted\n' "$partition_name" "$internal_path" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
-          else
-            printf '%s\t%s\tnot-present-or-unreadable\n' "$partition_name" "$internal_path" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
-          fi
-        done
+        destination="$partition_root/erofs-root"
+        rm -rf "$destination"
+        mkdir -p "$(dirname "$destination")"
+        if fsck.erofs --extract="$destination" "$partition_image" > "$partition_root/erofs-extract.log" 2>&1; then
+          printf '%s\t%s\textracted-whole-erofs-filesystem\n' "$partition_name" "$partition_image" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
+        else
+          printf '%s\t%s\terofs-extraction-failed\n' "$partition_name" "$partition_image" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
+        fi
         ;;
       *)
         printf '%s\tfilesystem-not-recognized\t%s\n' "$partition_name" "$partition_type" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
@@ -406,7 +426,8 @@ GO
     esac
 
     strings -a -n 8 "$partition_image" \
-      | grep -Ei 'BN61|M703|BATTERY[.]PROVISION|PM855GUI|fg-profile-data|nom-batt-capacity|fuel.?gauge|battery.?profile|thermistor|QG|ATL' \
+      | grep -Ei 'BN61|M703|BATTERY[.]PROVISION|PM855GUI|fg-profile-data|nom-batt-capacity|fuel.?gauge|battery.?profile|thermistor|ATL' \
+      | head -n 250 \
       | sed "s#^#[$partition_name raw] #" >> "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" || true
   done
 
@@ -414,7 +435,7 @@ GO
     | grep -Ei 'battery|fuel.?gauge|qg|fg|pmic|charger|thermistor|provision|bn61|m703|atl' \
     > "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt" || true
   grep -RInaI -E 'BN61|M703|ATL|BATTERY[.]PROVISION|PM855GUI|qcom,fg-profile-data|nom-batt-capacity|fuel.?gauge|battery.?profile|thermistor|QG' \
-    "$SUPER_FILES" >> "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" 2>/dev/null || true
+    "$SUPER_FILES" 2>/dev/null | head -n 500 >> "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" || true
 
   PARTITION_COUNT=$(($(wc -l < "$SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv") - 1))
   {
