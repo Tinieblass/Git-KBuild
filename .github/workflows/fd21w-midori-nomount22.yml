@@ -353,6 +353,73 @@ jobs:
           ! grep -n '^[[:space:]]*fallthrough;' drivers/kernelsu/policy/allowlist.c
           grep -n -B2 -A2 'fall through' drivers/kernelsu/policy/allowlist.c
 
+      - name: Backport nofault user access helpers to Linux 4.19
+        run: |
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/runtime/ksud_integration.c")
+          s = p.read_text()
+          marker = "// clang-format off"
+          helper = r'''/* Linux 4.19 compatibility: nofault user access helpers. */
+          static long ksu_strncpy_from_user_nofault(char *dst, const char __user *src, long count)
+          {
+              long i;
+              char ch;
+              if (count <= 0 || !access_ok(VERIFY_READ, src, count))
+                  return -EFAULT;
+              pagefault_disable();
+              for (i = 0; i < count; i++) {
+                  if (__get_user(ch, src + i)) {
+                      pagefault_enable();
+                      return -EFAULT;
+                  }
+                  dst[i] = ch;
+                  if (!ch) {
+                      pagefault_enable();
+                      return i;
+                  }
+              }
+              pagefault_enable();
+              return count;
+          }
+
+          static long ksu_copy_from_user_nofault(void *dst, const void __user *src, unsigned long n)
+          {
+              unsigned long left;
+              if (!access_ok(VERIFY_READ, src, n))
+                  return -EFAULT;
+              pagefault_disable();
+              left = __copy_from_user_inatomic(dst, src, n);
+              pagefault_enable();
+              return left ? -EFAULT : 0;
+          }
+
+          static long ksu_copy_to_user_nofault(void __user *dst, const void *src, unsigned long n)
+          {
+              unsigned long left;
+              if (!access_ok(VERIFY_WRITE, dst, n))
+                  return -EFAULT;
+              pagefault_disable();
+              left = __copy_to_user_inatomic(dst, src, n);
+              pagefault_enable();
+              return left ? -EFAULT : 0;
+          }
+          '''
+          if s.count(marker) != 1:
+              raise SystemExit("Expected one insertion marker in ksud_integration.c")
+          if "strncpy_from_user_nofault(" not in s or "copy_from_user_nofault(" not in s or "copy_to_user_nofault(" not in s:
+              raise SystemExit("Expected upstream nofault calls are missing")
+          if "ksu_strncpy_from_user_nofault" in s or "ksu_copy_from_user_nofault" in s or "ksu_copy_to_user_nofault" in s:
+              raise SystemExit("Compatibility helpers already present; refusing duplicate patch")
+          s = s.replace(marker, helper + "\\n" + marker, 1)
+          s = s.replace("strncpy_from_user_nofault(", "ksu_strncpy_from_user_nofault(", 1)
+          s = s.replace("copy_from_user_nofault(", "ksu_copy_from_user_nofault(", 1)
+          s = s.replace("copy_to_user_nofault(", "ksu_copy_to_user_nofault(", 1)
+          p.write_text(s)
+          PY
+          grep -n 'ksu_.*nofault' drivers/kernelsu/runtime/ksud_integration.c
+
       - name: Configure and verify kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
