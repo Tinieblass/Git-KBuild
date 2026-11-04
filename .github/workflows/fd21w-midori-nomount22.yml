@@ -223,7 +223,7 @@ jobs:
           from pathlib import Path
           p = Path("drivers/kernelsu/infra/su_mount_ns.c")
           s = p.read_text()
-          old = "#include <uapi/linux/mount.h>\\n"
+          old = "#include <uapi/linux/mount.h>"
           if s.count(old) != 1:
               raise SystemExit("Expected exactly one unavailable uapi/linux/mount.h include")
           if "#include <linux/fs.h>" not in s:
