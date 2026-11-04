@@ -420,6 +420,25 @@ jobs:
           PY
           grep -n 'ksu_.*nofault' drivers/kernelsu/runtime/ksud_integration.c
 
+      - name: Backport SELinux credential accessor to Linux 4.19
+        run: |
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/selinux/selinux.c")
+          s = p.read_text()
+          marker = '#include "ksu.h"\n'
+          compat = """\n/* Linux 4.19 keeps SELinux task state in cred->security. */\n#ifndef selinux_cred\n#define selinux_cred(cred) ((struct task_security_struct *)((cred)->security))\n#endif\n"""
+          if s.count(marker) != 1:
+              raise SystemExit("Expected one KernelSU SELinux include anchor")
+          if "Linux 4.19 keeps SELinux task state" in s:
+              raise SystemExit("SELinux 4.19 accessor compatibility patch already present")
+          s = s.replace(marker, marker + compat, 1)
+          p.write_text(s)
+          PY
+          grep -n -B2 -A3 'Linux 4.19 keeps SELinux task state' drivers/kernelsu/selinux/selinux.c
+          grep -n 'selinux_cred(cred)' drivers/kernelsu/selinux/selinux.c
+
       - name: Configure and verify kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
