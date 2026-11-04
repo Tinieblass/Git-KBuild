@@ -55,9 +55,11 @@ jobs:
 
       - name: Checkout historical W source snapshot
         run: |
-          git clone --filter=blob:none --no-checkout https://github.com/re-noroi/kernel_sm8250.git kernel_tree
-          git -C kernel_tree fetch --depth=1 origin "${SOURCE_BASE}"
-          git -C kernel_tree checkout --detach "${SOURCE_BASE}"
+          mkdir kernel_tree
+          git -C kernel_tree init
+          git -C kernel_tree remote add origin https://github.com/re-noroi/kernel_sm8250.git
+          git -C kernel_tree fetch --filter=blob:none --depth=1 origin "${SOURCE_BASE}"
+          git -C kernel_tree checkout --detach FETCH_HEAD
           echo "Kernel source: $(git -C kernel_tree rev-parse HEAD)"
           test "$(git -C kernel_tree rev-parse HEAD)" = "${SOURCE_BASE}"
 
