@@ -333,6 +333,21 @@ jobs:
           sed -i -e 's/qcom,mdss-pan-physical-width-dimension = <70>;/qcom,mdss-pan-physical-width-dimension = <695>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-k11a-38-08-0a-dsc-cmd.dtsi
           sed -i -e 's/qcom,mdss-pan-physical-height-dimension = <155>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-k11a-38-08-0a-dsc-cmd.dtsi
 
+      - name: Adapt KernelSU fallthrough marker to Linux 4.19
+        run: |
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/policy/allowlist.c")
+          s = p.read_text()
+          if s.count("        fallthrough;") != 1:
+              raise SystemExit("Expected exactly one KernelSU fallthrough marker; refusing unsafe patch")
+          s = s.replace("        fallthrough;", "        /* fall through */", 1)
+          p.write_text(s)
+          PY
+          ! grep -n '^[[:space:]]*fallthrough;' drivers/kernelsu/policy/allowlist.c
+          grep -n -B2 -A2 'fall through' drivers/kernelsu/policy/allowlist.c
+
       - name: Configure and verify kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
