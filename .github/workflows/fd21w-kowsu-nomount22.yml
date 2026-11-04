@@ -1,0 +1,254 @@
+name: Flash Kernel - FakeDreamer v2.1-W (KowSU + NoMount 2.2)
+
+run-name: FD v2.1-W | alioth | KowSU + NoMount 2.2 | j3s-miui-eff-uv
+
+on:
+  push:
+    branches:
+      - Flash-Kernel-FD21W-KowSU-NoMount22
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fd21w-kowsu-nomount22-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build matrix ${{ matrix.kernel }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        kernel: [1, 2, 3, 4]
+    env:
+      SOURCE_BASE: dc1defa88f947e28a14666151d6af2d084caa345
+      SOURCE_STOCK_GPU: 4687149afb1d57eda185d279a6743d8e918fddb8
+      KOWSU_SHA: 6ecdd69224fe6769e6c8715a4ef2b91602b23362
+      NOMOUNT_SHA: bf1847f98fed382369c43bfd652cd93774b9b8e3
+    steps:
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential flex gcc-aarch64-linux-gnu \
+            libelf-dev libncurses-dev libssl-dev python3 rsync unzip zip zstd
+
+      - name: Download original Neutron Clang
+        run: |
+          wget -q https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/06092026/neutron-clang-06092026.tar.zst -O clang.tar.zst
+          mkdir -p clang
+          unzstd -f clang.tar.zst
+          tar -xf clang.tar -C clang
+
+      - name: Checkout historical W source snapshot
+        run: |
+          git clone --filter=blob:none --no-checkout --depth=5 --branch stable \
+            https://github.com/re-noroi/kernel_sm8250.git kernel_tree
+          if [[ "${{ matrix.kernel }}" == "3" || "${{ matrix.kernel }}" == "4" ]]; then
+            git -C kernel_tree checkout --detach "${SOURCE_STOCK_GPU}"
+          else
+            git -C kernel_tree checkout --detach "${SOURCE_BASE}"
+          fi
+          echo "Kernel source: $(git -C kernel_tree rev-parse HEAD)"
+          test "$(git -C kernel_tree rev-parse HEAD)" = "${SOURCE_BASE}" -o \
+               "$(git -C kernel_tree rev-parse HEAD)" = "${SOURCE_STOCK_GPU}"
+
+      - name: Integrate pinned KowSU driver
+        run: |
+          cd kernel_tree
+          rm -rf KernelSU drivers/kernelsu
+          git clone https://github.com/KOWX712/KernelSU.git KernelSU
+          git -C KernelSU checkout --detach "${KOWSU_SHA}"
+          ln -s ../KernelSU/kernel drivers/kernelsu
+          test -f drivers/kernelsu/Kconfig
+          test -f drivers/kernelsu/Kbuild
+          grep -Fq 'source "drivers/kernelsu/Kconfig"' drivers/Kconfig
+          grep -Fq 'kernelsu/' drivers/Makefile
+
+      - name: Integrate pinned NoMount 2.2.0 driver
+        run: |
+          cd kernel_tree
+          rm -rf NoMount fs/nomount
+          git clone --filter=blob:none https://github.com/maxsteeel/nomount.git NoMount
+          git -C NoMount checkout --detach "${NOMOUNT_SHA}"
+          ln -s ../NoMount/kernel/src fs/nomount
+          test -f fs/nomount/Kconfig
+          test -f fs/nomount/Makefile
+          test -f fs/nomount/nomount.c
+          grep -Fq 'source "fs/nomount/Kconfig"' fs/Kconfig
+          grep -Fq 'CONFIG_NOMOUNT' fs/Makefile
+
+      - name: Preserve original backslashxx/KowSU configuration and switch only root/NoMount
+        run: |
+          cd kernel_tree
+          DEFCONFIG="arch/arm64/configs/vendor/alioth_defconfig"
+
+          # KowSU is based on backslashxx: retain its original KSU feature flags.
+          # Keep the W localversion used by the original builder.
+          sed -i -E 's/^CONFIG_LOCALVERSION="[^"]*"/CONFIG_LOCALVERSION="-FakeDreamer-W"/' "${DEFCONFIG}"
+
+          chmod +x ./scripts/config
+          ./scripts/config --file "${DEFCONFIG}" --enable KPROBES
+          ./scripts/config --file "${DEFCONFIG}" --enable KSU
+          ./scripts/config --file "${DEFCONFIG}" --enable NOMOUNT
+
+      - name: Select stock battery variant for matrix 3 and 4
+        if: ${{ matrix.kernel == 3 || matrix.kernel == 4 }}
+        run: |
+          cd kernel_tree
+          sed -i -e '/qcom,j3s-batt-profile;/d' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+          sed -i -e '/fg-gen4-batterydata-apollo-sun-5000mah.dtsi/d' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+
+      - name: Apply efficient CPU variant for matrix 2 and 4
+        if: ${{ matrix.kernel == 2 || matrix.kernel == 4 }}
+        run: |
+          cd kernel_tree
+          sed -i -e '/<2553600>,/c\<2553600>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<2649600>,/c\//<2649600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<2745600>,/c\//<2745600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<2841600>,/c\//<2841600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<3187200>;/c\//<3187200>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e 's/qcom,mdss-pan-physical-width-dimension = <70>;/qcom,mdss-pan-physical-width-dimension = <695>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-k11a-38-08-0a-dsc-cmd.dtsi
+          sed -i -e 's/qcom,mdss-pan-physical-height-dimension = <155>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-k11a-38-08-0a-dsc-cmd.dtsi
+
+      - name: Configure and verify kernel
+        run: |
+          export PATH="$(pwd)/clang/bin:$PATH"
+          export ARCH=arm64
+          export SUBARCH=ARM64
+          cd kernel_tree
+          make O=out vendor/alioth_defconfig
+          make O=out ARCH=arm64 headers_install
+          grep -qx 'CONFIG_KSU=y' out/.config
+          grep -qx 'CONFIG_KPROBES=y' out/.config
+          grep -qx 'CONFIG_EXT4_FS=y' out/.config
+          grep -qx 'CONFIG_NOMOUNT=y' out/.config
+          grep -qx 'CONFIG_LTO_CLANG_FULL=y' out/.config
+          grep -qx 'CONFIG_BPF=y' out/.config
+          grep -qx 'CONFIG_NTSYNC=y' out/.config
+          grep -qx 'CONFIG_LOCALVERSION="-FakeDreamer-W"' out/.config
+
+      - name: Build kernel and device trees
+        run: |
+          export PATH="$(pwd)/clang/bin:$PATH"
+          export ARCH=arm64
+          export SUBARCH=ARM64
+          export KBUILD_BUILD_USER="renoroi"
+          export KBUILD_BUILD_HOST="dreamstate"
+          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
+          cd kernel_tree
+          make O=out CC=clang -j"$(nproc --all)" CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
+
+          if [[ "${{ matrix.kernel }}" == "1" ]]; then
+            cp out/arch/arm64/boot/Image.gz ../Image.gz
+            mv out/arch/arm64/boot/dtbo.img ../alioth-j3s-dtbo-aosp.img
+            mv out/arch/arm64/boot/dtb.img ../alioth-normal-dtb
+          elif [[ "${{ matrix.kernel }}" == "2" ]]; then
+            mv out/arch/arm64/boot/dtbo.img ../alioth-j3s-dtbo-miui.img
+            mv out/arch/arm64/boot/dtb.img ../alioth-effcpu-dtb
+          elif [[ "${{ matrix.kernel }}" == "3" ]]; then
+            mv out/arch/arm64/boot/dtbo.img ../alioth-stock-dtbo-aosp.img
+            mv out/arch/arm64/boot/dtb.img ../alioth-normal-gpustk-dtb
+          else
+            mv out/arch/arm64/boot/dtbo.img ../alioth-stock-dtbo-miui.img
+            mv out/arch/arm64/boot/dtb.img ../alioth-effcpu-gpustk-dtb
+          fi
+
+      - name: Upload kernel matrix artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-1-${{ matrix.kernel }}
+          path: |
+            Image.gz
+            alioth-*.img
+            alioth-*-dtb
+            alioth-*-gpustk-dtb
+          if-no-files-found: error
+          retention-days: 7
+
+  package:
+    name: Package original AnyKernel3 variant
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ANYKERNEL_SHA: 40b2a7fbea8f8e1b41cdfc9c7f929d0a5ba21446
+    steps:
+      - name: Download matrix 1 (J3S / AOSP / normal CPU / UV GPU)
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel-1-1
+          path: kernel-1-1
+
+      - name: Download matrix 2 (J3S / MIUI / efficient CPU / UV GPU)
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel-1-2
+          path: kernel-1-2
+
+      - name: Download matrix 3 (stock battery / AOSP / normal CPU / stock GPU)
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel-1-3
+          path: kernel-1-3
+
+      - name: Download matrix 4 (stock battery / MIUI / efficient CPU / stock GPU)
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel-1-4
+          path: kernel-1-4
+
+      - name: Checkout original AnyKernel3 installer
+        run: |
+          git clone --filter=blob:none https://github.com/re-noroi/anykernel3-test.git AnyKernel3
+          git -C AnyKernel3 checkout --detach "${ANYKERNEL_SHA}"
+          git -C AnyKernel3 submodule update --init --recursive
+
+      - name: Assemble original AnyKernel3 package
+        run: |
+          cp kernel-1-1/Image.gz AnyKernel3/
+          cp kernel-1-1/alioth-j3s-dtbo-aosp.img AnyKernel3/
+          cp kernel-1-1/alioth-normal-dtb AnyKernel3/
+          cp kernel-1-2/alioth-j3s-dtbo-miui.img AnyKernel3/
+          cp kernel-1-2/alioth-effcpu-dtb AnyKernel3/
+          cp kernel-1-3/alioth-stock-dtbo-aosp.img AnyKernel3/
+          cp kernel-1-3/alioth-normal-gpustk-dtb AnyKernel3/
+          cp kernel-1-4/alioth-stock-dtbo-miui.img AnyKernel3/
+          cp kernel-1-4/alioth-effcpu-gpustk-dtb AnyKernel3/
+
+          ZIP_NAME="FlashKernel-FakeDreamer-v2.1-W-alioth-$(date -u +%Y%m%d)-j3s-miui-eff-uv.zip"
+          echo "ZIP_NAME=${ZIP_NAME}" >> "$GITHUB_ENV"
+
+          cat > BUILD-INFO.txt <<'EOF'
+          Target: FakeDreamer v2.1-W, POCO F3 alioth
+          Historical W source snapshot: re-noroi/kernel_sm8250 @ dc1defa88f947e28a14666151d6af2d084caa345 (2026-09-24)
+          Stock-GPU matrix patch: re-noroi/kernel_sm8250 @ 4687149afb1d57eda185d279a6743d8e918fddb8
+          KowSU: KOWX712/KernelSU @ 6ecdd69224fe6769e6c8715a4ef2b91602b23362 (2026-10-30)
+          KowSU manager signature: size 0x375, SHA-256 484fcba6e6c43b1fb09700633bf2fb4758f13cb0b2f4457b80d075084b26c588
+          KowSU requires the matching ksu_toolkit module for custom manager / uname features.
+          NoMount: maxsteeel/nomount @ bf1847f98fed382369c43bfd652cd93774b9b8e3 (v2.2.0 / protocol v22)
+          AnyKernel3: re-noroi/anykernel3-test @ 40b2a7fbea8f8e1b41cdfc9c7f929d0a5ba21446
+          Toolchain: Neutron Clang 06092026
+          LTO: full
+          Kernel config: KPROBES=y, KSU=y, NOMOUNT=y, EXT4_FS=y, BPF=y, NTSYNC=y
+          Flash variant selected by ZIP name: -j3s-miui-eff-uv
+          EOF
+
+          cd AnyKernel3
+          zip -qr "../${ZIP_NAME}" . -x ".git/*" ".github/*"
+          cd ..
+          sha256sum "${ZIP_NAME}" > SHA256SUMS
+
+      - name: Upload flashable ZIP and build report
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlashKernel-FD21W-alioth-j3s-miui-eff-uv
+          path: |
+            ${{ env.ZIP_NAME }}
+            BUILD-INFO.txt
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
