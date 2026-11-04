@@ -163,7 +163,7 @@ if [[ -n "$SUPER_IMAGE" ]]; then
 
   # The pinned reader's initial extractor omitted zero extents from partition
   # sizes/offsets and silently continued after extraction failures. Patch those
-  # cases explicitly and unit-test the sparse zero-extent layout before use.
+  # cases explicitly and unit-test zero extents plus LP metadata checksums before use.
   python3 - "$SUPER_TOOL/super.go" <<'PY'
 from pathlib import Path
 import sys
@@ -177,6 +177,14 @@ changes = [
 \t}''',
         '''if h.BlockDevices.NumElements != 1 {
 \t\treturn nil, fmt.Errorf("expected exactly one super block device, got %d", h.BlockDevices.NumElements)
+\t}'''
+    ),
+    (
+        '''if len(buf) < 64 {
+\t\treturn nil, fmt.Errorf("metadata buffer too small: %d", len(buf))
+\t}''',
+        '''if len(buf) < 128 {
+\t\treturn nil, fmt.Errorf("metadata buffer too small: %d", len(buf))
 \t}'''
     ),
     (
@@ -315,6 +323,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
 	"os"
 	"path/filepath"
 	"testing"
@@ -357,6 +367,23 @@ func TestExtractOnePreservesZeroExtentOffset(t *testing.T) {
 		if got[2*LPSectorSize+i] != 0xB2 {
 			t.Fatalf("second linear extent mismatch at %d", 2*LPSectorSize+i)
 		}
+	}
+}
+
+func TestParseHeaderValidatesHeaderChecksum(t *testing.T) {
+	buf := make([]byte, 128)
+	binary.LittleEndian.PutUint32(buf[0:4], LPMetadataHeaderMagic)
+	binary.LittleEndian.PutUint16(buf[4:6], 10)
+	binary.LittleEndian.PutUint16(buf[6:8], 0)
+	binary.LittleEndian.PutUint32(buf[8:12], 128)
+	sum := sha256.Sum256(buf)
+	copy(buf[12:44], sum[:])
+	if _, err := parseHeader(buf); err != nil {
+		t.Fatalf("valid header rejected: %v", err)
+	}
+	buf[44] ^= 1
+	if _, err := parseHeader(buf); err == nil {
+		t.Fatal("tampered LP header accepted without checksum error")
 	}
 }
 GO
