@@ -200,7 +200,7 @@ jobs:
           scripts/config --file out/.config --enable NOMOUNT
           make O=out olddefconfig
           # Override the upstream config fragment's legacy local version.
-          scripts/config --file out/.config --set-str LOCALVERSION "-FlashKernel"
+          scripts/config --file out/.config --set-str LOCALVERSION "-Flash-Kernel-v1.7"
           make O=out olddefconfig
           grep -qx 'CONFIG_NOMOUNT=y' out/.config
           grep -qx 'CONFIG_KSU=y' out/.config
@@ -210,7 +210,7 @@ jobs:
           grep -qx '# CONFIG_KSU_HACK_ARM64_BRANCH_LINK is not set' out/.config
           grep -qx 'CONFIG_KSU_LSM_SECURITY_HOOKS=y' out/.config
           grep -qx '# CONFIG_KSU_TAMPER_SYSCALL_TABLE is not set' out/.config
-          grep -qx 'CONFIG_LOCALVERSION="-FlashKernel"' out/.config
+          grep -qx 'CONFIG_LOCALVERSION="-Flash-Kernel-v1.7"' out/.config
           grep -E '^(CONFIG_MACH_XIAOMI|CONFIG_MACH_XIAOMI_SM8250|CONFIG_MACH_XIAOMI_ALIOTH|CONFIG_BUILD_ARM64_DT_OVERLAY|CONFIG_OVERLAY_FS=|CONFIG_KSU=|CONFIG_KPROBES=|CONFIG_KRETPROBES=|CONFIG_KSU_KPROBES_KSUD=|# CONFIG_KSU_HACK_ARM64_BRANCH_LINK is not set|CONFIG_KSU_LSM_SECURITY_HOOKS=|CONFIG_NOMOUNT=|CONFIG_LOCALVERSION=)' out/.config | tee "$GITHUB_WORKSPACE/config-report.txt"
       - name: Build Image.gz and stock alioth DTBO
         working-directory: kernel
@@ -282,11 +282,17 @@ jobs:
           grep -q 'qcom,fg-profile-data' "$OUT/j3s-overlay-check.dts"
           python3 "$GITHUB_WORKSPACE/tools/extract_android_dtbo.py" --image "$OUT/dtbo-j3s.img" --out "$OUT/j3s-dtbo-entries"
           J3S_ENTRY_COUNT=0
+          ENTRY_DTS="$OUT/j3s-entry-check.dts"
           for entry in "$OUT"/j3s-dtbo-entries/dtbo-*.dtb; do
-            if "$DTC" -q -I dtb -O dts "$entry" 2>/dev/null | grep -q 'j3ssun_5000mah'; then
-              J3S_ENTRY_COUNT=$((J3S_ENTRY_COUNT + 1))
+            # Do not pipe dtc into grep -q under pipefail: grep may close early and
+            # make dtc exit with SIGPIPE, falsely reporting zero matching entries.
+            if "$DTC" -q -I dtb -O dts -o "$ENTRY_DTS" "$entry" 2>/dev/null; then
+              if grep -q 'j3ssun_5000mah' "$ENTRY_DTS"; then
+                J3S_ENTRY_COUNT=$((J3S_ENTRY_COUNT + 1))
+              fi
             fi
           done
+          rm -f "$ENTRY_DTS"
           test "$J3S_ENTRY_COUNT" -gt 0
           {
             echo 'Flash Kernel J3S Sun 5000mAh profile verification'
