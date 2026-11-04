@@ -14,7 +14,7 @@ mkdir -p "$OUT/extracted" "$OUT/xbl-raw"
 REPORT="$OUT/SURYA-INDIA-FASTBOOT-AUDIT.txt"
 
 {
-  echo "POCO X3 India — official SURYAINGlobal V13.0.1.0.SJGINXM boot-chain and device-tree audit"
+  echo "POCO X3 India — official SURYAINGlobal V13.0.1.0.SJGINXM boot-chain, device-tree and dynamic-partition audit"
   echo "Firmware: $FIRMWARE_NAME"
   echo "Source: Xiaomi official bigota server, indexed by HyperOS Update / XM Firmware Updater"
   echo "Candidate Xiaomi CDN hosts: ${FIRMWARE_HOSTS[*]}"
@@ -114,7 +114,7 @@ if [[ "$ACTUAL_MD5" != "$EXPECTED_MD5" ]]; then
 fi
 
 tar -tzf "$OUT/$FIRMWARE_NAME" > "$OUT/archive-members.txt"
-grep -Ei '(^|/)(xbl|xbl_config|abl|tz|hyp|devcfg|uefi_sec|imagefv|boot|vendor_boot|dtbo)([.]elf|[.]mbn|[.]img)' \
+grep -Ei '(^|/)(xbl|xbl_config|abl|tz|hyp|devcfg|uefi_sec|imagefv|boot|vendor_boot|dtbo|super)([.]elf|[.]mbn|[.]img)' \
   "$OUT/archive-members.txt" > "$OUT/image-members.txt" || true
 if ! grep -Eiq '(^|/)xbl([.]elf|[.]img)' "$OUT/image-members.txt"; then
   echo "ERROR: verified India fastboot ROM contains no xbl.elf or xbl.img member." | tee -a "$REPORT"
@@ -134,6 +134,305 @@ while IFS= read -r member; do
   file "$image" | tee -a "$REPORT"
   sha256sum "$image" | tee -a "$REPORT"
 done < "$OUT/image-members.txt"
+
+# Inspect the India ROM's dynamic partitions as a separate firmware layer.
+SUPER_IMAGE="$(find "$OUT/extracted" -type f -name super.img -print -quit)"
+if [[ -n "$SUPER_IMAGE" ]]; then
+  SUPER_AUDIT="$OUT/super-audit"
+  SUPER_TOOL="$SUPER_AUDIT/lucky-arch-src"
+  SUPER_PARTS="$SUPER_AUDIT/partitions"
+  SUPER_FILES="$SUPER_AUDIT/files"
+  SUPER_BIN="$SUPER_AUDIT/lucky-arch"
+  SUPER_TOOL_COMMIT='09ba1a6b4b2c8d603fcb1d8bfe7cf167c9e0463b'
+  mkdir -p "$SUPER_AUDIT" "$SUPER_PARTS" "$SUPER_FILES"
+  : > "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
+  {
+    echo
+    echo "=== India super.img dynamic-partition inspection ==="
+    echo "super.img: $SUPER_IMAGE"
+    echo "super.img bytes: $(stat -c %s "$SUPER_IMAGE")"
+    echo "super.img SHA-256: $(sha256sum "$SUPER_IMAGE" | awk '{print $1}')"
+    echo "Partition reader: https://github.com/soe1hom-arch/lucky-arch"
+    echo "Pinned source commit: $SUPER_TOOL_COMMIT"
+  } | tee -a "$REPORT"
+
+  git clone --filter=blob:none --no-checkout https://github.com/soe1hom-arch/lucky-arch.git "$SUPER_TOOL"
+  git -C "$SUPER_TOOL" fetch --depth=1 origin "$SUPER_TOOL_COMMIT"
+  git -C "$SUPER_TOOL" checkout --detach "$SUPER_TOOL_COMMIT"
+  test "$(git -C "$SUPER_TOOL" rev-parse HEAD)" = "$SUPER_TOOL_COMMIT"
+
+  # The pinned reader's initial extractor omitted zero extents from partition
+  # sizes/offsets and silently continued after extraction failures. Patch those
+  # cases explicitly and unit-test the sparse zero-extent layout before use.
+  python3 - "$SUPER_TOOL/super.go" <<'PY'
+from pathlib import Path
+import sys
+
+p = Path(sys.argv[1])
+s = p.read_text()
+changes = [
+    (
+        '''if h.BlockDevices.NumElements == 0 {
+\t\treturn nil, fmt.Errorf("LP metadata has no block devices")
+\t}''',
+        '''if h.BlockDevices.NumElements != 1 {
+\t\treturn nil, fmt.Errorf("expected exactly one super block device, got %d", h.BlockDevices.NumElements)
+\t}'''
+    ),
+    (
+        '''if e.TargetType == LPTargetTypeLinear {
+\t\t\t\tpExts = append(pExts, e)
+\t\t\t\tpSize += e.NumSectors * LPSectorSize
+\t\t\t}''',
+        '''if e.TargetType == LPTargetTypeLinear || e.TargetType == LPTargetTypeZero {
+\t\t\t\tpExts = append(pExts, e)
+\t\t\t\tpSize += e.NumSectors * LPSectorSize
+\t\t\t} else {
+\t\t\t\treturn nil, fmt.Errorf("partition %s: unsupported extent target type %d", name, e.TargetType)
+\t\t\t}'''
+    ),
+    (
+        '''func (sp *SuperImage) ExtractPartitions(outDir string) error {
+\tif err := os.MkdirAll(outDir, 0755); err != nil {
+\t\treturn fmt.Errorf("creating output directory: %w", err)
+\t}
+
+\textracted := 0
+\tfor _, part := range sp.Partitions {
+\t\tif sp.verbose {
+\t\t\tfmt.Printf("Extracting %s (%s)...\\n", part.Name, formatSize(int64(part.Size)))
+\t\t}
+\t\tif err := sp.extractOne(part, outDir); err != nil {
+\t\t\tfmt.Fprintf(os.Stderr, "Warning: %s: %v\\n", part.Name, err)
+\t\t\tcontinue
+\t\t}
+\t\textracted++
+\t}
+
+\tif sp.verbose {
+\t\tfmt.Printf("\\nExtracted %d partition(s) to %s\\n", extracted, outDir)
+\t}
+\treturn nil
+}''',
+        '''func (sp *SuperImage) ExtractPartitions(outDir string) error {
+\tif err := os.MkdirAll(outDir, 0755); err != nil {
+\t\treturn fmt.Errorf("creating output directory: %w", err)
+\t}
+
+\tselected := 0
+\textracted := 0
+\tfor _, part := range sp.Partitions {
+\t\tif !strings.HasPrefix(part.Name, "vendor") && !strings.HasPrefix(part.Name, "odm") {
+\t\t\tcontinue
+\t\t}
+\t\tselected++
+\t\tif sp.verbose {
+\t\t\tfmt.Printf("Extracting %s (%s)...\\n", part.Name, formatSize(int64(part.Size)))
+\t\t}
+\t\tif err := sp.extractOne(part, outDir); err != nil {
+\t\t\treturn fmt.Errorf("extract %s: %w", part.Name, err)
+\t\t}
+\t\textracted++
+\t}
+
+\tif selected == 0 {
+\t\treturn fmt.Errorf("no vendor/odm logical partitions found")
+\t}
+\tif extracted != selected {
+\t\treturn fmt.Errorf("extracted %d of %d selected vendor/odm partitions", extracted, selected)
+\t}
+\tif sp.verbose {
+\t\tfmt.Printf("\\nExtracted %d vendor/odm partition(s) to %s\\n", extracted, outDir)
+\t}
+\treturn nil
+}'''
+    ),
+    (
+        '''\tfor idx, ext := range part.Extents {
+\t\tif ext.TargetType != LPTargetTypeLinear {
+\t\t\tcontinue
+\t\t}
+\t\tphysOff := int64(ext.TargetData * LPSectorSize)
+\t\tdataSize := int64(ext.NumSectors * LPSectorSize)
+\t\tif dataSize == 0 {
+\t\t\tcontinue
+\t\t}''',
+        '''\tfor idx, ext := range part.Extents {
+\t\tdataSize := int64(ext.NumSectors * LPSectorSize)
+\t\tif dataSize == 0 {
+\t\t\tcontinue
+\t\t}
+\t\tif ext.TargetType == LPTargetTypeZero {
+\t\t\twritten += dataSize
+\t\t\tcontinue
+\t\t}
+\t\tif ext.TargetType != LPTargetTypeLinear {
+\t\t\treturn fmt.Errorf("extent %d: unsupported target type %d", idx, ext.TargetType)
+\t\t}
+\t\tphysOff := int64(ext.TargetData * LPSectorSize)'''
+    ),
+    (
+        '''\treturn out.Sync()
+}''',
+        '''\tif written != int64(part.Size) {
+\t\treturn fmt.Errorf("partition %s: extracted extent size %d != metadata size %d", part.Name, written, part.Size)
+\t}
+\treturn out.Sync()
+}'''
+    )
+]
+for old, new in changes:
+    count = s.count(old)
+    if count != 1:
+        raise SystemExit(f"Expected one patch target in super.go, found {count}: {old[:90]!r}")
+    s = s.replace(old, new, 1)
+p.write_text(s)
+print("PATCHED: zero extents preserve partition offsets; unknown extents and multi-device metadata fail closed; only vendor/odm partitions are extracted; extraction failures are fatal.")
+PY
+
+  cat > "$SUPER_TOOL/super_zero_extent_test.go" <<'GO'
+package main
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestExtractOnePreservesZeroExtentOffset(t *testing.T) {
+	payload := make([]byte, 2*LPSectorSize)
+	for i := 0; i < LPSectorSize; i++ {
+		payload[i] = 0xA1
+		payload[LPSectorSize+i] = 0xB2
+	}
+	sp := &SuperImage{reader: bytes.NewReader(payload)}
+	part := PartitionInfo{
+		Name: "vendor_a",
+		Size: 3 * LPSectorSize,
+		Extents: []LpMetadataExtent{
+			{NumSectors: 1, TargetType: LPTargetTypeLinear, TargetData: 0},
+			{NumSectors: 1, TargetType: LPTargetTypeZero},
+			{NumSectors: 1, TargetType: LPTargetTypeLinear, TargetData: 1},
+		},
+	}
+	dir := t.TempDir()
+	if err := sp.extractOne(part, dir); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(filepath.Join(dir, "vendor_a.img"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 3*LPSectorSize {
+		t.Fatalf("output size = %d, want %d", len(got), 3*LPSectorSize)
+	}
+	for i := 0; i < LPSectorSize; i++ {
+		if got[i] != 0xA1 {
+			t.Fatalf("first linear extent mismatch at %d", i)
+		}
+		if got[LPSectorSize+i] != 0 {
+			t.Fatalf("zero extent is not zero at %d", LPSectorSize+i)
+		}
+		if got[2*LPSectorSize+i] != 0xB2 {
+			t.Fatalf("second linear extent mismatch at %d", 2*LPSectorSize+i)
+		}
+	}
+}
+GO
+
+  (
+    cd "$SUPER_TOOL"
+    gofmt -w super.go super_zero_extent_test.go
+    go test ./...
+    go build -trimpath -o "$SUPER_BIN" .
+  )
+  {
+    echo "Reader source commit: $SUPER_TOOL_COMMIT"
+    echo "Reader binary SHA-256: $(sha256sum "$SUPER_BIN" | awk '{print $1}')"
+    echo "Reader zero-extent test: PASS"
+    echo "Extraction scope: vendor*, odm* logical partitions only"
+  } > "$SUPER_AUDIT/SUPER-TOOLCHAIN.txt"
+
+  "$SUPER_BIN" -v -l "$SUPER_IMAGE" 2>&1 | tee "$SUPER_AUDIT/SUPER-PARTITIONS.txt"
+  "$SUPER_BIN" -v -o "$SUPER_PARTS" "$SUPER_IMAGE" 2>&1 | tee "$SUPER_AUDIT/SUPER-EXTRACTION-LOG.txt"
+
+  printf 'partition\tbytes\tsha256\tfile_type\n' > "$SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv"
+  : > "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt"
+  : > "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt"
+  mapfile -d '' SUPER_PARTITION_FILES < <(find "$SUPER_PARTS" -maxdepth 1 -type f \( -name 'vendor*.img' -o -name 'odm*.img' \) -print0 | sort -z)
+  if [[ "${#SUPER_PARTITION_FILES[@]}" -eq 0 ]]; then
+    echo "ERROR: the super image exposed no vendor/odm partition images." | tee -a "$REPORT"
+    exit 6
+  fi
+
+  for partition_image in "${SUPER_PARTITION_FILES[@]}"; do
+    partition_name="$(basename "${partition_image%.img}")"
+    partition_bytes="$(stat -c %s "$partition_image")"
+    partition_sha="$(sha256sum "$partition_image" | awk '{print $1}')"
+    partition_type="$(file -b "$partition_image")"
+    printf '%s\t%s\t%s\t%s\n' "$partition_name" "$partition_bytes" "$partition_sha" "$partition_type" >> "$SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv"
+    partition_root="$SUPER_FILES/$partition_name"
+    mkdir -p "$partition_root"
+
+    case "$partition_type" in
+      *ext4*|*ext3*|*ext2*)
+        for internal_path in /etc /firmware; do
+          destination="$partition_root/${internal_path#/}"
+          rm -rf "$destination"
+          mkdir -p "$(dirname "$destination")"
+          if debugfs -R "rdump $internal_path $destination" "$partition_image" > "$partition_root/rdump-${internal_path#/}.log" 2>&1; then
+            printf '%s\t%s\textracted\n' "$partition_name" "$internal_path" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
+          else
+            printf '%s\t%s\tnot-present-or-unreadable\n' "$partition_name" "$internal_path" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
+          fi
+        done
+        ;;
+      *EROFS*)
+        for internal_path in /etc /firmware; do
+          destination="$partition_root/${internal_path#/}"
+          rm -rf "$destination"
+          mkdir -p "$(dirname "$destination")"
+          if fsck.erofs --path="$internal_path" --extract="$destination" "$partition_image" > "$partition_root/erofs-${internal_path#/}.log" 2>&1; then
+            printf '%s\t%s\textracted\n' "$partition_name" "$internal_path" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
+          else
+            printf '%s\t%s\tnot-present-or-unreadable\n' "$partition_name" "$internal_path" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
+          fi
+        done
+        ;;
+      *)
+        printf '%s\tfilesystem-not-recognized\t%s\n' "$partition_name" "$partition_type" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
+        ;;
+    esac
+
+    strings -a -n 8 "$partition_image" \
+      | grep -Ei 'BN61|M703|BATTERY[.]PROVISION|PM855GUI|fg-profile-data|nom-batt-capacity|fuel.?gauge|battery.?profile|thermistor|QG|ATL' \
+      | sed "s#^#[$partition_name raw] #" >> "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" || true
+  done
+
+  find "$SUPER_FILES" -type f -print \
+    | grep -Ei 'battery|fuel.?gauge|qg|fg|pmic|charger|thermistor|provision|bn61|m703|atl' \
+    > "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt" || true
+  grep -RInaI -E 'BN61|M703|ATL|BATTERY[.]PROVISION|PM855GUI|qcom,fg-profile-data|nom-batt-capacity|fuel.?gauge|battery.?profile|thermistor|QG' \
+    "$SUPER_FILES" >> "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" 2>/dev/null || true
+
+  PARTITION_COUNT=$(($(wc -l < "$SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv") - 1))
+  {
+    echo
+    echo "Dynamic partitions: $PARTITION_COUNT vendor/odm partition image(s) extracted and hashed."
+    echo "Partition manifest: $SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv"
+    echo "Battery-related file paths: $(wc -l < "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt" | tr -d '[:space:]')"
+    echo "Battery-related file/string hits: $(wc -l < "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" | tr -d '[:space:]')"
+    echo "Filesystem extraction log: $SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
+  } | tee -a "$REPORT"
+  sed -n '1,250p' "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt" | tee -a "$REPORT"
+  sed -n '1,500p' "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" | tee -a "$REPORT"
+
+  # Keep only compact, reproducible evidence in the artifact.
+  rm -rf "$SUPER_PARTS" "$SUPER_FILES" "$SUPER_TOOL" "$SUPER_BIN"
+else
+  echo "WARNING: no super.img member found in the checksum-verified India fastboot ROM; dynamic partitions were not inspected." | tee -a "$REPORT"
+fi
 
 
 BATTERY_HITS="$OUT/india-device-tree-battery-hits.txt"
@@ -317,6 +616,9 @@ while IFS= read -r member; do
   [[ "$image" == "$XBL" ]] && continue
   name="$(basename "$member")"
   name="${name%.*}"
+  if [[ "$name" == "super" ]]; then
+    continue
+  fi
   echo | tee -a "$REPORT"
   echo "=== Additional India firmware-volume scan: $member ===" | tee -a "$REPORT"
   set +e
