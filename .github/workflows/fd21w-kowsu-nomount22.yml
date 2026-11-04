@@ -80,7 +80,7 @@ jobs:
               raise SystemExit("Linux 4.19 linux/kernel.h is missing")
           p.write_text(s.replace(old, new, 1))
           PY
-          grep -n -E 'linux/(kernel|minmax)\\.h' drivers/kernelsu/sulog/event.c
+          grep -n -E 'linux/(kernel|minmax)\.h' drivers/kernelsu/sulog/event.c
           ! grep -Fq '#include <linux/minmax.h>' drivers/kernelsu/sulog/event.c
 
           # Adapt KernelSU package observer to this vendor Linux 4.19 fsnotify/task_work API.
