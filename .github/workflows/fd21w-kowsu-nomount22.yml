@@ -111,7 +111,7 @@ jobs:
           PY
           grep -n -A18 'static int ksu_handle_inode_event' drivers/kernelsu/manager/pkg_observer.c
           grep -n -A2 'static const struct fsnotify_ops' drivers/kernelsu/manager/pkg_observer.c
-          ! grep -q 'TWA_RESUME\|handle_inode_event' drivers/kernelsu/manager/pkg_observer.c
+          ! grep -q 'TWA_RESUME\|\.handle_inode_event' drivers/kernelsu/manager/pkg_observer.c
 
           # Kernel 4.19 already gets its page-table interfaces through linux/mm.h.
           # The newer linux/pgtable.h wrapper is absent in this source tree.
