@@ -1,0 +1,980 @@
+name: Flash Kernel - FakeDreamer v2.1-W (KowSU, NoMount OFF diagnostic)
+
+run-name: FD v2.1-W | alioth | KowSU / NoMount OFF | j3s-miui-eff-uv
+
+on:
+  push:
+    branches:
+      - Flash-Kernel-KowSU-NoMount-OFF-DIAG-CLEAN
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fd21w-kowsu-nomount-off-diag-clean-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build matrix ${{ matrix.kernel }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        kernel: [2]
+    env:
+      SOURCE_BASE: afba74c277a858f7ee46463f5ff6b7bfbdb6546a
+      SOURCE_STOCK_GPU: 4687149afb1d57eda185d279a6743d8e918fddb8
+      KOWSU_SHA: 6ecdd69224fe6769e6c8715a4ef2b91602b23362
+      NOMOUNT_SHA: bf1847f98fed382369c43bfd652cd93774b9b8e3
+    steps:
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential flex gcc-aarch64-linux-gnu \
+            libelf-dev libncurses-dev libssl-dev python3 rsync unzip zip zstd
+
+      - name: Cache original Neutron Clang
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/neutron-clang-06092026.tar.zst
+          key: neutron-clang-06092026-${{ runner.os }}-v1
+
+      - name: Download original Neutron Clang
+        run: |
+          mkdir -p ~/.cache
+          if [[ ! -s ~/.cache/neutron-clang-06092026.tar.zst ]]; then
+            wget -q https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/06092026/neutron-clang-06092026.tar.zst -O ~/.cache/neutron-clang-06092026.tar.zst
+          fi
+          cp ~/.cache/neutron-clang-06092026.tar.zst clang.tar.zst
+          mkdir -p clang
+          unzstd -f clang.tar.zst
+          tar -xf clang.tar -C clang
+
+      - name: Checkout historical W source snapshot
+        run: |
+          mkdir kernel_tree
+          git -C kernel_tree init
+          git -C kernel_tree remote add origin https://github.com/re-noroi/kernel_sm8250.git
+          git -C kernel_tree fetch --filter=blob:none --depth=1 origin "${SOURCE_BASE}"
+          git -C kernel_tree checkout --detach FETCH_HEAD
+          echo "Kernel source: $(git -C kernel_tree rev-parse HEAD)"
+          test "$(git -C kernel_tree rev-parse HEAD)" = "${SOURCE_BASE}"
+
+      - name: Integrate pinned KowSU driver
+        run: |
+          cd kernel_tree
+          rm -rf KernelSU drivers/kernelsu
+          git clone https://github.com/KOWX712/KernelSU.git KernelSU
+          git -C KernelSU checkout --detach "${KOWSU_SHA}"
+          ln -s ../KernelSU/kernel drivers/kernelsu
+
+          # Linux 4.19 has min_t()/min() in linux/kernel.h, not linux/minmax.h.
+          # Keep the driver logic unchanged and swap only the unavailable wrapper header.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/sulog/event.c")
+          s = p.read_text()
+          old = "#include <linux/minmax.h>"
+          new = "#include <linux/kernel.h>"
+          if s.count(old) != 1:
+              raise SystemExit("Expected exactly one linux/minmax.h include in KernelSU sulog/event.c")
+          if new in s:
+              raise SystemExit("linux/kernel.h compatibility include already present; refusing duplicate")
+          if not Path("include/linux/kernel.h").is_file():
+              raise SystemExit("Linux 4.19 linux/kernel.h is missing")
+          p.write_text(s.replace(old, new, 1))
+          PY
+          grep -n -E 'linux/(kernel|minmax)\.h' drivers/kernelsu/sulog/event.c
+          ! grep -Fq '#include <linux/minmax.h>' drivers/kernelsu/sulog/event.c
+
+          # Adapt KernelSU package observer to this vendor Linux 4.19 fsnotify/task_work API.
+          # 4.19 uses a bool notify argument (not TWA_RESUME), and fsnotify_ops
+          # exposes handle_event(group, inode, mask, data, type, filename, cookie, iter_info).
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/manager/pkg_observer.c")
+          s = p.read_text()
+
+          old_task = "task_work_add(current, cb, TWA_RESUME)"
+          if s.count(old_task) != 1:
+              raise SystemExit("Expected one TWA_RESUME task_work_add call; refusing unsafe patch")
+          s = s.replace(old_task, "task_work_add(current, cb, true)", 1)
+
+          start = "static int ksu_handle_inode_event("
+          end = "\nstatic int add_mark_on_inode("
+          a = s.find(start)
+          b = s.find(end, a + 1)
+          if a < 0 or b < 0:
+              raise SystemExit("Could not locate package observer inode callback")
+          old_block = s[a:b]
+          if "struct fsnotify_mark *mark" not in old_block or ".handle_inode_event" not in s:
+              raise SystemExit("Unexpected package observer callback; refusing unsafe patch")
+          new_block = """static int ksu_handle_inode_event(struct fsnotify_group *group, struct inode *inode,
+                                  u32 mask, const void *data, int data_type,
+                                  const unsigned char *file_name, u32 cookie,
+                                  struct fsnotify_iter_info *iter_info)
+          {
+              if (!file_name)
+                  return 0;
+              if (mask & FS_ISDIR)
+                  return 0;
+              if (strlen(file_name) == 13 && !memcmp(file_name, "packages.list", 13)) {
+                  pr_info("packages.list detected: %d\\n", mask);
+                  ksu_defer_track_throne();
+              }
+              return 0;
+          }
+
+          static const struct fsnotify_ops ksu_ops = {
+              .handle_event = ksu_handle_inode_event,
+          };
+          """
+          s = s[:a] + new_block + s[b:]
+          p.write_text(s)
+          PY
+          grep -n -A18 'static int ksu_handle_inode_event' drivers/kernelsu/manager/pkg_observer.c
+          grep -n -A2 'static const struct fsnotify_ops' drivers/kernelsu/manager/pkg_observer.c
+          ! grep -q 'TWA_RESUME\|\.handle_inode_event' drivers/kernelsu/manager/pkg_observer.c
+
+          # Kernel 4.19 already gets its page-table interfaces through linux/mm.h.
+          # The newer linux/pgtable.h wrapper is absent in this source tree.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/feature/sucompat.c")
+          s = p.read_text()
+          old = "#include <linux/pgtable.h>"
+          new = """#if defined(__has_include)
+          #if __has_include(<linux/pgtable.h>)
+          #include <linux/pgtable.h>
+          #endif
+          #else
+          #include <linux/pgtable.h>
+          #endif"""
+          if s.count(old) != 1:
+              raise SystemExit("Expected one pgtable include; refusing unsafe compatibility patch")
+          p.write_text(s.replace(old, new, 1))
+          PY
+          grep -n -B2 -A5 'linux/pgtable.h' drivers/kernelsu/feature/sucompat.c
+          test -f drivers/kernelsu/Kconfig
+          test -f drivers/kernelsu/Kbuild
+          grep -Fq 'source "drivers/kernelsu/Kconfig"' drivers/Kconfig
+          grep -Fq 'kernelsu/' drivers/Makefile
+
+          # Kernel 4.19 has no MODULE_IMPORT_NS; guard newer KernelSU namespace metadata.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/core/init.c")
+          s = p.read_text()
+          lines = s.splitlines()
+          start = next((i for i, line in enumerate(lines) if line.strip() == "#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)"), -1)
+          if start < 0:
+              if "MODULE_IMPORT_NS(" not in s or "#ifdef MODULE_IMPORT_NS" not in s:
+                  raise SystemExit("Could not locate namespace metadata block")
+          else:
+              end = next((i for i in range(start + 1, len(lines)) if lines[i].strip() == "#endif"), -1)
+              block = lines[start:end + 1] if end >= 0 else []
+              if end < 0 or sum("MODULE_IMPORT_NS(" in line for line in block) != 2:
+                  raise SystemExit("Unexpected MODULE_IMPORT_NS block; refusing unsafe patch")
+              if start == 0 or lines[start - 1].strip() != "#ifdef MODULE_IMPORT_NS":
+                  lines[start:start] = ["#ifdef MODULE_IMPORT_NS"]
+                  end += 1
+                  lines.insert(end + 1, "#endif")
+          p.write_text("\n".join(lines) + ("\n" if s.endswith("\n") else ""))
+          PY
+          grep -n -B1 -A7 'MODULE_IMPORT_NS' drivers/kernelsu/core/init.c
+
+          # Linux 4.19 may expose only the non-priority syscall trace registration API
+          # when CONFIG_TRACEPOINTS is disabled. Preserve INT_MIN priority where supported.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/hook/syscall_hook_manager.c")
+          s = p.read_text()
+          old = "    ret = register_trace_prio_sys_enter(ksu_sys_enter_handler, NULL, INT_MIN);"
+          new = """#ifdef CONFIG_TRACEPOINTS
+              ret = register_trace_prio_sys_enter(ksu_sys_enter_handler, NULL, INT_MIN);
+          #else
+              ret = register_trace_sys_enter(ksu_sys_enter_handler, NULL);
+          #endif"""
+          if s.count(old) != 1:
+              raise SystemExit("Expected one priority sys_enter registration; refusing unsafe patch")
+          p.write_text(s.replace(old, new, 1))
+          PY
+          grep -n -B2 -A4 'register_trace_.*sys_enter' drivers/kernelsu/hook/syscall_hook_manager.c
+
+          # Linux 4.19 provides probe_kernel_write(), not copy_to_kernel_nofault().
+          # Both perform a fault-safe kernel-memory write and return 0 / -EFAULT.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/hook/arm64/patch_memory.c")
+          s = p.read_text()
+          old = "ret = (int)copy_to_kernel_nofault(map, src, len);"
+          new = "ret = (int)probe_kernel_write(map, src, len);"
+          if s.count(old) != 1:
+              raise SystemExit("Expected one copy_to_kernel_nofault call; refusing unsafe patch")
+          if "probe_kernel_write" not in Path("include/linux/uaccess.h").read_text():
+              raise SystemExit("Kernel 4.19 probe_kernel_write declaration missing")
+          p.write_text(s.replace(old, new, 1))
+          PY
+          grep -n -B3 -A3 'probe_kernel_write(map' drivers/kernelsu/hook/arm64/patch_memory.c
+          grep -Fq 'EXPORT_SYMBOL_GPL(probe_kernel_write)' mm/maccess.c
+
+          # Adapt KernelSU's fd wrapper to the historical vendor 4.19 VFS API.
+          # iopoll is not part of this 4.19 file_operations; REMAP_FILE_DEDUP and
+          # remap_file_range are also absent. SELinux 4.19 exposes i_security directly.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/infra/file_wrapper.c")
+          s = p.read_text()
+
+          start = "#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)\nstatic int ksu_wrapper_iopoll"
+          end = "\n#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0)\nstatic int ksu_wrapper_iterate"
+          a = s.find(start)
+          b = s.find(end, a + 1)
+          if a < 0 or b < 0:
+              raise SystemExit("Could not locate iopoll wrapper block")
+          block = s[a:b]
+          s = s[:a] + "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)\n" + block + "\n#endif\n" + s[b:]
+
+          old = "    p->ops.iopoll = fp->f_op->iopoll ? ksu_wrapper_iopoll : NULL;\n"
+          if s.count(old) != 1:
+              raise SystemExit("Expected one iopoll file_operations assignment")
+          s = s.replace(old, "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)\n" + old + "#endif\n", 1)
+
+          start = "static loff_t ksu_wrapper_remap_file_range("
+          end = "\nstatic int ksu_wrapper_fadvise"
+          a = s.find(start)
+          b = s.find(end, a + 1)
+          if a < 0 or b < 0:
+              raise SystemExit("Could not locate remap_file_range wrapper block")
+          block = s[a:b]
+          s = s[:a] + "#ifdef REMAP_FILE_DEDUP\n" + block + "\n#endif\n" + s[b:]
+
+          old = "    p->ops.remap_file_range = fp->f_op->remap_file_range ? ksu_wrapper_remap_file_range : NULL;\n"
+          if s.count(old) != 1:
+              raise SystemExit("Expected one remap_file_range file_operations assignment")
+          s = s.replace(old, "#ifdef REMAP_FILE_DEDUP\n" + old + "#endif\n", 1)
+
+          old = "    struct inode_security_struct *wrapper_sec = selinux_inode(wrapper_inode);"
+          new = "    struct inode_security_struct *wrapper_sec = (struct inode_security_struct *)wrapper_inode->i_security;"
+          if s.count(old) != 1:
+              raise SystemExit("Expected one selinux_inode() call")
+          s = s.replace(old, new, 1)
+
+          p.write_text(s)
+          PY
+          grep -n -B2 -A3 'KERNEL_VERSION(5, 1, 0)' drivers/kernelsu/infra/file_wrapper.c
+          grep -n -B2 -A3 'REMAP_FILE_DEDUP' drivers/kernelsu/infra/file_wrapper.c
+          grep -n 'wrapper_sec =' drivers/kernelsu/infra/file_wrapper.c
+
+          # Kernel 4.19 ARM64 uses NR_syscalls; newer seccomp headers name
+          # this bound SECCOMP_ARCH_NATIVE_NR. Keep the native syscall bitmap sized
+          # to the exact architecture syscall range on both kernel generations.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/infra/seccomp_cache.c")
+          s = p.read_text()
+          anchor = "#include <linux/seccomp.h>\n"
+          addition = "#include <asm/unistd.h>\n\n#ifndef SECCOMP_ARCH_NATIVE_NR\n#define SECCOMP_ARCH_NATIVE_NR NR_syscalls\n#endif\n"
+          if s.count(anchor) != 1:
+              raise SystemExit("Expected one linux/seccomp.h include in seccomp_cache.c")
+          if "SECCOMP_ARCH_NATIVE_NR" in s and "#define SECCOMP_ARCH_NATIVE_NR" not in s:
+              s = s.replace(anchor, anchor + addition, 1)
+          elif "#define SECCOMP_ARCH_NATIVE_NR NR_syscalls" not in s:
+              raise SystemExit("Unexpected seccomp syscall-bound state")
+          if "NR_syscalls" not in Path("arch/arm64/include/asm/unistd.h").read_text():
+              raise SystemExit("ARM64 NR_syscalls definition is missing")
+          p.write_text(s)
+          PY
+          grep -n -B2 -A3 'SECCOMP_ARCH_NATIVE_NR' drivers/kernelsu/infra/seccomp_cache.c
+      - name: Disable incompatible SELinux hide backend on Linux 4.19
+        run: |
+          cd kernel_tree
+          # The pinned KowSU/MidoriSU selinux_hide.c uses post-5.10 SELinux
+          # internals (selinux_state.policy/status_page and selinux_cred).
+          # Linux 4.19 has a different policy representation. Keep normal
+          # SELinux policy/rule support, but compile no-op lifecycle hooks
+          # instead of shipping the unsupported optional SELinux-hide feature.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/Kbuild")
+          s = p.read_text()
+          old = "kernelsu-objs += feature/selinux_hide.o"
+          new = "kernelsu-objs += feature/selinux_hide_compat.o"
+          if s.count(old) != 1:
+              raise SystemExit("Expected exactly one SELinux hide object in KernelSU Kbuild")
+          p.write_text(s.replace(old, new, 1))
+          stub = Path("drivers/kernelsu/feature/selinux_hide_compat.c")
+          if stub.exists():
+              raise SystemExit("SELinux hide compatibility stub already exists")
+          stub.write_text("""/* Linux 4.19 compatibility: optional SELinux-hide backend is unavailable. */
+          #include <linux/init.h>
+          #include "selinux_hide.h"
+
+          void ksu_selinux_hide_init(void) {}
+          void ksu_selinux_hide_exit(void) {}
+          void ksu_selinux_hide_drop_backup_if_unused(void) {}
+          void ksu_selinux_hide_handle_second_stage(void) {}
+          void ksu_selinux_hide_handle_post_fs_data(void) {}
+          """)
+          PY
+          grep -Fq 'feature/selinux_hide_compat.o' drivers/kernelsu/Kbuild
+          ! grep -Fq 'feature/selinux_hide.o' drivers/kernelsu/Kbuild
+          test -s drivers/kernelsu/feature/selinux_hide_compat.c
+          grep -n 'ksu_selinux_hide_' drivers/kernelsu/feature/selinux_hide_compat.c
+
+      - name: Adapt mount namespace header to Linux 4.19
+        run: |
+          cd kernel_tree
+          # This 4.19 tree has no uapi/linux/mount.h. linux/fs.h already
+          # includes uapi/linux/fs.h, which defines MS_PRIVATE and MS_REC.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/infra/su_mount_ns.c")
+          s = p.read_text()
+          old = "#include <uapi/linux/mount.h>"
+          if s.count(old) != 1:
+              raise SystemExit("Expected exactly one unavailable uapi/linux/mount.h include")
+          if "#include <linux/fs.h>" not in s:
+              raise SystemExit("linux/fs.h include missing; refusing unsafe compatibility patch")
+          s = s.replace(old, "", 1)
+          p.write_text(s)
+          PY
+          ! grep -Fq '#include <uapi/linux/mount.h>' drivers/kernelsu/infra/su_mount_ns.c
+          grep -Fq '#include <linux/fs.h>' drivers/kernelsu/infra/su_mount_ns.c
+          grep -Fq '#define MS_PRIVATE' include/uapi/linux/fs.h
+          grep -Fq '#define MS_REC' include/uapi/linux/fs.h
+
+      - name: Adapt KowSU and MidoriSU APIs to Linux 4.19
+        run: |
+          cd kernel_tree
+          # The current drivers use path_mount(), introduced after this 4.19 base.
+          # Use the 4.19 mount syscall wrapper and a userspace-stack pathname instead.
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          p = Path("drivers/kernelsu/infra/su_mount_ns.c")
+          s = p.read_text()
+          s, n = re.subn(r"(?m)^[ \t]*extern int path_mount\([^;]*;[ \t]*\n", "", s, count=1)
+          if n != 1:
+              raise SystemExit(f"Expected one path_mount declaration, removed {n}")
+          old_mount = r"(?m)^[ \t]*// make root mount private\n[ \t]*struct path root_path;\n[ \t]*get_fs_root\(current->fs, &root_path\);\n[ \t]*int pm_ret = path_mount\([^;]*;\n[ \t]*path_put\(&root_path\);"
+          new_mount = """    // Linux 4.19 has no equivalent helper; use its native mount syscall wrapper.
+              // userspace_stack_buffer() supplies the pathname in the calling task's address space.
+              int pm_ret = ksyscall(mount, NULL, userspace_stack_buffer("/", sizeof("/")),
+                                    NULL, MS_PRIVATE | MS_REC, NULL);"""
+          s, n = re.subn(old_mount, lambda _: new_mount, s, count=1)
+          if n != 1:
+              raise SystemExit(f"Expected one individual mount namespace block, replaced {n}")
+          if "path_mount" in s:
+              raise SystemExit("path_mount references remain in su_mount_ns.c")
+          p.write_text(s)
+
+          # Linux 4.19 exports put_seccomp_filter(), which performs the same
+          # reference-count release on task->seccomp.filter as modern seccomp_filter_release().
+          p = Path("drivers/kernelsu/policy/app_profile.c")
+          s = p.read_text()
+          old_decl = "void seccomp_filter_release(struct task_struct *tsk);"
+          if s.count(old_decl) != 1:
+              raise SystemExit("Expected one seccomp_filter_release prototype")
+          s = s.replace(old_decl, "/* Linux 4.19 declares put_seccomp_filter() in linux/seccomp.h. */", 1)
+          if s.count("seccomp_filter_release(fake);") != 1:
+              raise SystemExit("Expected one seccomp_filter_release call")
+          s = s.replace("seccomp_filter_release(fake);", "put_seccomp_filter(fake);", 1)
+          if "void seccomp_filter_release(" in s or "seccomp_filter_release(fake);" in s:
+              raise SystemExit("obsolete seccomp_filter_release declaration/call remains in app_profile.c")
+          if "#include <linux/seccomp.h>" not in s:
+              raise SystemExit("linux/seccomp.h include missing")
+          p.write_text(s)
+          PY
+          ! grep -n 'path_mount' drivers/kernelsu/infra/su_mount_ns.c
+          ! grep -n -E 'void seccomp_filter_release\\(|seccomp_filter_release\\(fake\\)' drivers/kernelsu/policy/app_profile.c
+          grep -n 'ksyscall(mount' drivers/kernelsu/infra/su_mount_ns.c
+          grep -n 'put_seccomp_filter(fake)' drivers/kernelsu/policy/app_profile.c
+
+      - name: Stage NoMount 2.2.0 source (disabled for diagnostic)
+        run: |
+          cd kernel_tree
+          rm -rf NoMount fs/nomount
+          git clone --filter=blob:none https://github.com/maxsteeel/nomount.git NoMount
+          git -C NoMount checkout --detach "${NOMOUNT_SHA}"
+          ln -s ../NoMount/kernel/src fs/nomount
+          test -f fs/nomount/Kconfig
+          test -f fs/nomount/Makefile
+          test -f fs/nomount/nomount.c
+          grep -Fq 'source "fs/nomount/Kconfig"' fs/Kconfig
+          grep -Fq 'CONFIG_NOMOUNT' fs/Makefile
+
+      - name: Adapt KernelSU nolibc runner to Linux 4.19
+        run: |
+          cd kernel_tree
+          # The pinned modern nolibc runner assumes clone3/clone_args and linux/mount.h.
+          # On this ARM64 Linux 4.19 tree, use clone() with vfork-equivalent flags,
+          # and rely on linux/fs.h (already included by nolibc/sys.h) for MS_* flags.
+          python3 - <<'PY'
+          from pathlib import Path
+
+          sys_h = Path("drivers/kernelsu/preinit/runner/nolibc/sys.h")
+          s = sys_h.read_text()
+          start = "#ifndef sys_vfork"
+          end = "\nstatic __attribute__((unused))\npid_t vfork(void)"
+          a = s.find(start)
+          b = s.find(end, a + 1)
+          if a < 0 or b < 0:
+              raise SystemExit("Could not locate nolibc sys_vfork implementation")
+          old = s[a:b]
+          if old.count("struct clone_args") != 1 or old.count("__NR_clone3") != 1:
+              raise SystemExit("Unexpected nolibc sys_vfork implementation; refusing unsafe patch")
+          new = """#ifndef sys_vfork
+          static __attribute__((unused))
+          pid_t sys_vfork(void)
+          {
+          #if defined(__NR_vfork)
+              return my_syscall0(__NR_vfork);
+          #elif defined(__NR_clone)
+              return my_syscall5(__NR_clone, CLONE_VM | CLONE_VFORK | SIGCHLD, 0, 0, 0, 0);
+          #else
+          #error "KernelSU nolibc vfork requires __NR_vfork or __NR_clone"
+          #endif
+          }
+          #endif
+          """
+          s = s[:a] + new.rstrip() + s[b:]
+          if "struct clone_args" in s or "__NR_clone3" in s:
+              raise SystemExit("Modern clone3 references remain in nolibc sys.h")
+          if "#include <linux/sched.h>" not in s or "#include <linux/signal.h>" not in s:
+              raise SystemExit("Required clone/signal definitions are missing from nolibc sys.h")
+          sys_h.write_text(s)
+
+          mount_h = Path("drivers/kernelsu/preinit/runner/nolibc/sys/mount.h")
+          m = mount_h.read_text()
+          old_mount = "#include <linux/mount.h>"
+          if m.count(old_mount) != 1:
+              raise SystemExit("Expected exactly one unavailable linux/mount.h include")
+          if "#include <linux/fs.h>" not in s:
+              raise SystemExit("linux/fs.h does not provide the mount flag definitions")
+          mount_h.write_text(m.replace(old_mount, "", 1))
+
+          if "#include <linux/mount.h>" in mount_h.read_text():
+              raise SystemExit("Unavailable linux/mount.h include remains")
+          if "#include <linux/fs.h>" not in sys_h.read_text():
+              raise SystemExit("linux/fs.h include missing from nolibc sys.h")
+          PY
+          grep -n -A12 -B2 'pid_t sys_vfork' drivers/kernelsu/preinit/runner/nolibc/sys.h
+          ! grep -Eq 'struct clone_args|__NR_clone3' drivers/kernelsu/preinit/runner/nolibc/sys.h
+          ! grep -Fq '#include <linux/mount.h>' drivers/kernelsu/preinit/runner/nolibc/sys/mount.h
+
+      - name: Preserve KowSU configuration and disable NoMount for isolation
+        run: |
+          cd kernel_tree
+          DEFCONFIG="arch/arm64/configs/vendor/alioth_defconfig"
+
+          # KowSU is based on backslashxx: retain its original KSU feature flags.
+          # Keep the W localversion used by the original builder.
+          sed -i -E 's/^CONFIG_LOCALVERSION="[^"]*"/CONFIG_LOCALVERSION="-FakeDreamer-W"/' "${DEFCONFIG}"
+
+          chmod +x ./scripts/config
+          # KPROBES depends on MODULES in this kernel; the upstream defconfig disables MODULES.
+          ./scripts/config --file "${DEFCONFIG}" --enable MODULES
+          ./scripts/config --file "${DEFCONFIG}" --enable KPROBES
+          ./scripts/config --file "${DEFCONFIG}" --enable KSU
+          ./scripts/config --file "${DEFCONFIG}" --disable NOMOUNT
+
+      - name: Select stock battery variant for matrix 3 and 4
+        if: ${{ matrix.kernel == 3 || matrix.kernel == 4 }}
+        run: |
+          cd kernel_tree
+          sed -i -e '/qcom,j3s-batt-profile;/d' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+          sed -i -e '/fg-gen4-batterydata-apollo-sun-5000mah.dtsi/d' arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
+
+      - name: Apply efficient CPU variant for matrix 2 and 4
+        if: ${{ matrix.kernel == 2 || matrix.kernel == 4 }}
+        run: |
+          cd kernel_tree
+          sed -i -e '/<2553600>,/c\<2553600>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<2649600>,/c\//<2649600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<2745600>,/c\//<2745600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<2841600>,/c\//<2841600>,' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e '/<3187200>;/c\//<3187200>;' arch/arm64/boot/dts/vendor/qcom/kona.dtsi
+          sed -i -e 's/qcom,mdss-pan-physical-width-dimension = <70>;/qcom,mdss-pan-physical-width-dimension = <695>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-k11a-38-08-0a-dsc-cmd.dtsi
+          sed -i -e 's/qcom,mdss-pan-physical-height-dimension = <155>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' arch/arm64/boot/dts/vendor/qcom/dsi-panel-k11a-38-08-0a-dsc-cmd.dtsi
+
+      - name: Adapt KernelSU fallthrough marker to Linux 4.19
+        run: |
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/policy/allowlist.c")
+          s = p.read_text()
+          if s.count("        fallthrough;") != 1:
+              raise SystemExit("Expected exactly one KernelSU fallthrough marker; refusing unsafe patch")
+          s = s.replace("        fallthrough;", "        /* fall through */", 1)
+          p.write_text(s)
+          PY
+          ! grep -n '^[[:space:]]*fallthrough;' drivers/kernelsu/policy/allowlist.c
+          grep -n -B2 -A2 'fall through' drivers/kernelsu/policy/allowlist.c
+
+      - name: Backport nofault user access helpers to Linux 4.19
+        run: |
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/runtime/ksud_integration.c")
+          s = p.read_text()
+          marker = "// clang-format off"
+          helper = r'''/* Linux 4.19 compatibility: nofault user access helpers. */
+          static long ksu_strncpy_from_user_nofault(char *dst, const char __user *src, long count)
+          {
+              long i;
+              char ch;
+              if (count <= 0 || !access_ok(VERIFY_READ, src, count))
+                  return -EFAULT;
+              pagefault_disable();
+              for (i = 0; i < count; i++) {
+                  if (__get_user(ch, src + i)) {
+                      pagefault_enable();
+                      return -EFAULT;
+                  }
+                  dst[i] = ch;
+                  if (!ch) {
+                      pagefault_enable();
+                      return i;
+                  }
+              }
+              pagefault_enable();
+              return count;
+          }
+
+          static long ksu_copy_from_user_nofault(void *dst, const void __user *src, unsigned long n)
+          {
+              unsigned long left;
+              if (!access_ok(VERIFY_READ, src, n))
+                  return -EFAULT;
+              pagefault_disable();
+              left = __copy_from_user_inatomic(dst, src, n);
+              pagefault_enable();
+              return left ? -EFAULT : 0;
+          }
+
+          static long ksu_copy_to_user_nofault(void __user *dst, const void *src, unsigned long n)
+          {
+              unsigned long left;
+              if (!access_ok(VERIFY_WRITE, dst, n))
+                  return -EFAULT;
+              pagefault_disable();
+              left = __copy_to_user_inatomic(dst, src, n);
+              pagefault_enable();
+              return left ? -EFAULT : 0;
+          }
+          '''
+          if s.count(marker) != 1:
+              raise SystemExit("Expected one insertion marker in ksud_integration.c")
+          if s.count("strncpy_from_user_nofault(buf,") != 1 or s.count("copy_from_user_nofault(&size,") != 1 or s.count("copy_to_user_nofault(st_size_ptr,") != 1:
+              raise SystemExit("Expected exact upstream nofault call sites; refusing unsafe patch")
+          if "ksu_strncpy_from_user_nofault" in s or "ksu_copy_from_user_nofault" in s or "ksu_copy_to_user_nofault" in s:
+              raise SystemExit("Compatibility helpers already present; refusing duplicate patch")
+          s = s.replace(marker, helper + "\n" + marker, 1)
+          s = s.replace("strncpy_from_user_nofault(buf,", "ksu_strncpy_from_user_nofault(buf,", 1)
+          s = s.replace("copy_from_user_nofault(&size,", "ksu_copy_from_user_nofault(&size,", 1)
+          s = s.replace("copy_to_user_nofault(st_size_ptr,", "ksu_copy_to_user_nofault(st_size_ptr,", 1)
+          p.write_text(s)
+          PY
+          grep -n 'ksu_.*nofault' drivers/kernelsu/runtime/ksud_integration.c
+
+      - name: Backport KernelSU nofault kernel-read helper from RenoRoi compatibility
+        run: |
+          cd kernel_tree
+          # RenoRoi's FakeDreamer 32707 driver supplies copy_from_kernel_nofault()
+          # on kernels < 5.8 using the legacy fault-safe kernel read API.
+          # Keep the updated KernelSU call sites intact and provide the same
+          # compatibility symbol for this Linux 4.19 base.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/arm64_branch_insn.h")
+          s = p.read_text()
+          call = "copy_from_kernel_nofault(&raw_instruction, (void *)curr_addr, sizeof(uint32_t))"
+          if s.count(call) != 1:
+              raise SystemExit("Expected exactly one ARM64 copy_from_kernel_nofault call")
+          if "#include <linux/uaccess.h>" not in s:
+              raise SystemExit("uaccess.h include missing from ARM64 branch scanner")
+          if "RenoRoi Linux 4.19 nofault compatibility" not in s:
+              anchor = "#include <linux/uaccess.h>\n"
+              compat = """/* RenoRoi Linux 4.19 nofault compatibility. */
+          #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
+          __weak long copy_from_kernel_nofault(void *dst, const void *src, size_t size)
+          {
+              return probe_kernel_read(dst, src, size);
+          }
+          #endif
+          """
+              if s.count(anchor) != 1:
+                  raise SystemExit("Expected one uaccess.h include insertion point")
+              s = s.replace(anchor, anchor + "\n" + compat, 1)
+          p.write_text(s)
+          PY
+          grep -n -B2 -A5 'RenoRoi Linux 4.19 nofault compatibility' drivers/kernelsu/arm64_branch_insn.h
+          grep -n 'copy_from_kernel_nofault(&raw_instruction' drivers/kernelsu/arm64_branch_insn.h
+          grep -Fq 'extern long probe_kernel_read(void *dst, const void *src, size_t size);' include/linux/uaccess.h
+          grep -Fq 'EXPORT_SYMBOL_GPL(probe_kernel_read)' mm/maccess.c
+
+      - name: Backport sulog nofault string copy to Linux 4.19
+        run: |
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/sulog/event.c")
+          s = p.read_text()
+          marker = "#define KSU_SULOG_MAX_QUEUED"
+          helper = r'''/* Linux 4.19 compatibility: copy a user string without faulting in pages. */
+          static long ksu_sulog_strncpy_from_user_nofault(char *dst, const char __user *src, long count)
+          {
+              long i;
+              char ch;
+              if (count <= 0 || !access_ok(VERIFY_READ, src, count))
+                  return -EFAULT;
+              pagefault_disable();
+              for (i = 0; i < count; i++) {
+                  if (__get_user(ch, src + i)) {
+                      pagefault_enable();
+                      return -EFAULT;
+                  }
+                  dst[i] = ch;
+                  if (!ch) {
+                      pagefault_enable();
+                      return i;
+                  }
+              }
+              pagefault_enable();
+              return count;
+          }
+          '''
+          if s.count(marker) != 1:
+              raise SystemExit("Expected one sulog helper insertion marker")
+          if "ksu_sulog_strncpy_from_user_nofault" in s:
+              raise SystemExit("sulog nofault helper already present")
+          if s.count("strncpy_from_user_nofault(") != 2:
+              raise SystemExit("Expected exactly two sulog nofault string call sites")
+          s = s.replace("strncpy_from_user_nofault(", "ksu_sulog_strncpy_from_user_nofault(")
+          s = s.replace(marker, helper + "\n" + marker, 1)
+          p.write_text(s)
+          PY
+          grep -n 'ksu_sulog_strncpy_from_user_nofault' drivers/kernelsu/sulog/event.c
+      - name: Backport SELinux credential accessor to Linux 4.19
+        run: |
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/selinux/selinux.c")
+          s = p.read_text()
+          marker = '#include "ksu.h"\n'
+          compat = """\n/* Linux 4.19 keeps SELinux task state in cred->security. */\n#ifndef selinux_cred\n#define selinux_cred(cred) ((struct task_security_struct *)((cred)->security))\n#endif\n"""
+          if s.count(marker) != 1:
+              raise SystemExit("Expected one KernelSU SELinux include anchor")
+          if "Linux 4.19 keeps SELinux task state" in s:
+              raise SystemExit("SELinux 4.19 accessor compatibility patch already present")
+          s = s.replace(marker, marker + compat, 1)
+          p.write_text(s)
+          PY
+          grep -n -B2 -A3 'Linux 4.19 keeps SELinux task state' drivers/kernelsu/selinux/selinux.c
+          grep -n 'selinux_cred(cred)' drivers/kernelsu/selinux/selinux.c
+
+
+
+
+
+      - name: Backport SELinux policy access for Linux 4.19
+        run: |
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/selinux/rules.c")
+          s = p.read_text()
+          NL = chr(10)
+
+          decl = "    struct selinux_policy *pol, *old_pol;"
+          compat_decl = NL.join([
+              "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)",
+              "    struct selinux_ss *ss;",
+              "#else",
+              decl,
+              "#endif",
+          ])
+          if s.count(decl) != 2:
+              raise SystemExit(f"Expected two SELinux policy declarations, got {s.count(decl)}")
+          s = s.replace(decl, compat_decl, 2)
+
+          # 4.19 stores the active policy in selinux_state.ss, not selinux_state.policy.
+          a = s.index("void apply_kernelsu_rules()")
+          b = s.index("#define KSU_SEPOLICY_MAX_BATCH_SIZE", a)
+          fn = s[a:b]
+          lock = "    mutex_lock(&selinux_state.policy_mutex);"
+          dbline = "    db = &pol->policydb;"
+          if fn.count(lock) != 1 or fn.count(dbline) != 1:
+              raise SystemExit("Unexpected apply_kernelsu_rules clone/access layout")
+          x = fn.index(lock)
+          y = fn.index(dbline, x) + len(dbline)
+          modern = fn[x:y]
+          compat = NL.join([
+              "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)",
+              "    rcu_read_lock();",
+              "    ss = rcu_dereference(selinux_state.ss);",
+              "    if (!ss) {",
+              "        rcu_read_unlock();",
+              "        return;",
+              "    }",
+              "    write_lock(&ss->policy_rwlock);",
+              "    db = &ss->policydb;",
+              "#else",
+              modern,
+              "#endif",
+          ])
+          fn = fn[:x] + compat + fn[y:]
+
+          swap_start = "    rcu_assign_pointer(selinux_state.policy, pol);"
+          unlock = "    mutex_unlock(&selinux_state.policy_mutex);"
+          if fn.count(swap_start) != 1 or fn.count(unlock) != 1:
+              raise SystemExit("Unexpected apply_kernelsu_rules policy swap layout")
+          x = fn.index(swap_start)
+          y = fn.index(unlock, x) + len(unlock)
+          modern_tail = fn[x:y]
+          old_tail = NL.join([
+              "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)",
+              "    write_unlock(&ss->policy_rwlock);",
+              "    rcu_read_unlock();",
+              "    reset_avc_cache();",
+              "#else",
+              modern_tail,
+              "#endif",
+          ])
+          fn = fn[:x] + old_tail + fn[y:]
+          s = s[:a] + fn + s[b:]
+
+          # Preserve the batch parser; apply commands to the 4.19 policydb under write lock.
+          a = s.index("int handle_sepolicy(")
+          fn = s[a:]
+          if fn.count(lock) != 1 or fn.count(dbline) != 1:
+              raise SystemExit("Unexpected handle_sepolicy clone/access layout")
+          x = fn.index(lock)
+          y = fn.index(dbline, x) + len(dbline)
+          modern = fn[x:y]
+          compat = NL.join([
+              "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)",
+              "    rcu_read_lock();",
+              "    ss = rcu_dereference(selinux_state.ss);",
+              "    if (!ss) {",
+              "        rcu_read_unlock();",
+              "        ret = -EINVAL;",
+              "        goto out_free;",
+              "    }",
+              "    write_lock(&ss->policy_rwlock);",
+              "    db = &ss->policydb;",
+              "#else",
+              modern,
+              "#endif",
+          ])
+          fn = fn[:x] + compat + fn[y:]
+
+          if fn.count(swap_start) != 1 or fn.count(unlock) != 1:
+              raise SystemExit("Unexpected handle_sepolicy policy swap layout")
+          x = fn.index(swap_start)
+          y = fn.index(unlock, x) + len(unlock)
+          modern_tail = fn[x:y]
+          old_tail = NL.join([
+              "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)",
+              modern_tail,
+              "#else",
+              "    write_unlock(&ss->policy_rwlock);",
+              "    rcu_read_unlock();",
+              "    reset_avc_cache();",
+              "    ret = success_cmd_count;",
+              "    goto out_free;",
+              "",
+              "out_drop_new_policy:",
+              "out_unlock:",
+              "    write_unlock(&ss->policy_rwlock);",
+              "    rcu_read_unlock();",
+              "#endif",
+          ])
+          fn = fn[:x] + old_tail + fn[y:]
+          s = s[:a] + fn
+
+          if s.count("write_lock(&ss->policy_rwlock)") != 2:
+              raise SystemExit("Expected two Linux 4.19 SELinux policy write-lock paths")
+          p.write_text(s)
+          PY
+          grep -n -E 'selinux_state\\.(ss|policy)|policy_rwlock' drivers/kernelsu/selinux/rules.c
+
+      - name: Backport SELinux policy engine to Linux 4.19
+        run: |
+          cd kernel_tree
+          # Use the upstream KernelSU 4.19 backport for policydb internals.
+          # Modern sepolicy.c assumes post-4.19 avtab/filename_trans/type maps.
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import urllib.request
+
+          url = "https://raw.githubusercontent.com/tiann/KernelSU/0e0a812a9c37078aab856d233bdef4fcc25bab7b/kernel/selinux/sepolicy.c"
+          source = urllib.request.urlopen(url, timeout=30).read().decode("utf-8")
+          p = Path("drivers/kernelsu/selinux/sepolicy.c")
+
+          headers = """#include "ss/avtab.h"
+          #include "ss/constraint.h"
+          #include "ss/ebitmap.h"
+          #include "ss/hashtab.h"
+          #include "ss/policydb.h"
+          #include "ss/services.h"
+          #include "ss/symtab.h"
+          #include <linux/gfp.h>
+          #include <linux/printk.h>
+          #include <linux/slab.h>
+          """
+          anchor = "#include <linux/version.h>"
+          if source.count(anchor) != 1:
+              raise SystemExit("Unexpected historical 4.19 sepolicy source; refusing replacement")
+          source = source.replace(anchor, anchor + "\n" + headers, 1)
+
+          # Match the public ksu_* API expected by the pinned KowSU/MidoriSU headers.
+          rename = {
+              "type": "ksu_type",
+              "attribute": "ksu_attribute",
+              "permissive": "ksu_permissive",
+              "enforce": "ksu_enforce",
+              "typeattribute": "ksu_typeattribute",
+              "exists": "ksu_exists",
+              "allow": "ksu_allow",
+              "deny": "ksu_deny",
+              "auditallow": "ksu_auditallow",
+              "dontaudit": "ksu_dontaudit",
+              "allowxperm": "ksu_allowxperm",
+              "auditallowxperm": "ksu_auditallowxperm",
+              "dontauditxperm": "ksu_dontauditxperm",
+              "type_transition": "ksu_type_transition",
+              "type_change": "ksu_type_change",
+              "type_member": "ksu_type_member",
+              "genfscon": "ksu_genfscon",
+          }
+          for old, new in rename.items():
+              source, count = re.subn(r"(?m)^(bool|void)\s+" + old + r"\s*\(", r"\1 " + new + "(", source)
+              if count != 1:
+                  raise SystemExit(f"Expected one historical {old}() implementation, got {count}")
+
+          if "ksu_dup_sepolicy" in source or "ksu_destroy_sepolicy" in source:
+              raise SystemExit("Historical source unexpectedly contains policy clone APIs")
+          if "flex_array_get(db->type_attr_map_array" not in source:
+              raise SystemExit("Historical 4.19 flex_array compatibility implementation missing")
+          # The historical source lived under KernelSU/kernel/selinux;
+          # this workflow installs it under drivers/kernelsu/selinux.
+          source = source.replace('#include "../klog.h"', '#include "klog.h"')
+          prototype = """void add_rule_raw(struct policydb *db, struct type_datum *src,
+                            struct type_datum *tgt, struct class_datum *cls,
+                            struct perm_datum *perm, int effect, bool invert);
+
+          """
+          if source.count("bool add_rule(struct policydb") != 1:
+              raise SystemExit("Expected one add_rule definition")
+          source = source.replace("bool add_rule(struct policydb", prototype + "bool add_rule(struct policydb", 1)
+          p.write_text(source)
+          PY
+          grep -n -E '^bool ksu_(allow|deny|permissive|typeattribute)|flex_array_get|add_rule_raw' drivers/kernelsu/selinux/sepolicy.c
+          ! grep -q 'type_val_to_struct\|policydb_filenametr_search\|filename_trans_key' drivers/kernelsu/selinux/sepolicy.c
+
+      - name: Adapt KernelSU supercall task_work API to Linux 4.19
+        run: |
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/supercall/supercall.c")
+          s = p.read_text()
+          old = "task_work_add(current, &tw->cb, TWA_RESUME)"
+          new = "task_work_add(current, &tw->cb, true)"
+          if s.count(old) != 1:
+              raise SystemExit("Expected one supercall TWA_RESUME call; refusing unsafe patch")
+          s = s.replace(old, new, 1)
+          if "TWA_RESUME" in s:
+              raise SystemExit("Unexpected remaining TWA_RESUME in supercall.c")
+          p.write_text(s)
+          PY
+          grep -n 'task_work_add(current, &tw->cb, true)' drivers/kernelsu/supercall/supercall.c
+      - name: Configure and verify kernel
+        run: |
+          export PATH="$(pwd)/clang/bin:$PATH"
+          export ARCH=arm64
+          export SUBARCH=ARM64
+          cd kernel_tree
+          make O=out vendor/alioth_defconfig
+
+          # Apply required symbols to the generated config, not only the source defconfig.
+          # Kconfig may normalize or discard source-defconfig values during defconfig.
+          # KPROBES is unavailable while CONFIG_MODULES is disabled.
+          ./scripts/config --file out/.config --enable MODULES
+          ./scripts/config --file out/.config --enable KPROBES
+          ./scripts/config --file out/.config --enable KSU
+          ./scripts/config --file out/.config --disable NOMOUNT
+          ./scripts/config --file out/.config --set-str LOCALVERSION "-FakeDreamer-W"
+          make O=out olddefconfig
+
+          echo "=== Effective kernel configuration ==="
+          grep -E '^(CONFIG_(MODULES|KSU|KPROBES|EXT4_FS|NOMOUNT|LTO_CLANG_FULL|BPF|NTSYNC)=|CONFIG_LOCALVERSION=)' out/.config || true
+          for expected in \
+            'CONFIG_MODULES=y' \
+            'CONFIG_KSU=y' \
+            'CONFIG_KPROBES=y' \
+            'CONFIG_EXT4_FS=y' \
+            '# CONFIG_NOMOUNT is not set' \
+            'CONFIG_LTO_CLANG_FULL=y' \
+            'CONFIG_BPF=y' \
+            'CONFIG_NTSYNC=y' \
+            'CONFIG_LOCALVERSION="-FakeDreamer-W"'; do
+            if ! grep -Fqx "$expected" out/.config; then
+              echo "::error::Missing required config: $expected"
+              exit 1
+            fi
+          done
+          make O=out ARCH=arm64 headers_install
+
+      - name: Build kernel and device trees
+        run: |
+          export PATH="$(pwd)/clang/bin:$PATH"
+          export ARCH=arm64
+          export SUBARCH=ARM64
+          export KBUILD_BUILD_USER="renoroi"
+          export KBUILD_BUILD_HOST="dreamstate"
+          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
+          cd kernel_tree
+          # Match the proven 2026-10-30 Neutron Clang build: disable MLGO flags in the source Makefile.
+          # This leaves the selected Full LTO configuration and toolchain unchanged.
+          sed -i -e '/regalloc-enable-advisor/s/^/#/' -e '/enable-ml-inliner/s/^/#/' Makefile
+          make O=out CC=clang -j"$(nproc --all)" CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
+
+          if [[ "${{ matrix.kernel }}" == "1" ]]; then
+            cp out/arch/arm64/boot/Image.gz ../Image.gz
+            mv out/arch/arm64/boot/dtbo.img ../alioth-j3s-dtbo-aosp.img
+            mv out/arch/arm64/boot/dtb.img ../alioth-normal-dtb
+          elif [[ "${{ matrix.kernel }}" == "2" ]]; then
+            cp out/arch/arm64/boot/Image.gz ../Image.gz
+            mv out/arch/arm64/boot/dtbo.img ../alioth-j3s-dtbo-miui.img
+            mv out/arch/arm64/boot/dtb.img ../alioth-effcpu-dtb
+          elif [[ "${{ matrix.kernel }}" == "3" ]]; then
+            mv out/arch/arm64/boot/dtbo.img ../alioth-stock-dtbo-aosp.img
+            mv out/arch/arm64/boot/dtb.img ../alioth-normal-gpustk-dtb
+          else
+            mv out/arch/arm64/boot/dtbo.img ../alioth-stock-dtbo-miui.img
+            mv out/arch/arm64/boot/dtb.img ../alioth-effcpu-gpustk-dtb
+          fi
+
+      - name: Checksum diagnostic kernel Image
+        run: sha256sum Image.gz > Image.gz.sha256
+
+      - name: Upload diagnostic kernel Image only
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlashKernel-FakeDreamer-KowSU-NoMount-OFF-Image
+          path: |
+            Image.gz
+            Image.gz.sha256
+          if-no-files-found: error
+          retention-days: 14
