@@ -914,6 +914,8 @@ jobs:
           ./scripts/config --file out/.config --enable MODULES
           ./scripts/config --file out/.config --enable KPROBES
           ./scripts/config --file out/.config --enable KALLSYMS
+          # KALLSYMS_ALL depends on DEBUG_KERNEL in this Linux 4.19 tree.
+          ./scripts/config --file out/.config --enable DEBUG_KERNEL
           ./scripts/config --file out/.config --enable KALLSYMS_ALL
           ./scripts/config --file out/.config --enable KSU
           ./scripts/config --file out/.config --disable NOMOUNT
