@@ -1,0 +1,108 @@
+name: Package Flash Kernel v2.1-W (MidoriSU build)
+
+on:
+  push:
+    branches:
+      - Flash-Kernel-Package-MidoriSU
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  package:
+    name: Package Flash Kernel ZIP
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_RUN_ID: "41850996693"
+      ANYKERNEL_SHA: "40b2a7fbea8f8e1b41cdfc9c7f929d0a5ba21446"
+    steps:
+      - name: Download successful kernel build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel-1-2
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+          path: kernel-1-2
+
+      - name: Checkout original AnyKernel3 installer
+        run: |
+          git clone --filter=blob:none https://github.com/re-noroi/anykernel3-test.git AnyKernel3
+          git -C AnyKernel3 checkout --detach "${ANYKERNEL_SHA}"
+          git -C AnyKernel3 submodule update --init --recursive
+
+      - name: Assemble and validate Flash Kernel ZIP
+        run: |
+          set -euo pipefail
+          test -s kernel-1-2/Image.gz
+          test -s kernel-1-2/alioth-j3s-dtbo-miui.img
+          test -s kernel-1-2/alioth-effcpu-dtb
+
+          cp kernel-1-2/Image.gz AnyKernel3/
+          cp kernel-1-2/alioth-j3s-dtbo-miui.img AnyKernel3/
+          cp kernel-1-2/alioth-effcpu-dtb AnyKernel3/
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("AnyKernel3/anykernel.sh")
+          s = p.read_text()
+
+          old_mv = "mv alioth-j3s-dtbo-aosp.img alioth-aosp-dtbo.img"
+          if s.count(old_mv) != 2:
+              raise SystemExit(f"Expected two optional AOSP DTBO moves, found {s.count(old_mv)}")
+          s = s.replace(
+              old_mv,
+              'if [ -f alioth-j3s-dtbo-aosp.img ]; then mv alioth-j3s-dtbo-aosp.img alioth-aosp-dtbo.img; fi'
+          )
+
+          old_rm = "rm *-aosp-dtbo.img"
+          if s.count(old_rm) != 1:
+              raise SystemExit(f"Expected one optional AOSP DTBO cleanup, found {s.count(old_rm)}")
+          s = s.replace(old_rm, "rm -f *-aosp-dtbo.img", 1)
+
+          # The target-only artifact intentionally contains one DTBO and one DTB.
+          # Make wildcard cleanup safe when the unselected alternatives are absent.
+          lines = []
+          for line in s.splitlines():
+              stripped = line.lstrip()
+              if stripped.startswith("rm ") and not stripped.startswith(("rm -f ", "rm -rf ")):
+                  indent = line[:len(line) - len(stripped)]
+                  line = indent + "rm -f " + stripped[3:]
+              lines.append(line)
+          s = "\n".join(lines) + "\n"
+
+          old_brand = "kernel.string=FakeDreamer Kernel by Re-Noroi"
+          if s.count(old_brand) != 1:
+              raise SystemExit("Expected original kernel.string branding")
+          s = s.replace(old_brand, "kernel.string=Flash Kernel by Tinieblass", 1)
+          p.write_text(s)
+          PY
+
+          ZIP_NAME="FlashKernel-FakeDreamer-v2.1-W-alioth-20261104-j3s-miui-eff-uv-MidoriSU.zip"
+          cat > AnyKernel3/BUILD-INFO.txt <<'EOF'
+          Flash Kernel by Tinieblass
+          Kernel base: FakeDreamer v2.1-W
+          Device: POCO F3 (alioth)
+          Source: re-noroi/kernel_sm8250 @ afba74c277a858f7ee46463f5ff6b7bfbdb6546a
+          Toolchain: Neutron Clang 06092026
+          LTO: Full
+          Selected profile: 5000mAh / MIUI-HyperOS / efficient CPU / undervolted GPU
+          EOF
+
+          cd AnyKernel3
+          zip -qr "../${ZIP_NAME}" . -x ".git/*" ".github/*"
+          cd ..
+          unzip -t "${ZIP_NAME}"
+          sha256sum "${ZIP_NAME}" > SHA256SUMS
+          ls -lh "${ZIP_NAME}" SHA256SUMS
+
+      - name: Upload flashable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlashKernel-FD21W-alioth-j3s-miui-eff-uv-MidoriSU
+          path: |
+            FlashKernel-FakeDreamer-v2.1-W-alioth-20261104-j3s-miui-eff-uv-MidoriSU.zip
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 30
