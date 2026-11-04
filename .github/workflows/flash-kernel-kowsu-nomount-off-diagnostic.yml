@@ -913,7 +913,7 @@ jobs:
           if s.count(anchor) != 1:
               raise SystemExit("Expected one avg_vruntime declaration anchor")
           if declaration not in s:
-              s = s.replace(anchor, declaration + "\\n" + anchor, 1)
+              s = s.replace(anchor, declaration + "\n" + anchor, 1)
           sched.write_text(s)
 
           debug = Path("kernel/sched/debug.c")
