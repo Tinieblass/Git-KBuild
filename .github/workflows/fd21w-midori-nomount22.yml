@@ -624,9 +624,20 @@ jobs:
               raise SystemExit("Historical source unexpectedly contains policy clone APIs")
           if "flex_array_get(db->type_attr_map_array" not in source:
               raise SystemExit("Historical 4.19 flex_array compatibility implementation missing")
+          # The historical source lived under KernelSU/kernel/selinux;
+          # this workflow installs it under drivers/kernelsu/selinux.
+          source = source.replace('#include "../klog.h"', '#include "klog.h"')
+          prototype = """void add_rule_raw(struct policydb *db, struct type_datum *src,
+                            struct type_datum *tgt, struct class_datum *cls,
+                            struct perm_datum *perm, int effect, bool invert);
+
+          """
+          if source.count("bool add_rule(struct policydb") != 1:
+              raise SystemExit("Expected one add_rule definition")
+          source = source.replace("bool add_rule(struct policydb", prototype + "bool add_rule(struct policydb", 1)
           p.write_text(source)
           PY
-          grep -n -E '^bool ksu_(allow|deny|permissive|typeattribute)|flex_array_get' drivers/kernelsu/selinux/sepolicy.c
+          grep -n -E '^bool ksu_(allow|deny|permissive|typeattribute)|flex_array_get|add_rule_raw' drivers/kernelsu/selinux/sepolicy.c
           ! grep -q 'type_val_to_struct\|policydb_filenametr_search\|filename_trans_key' drivers/kernelsu/selinux/sepolicy.c
 
       - name: Configure and verify kernel
