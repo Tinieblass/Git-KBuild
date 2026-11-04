@@ -439,6 +439,48 @@ jobs:
           PY
           grep -n 'ksu_.*nofault' drivers/kernelsu/runtime/ksud_integration.c
 
+      - name: Backport sulog nofault string copy to Linux 4.19
+        run: |
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/sulog/event.c")
+          s = p.read_text()
+          marker = "#define KSU_SULOG_MAX_QUEUED"
+          helper = r'''/* Linux 4.19 compatibility: copy a user string without faulting in pages. */
+          static long ksu_sulog_strncpy_from_user_nofault(char *dst, const char __user *src, long count)
+          {
+              long i;
+              char ch;
+              if (count <= 0 || !access_ok(VERIFY_READ, src, count))
+                  return -EFAULT;
+              pagefault_disable();
+              for (i = 0; i < count; i++) {
+                  if (__get_user(ch, src + i)) {
+                      pagefault_enable();
+                      return -EFAULT;
+                  }
+                  dst[i] = ch;
+                  if (!ch) {
+                      pagefault_enable();
+                      return i;
+                  }
+              }
+              pagefault_enable();
+              return count;
+          }
+          '''
+          if s.count(marker) != 1:
+              raise SystemExit("Expected one sulog helper insertion marker")
+          if "ksu_sulog_strncpy_from_user_nofault" in s:
+              raise SystemExit("sulog nofault helper already present")
+          if s.count("strncpy_from_user_nofault(") != 2:
+              raise SystemExit("Expected exactly two sulog nofault string call sites")
+          s = s.replace(marker, helper + "\n" + marker, 1)
+          s = s.replace("strncpy_from_user_nofault(", "ksu_sulog_strncpy_from_user_nofault(")
+          p.write_text(s)
+          PY
+          grep -n 'ksu_sulog_strncpy_from_user_nofault' drivers/kernelsu/sulog/event.c
       - name: Backport SELinux credential accessor to Linux 4.19
         run: |
           cd kernel_tree
