@@ -1010,8 +1010,8 @@ jobs:
           p = Path("AnyKernel3/anykernel.sh")
           s = p.read_text()
           import re
-          pattern = r"(?m)^(\\s*)mv alioth-j3s-dtbo-aosp\\.img alioth-aosp-dtbo\\.img[ \\t]*$"
-          replacement = r"\\1if [ -f alioth-j3s-dtbo-aosp.img ]; then mv alioth-j3s-dtbo-aosp.img alioth-aosp-dtbo.img; fi"
+          pattern = r"(?m)^(\s*)mv alioth-j3s-dtbo-aosp\.img alioth-aosp-dtbo\.img[ \t]*$"
+          replacement = r"\1if [ -f alioth-j3s-dtbo-aosp.img ]; then mv alioth-j3s-dtbo-aosp.img alioth-aosp-dtbo.img; fi"
           s, count = re.subn(pattern, replacement, s)
           if count != 2:
               raise SystemExit(f"Expected both J3S AOSP DTBO selectors, patched {count}")
