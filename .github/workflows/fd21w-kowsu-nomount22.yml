@@ -91,6 +91,8 @@ jobs:
           sed -i -E 's/^CONFIG_LOCALVERSION="[^"]*"/CONFIG_LOCALVERSION="-FakeDreamer-W"/' "${DEFCONFIG}"
 
           chmod +x ./scripts/config
+          # KPROBES depends on MODULES in this kernel; the upstream defconfig disables MODULES.
+          ./scripts/config --file "${DEFCONFIG}" --enable MODULES
           ./scripts/config --file "${DEFCONFIG}" --enable KPROBES
           ./scripts/config --file "${DEFCONFIG}" --enable KSU
           ./scripts/config --file "${DEFCONFIG}" --enable NOMOUNT
@@ -124,6 +126,8 @@ jobs:
 
           # Apply required symbols to the generated config, not only the source defconfig.
           # Kconfig may normalize or discard source-defconfig values during defconfig.
+          # KPROBES is unavailable while CONFIG_MODULES is disabled.
+          ./scripts/config --file out/.config --enable MODULES
           ./scripts/config --file out/.config --enable KPROBES
           ./scripts/config --file out/.config --enable KSU
           ./scripts/config --file out/.config --enable NOMOUNT
@@ -131,8 +135,9 @@ jobs:
           make O=out olddefconfig
 
           echo "=== Effective kernel configuration ==="
-          grep -E '^(CONFIG_(KSU|KPROBES|EXT4_FS|NOMOUNT|LTO_CLANG_FULL|BPF|NTSYNC)=|CONFIG_LOCALVERSION=)' out/.config || true
+          grep -E '^(CONFIG_(MODULES|KSU|KPROBES|EXT4_FS|NOMOUNT|LTO_CLANG_FULL|BPF|NTSYNC)=|CONFIG_LOCALVERSION=)' out/.config || true
           for expected in \
+            'CONFIG_MODULES=y' \
             'CONFIG_KSU=y' \
             'CONFIG_KPROBES=y' \
             'CONFIG_EXT4_FS=y' \
@@ -250,7 +255,7 @@ jobs:
           AnyKernel3: re-noroi/anykernel3-test @ 40b2a7fbea8f8e1b41cdfc9c7f929d0a5ba21446
           Toolchain: Neutron Clang 06092026
           LTO: full
-          Kernel config: KPROBES=y, KSU=y, NOMOUNT=y, EXT4_FS=y, BPF=y, NTSYNC=y
+          Kernel config: MODULES=y, KPROBES=y, KSU=y, NOMOUNT=y, EXT4_FS=y, BPF=y, NTSYNC=y
           Flash variant selected by ZIP name: -j3s-miui-eff-uv
           EOF
 
