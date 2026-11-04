@@ -31,7 +31,12 @@ jobs:
       - name: Install image inspection tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y aria2 file device-tree-compiler python3-venv python3-dev build-essential
+          sudo apt-get install -y aria2 file device-tree-compiler python3-venv python3-dev build-essential e2fsprogs erofs-utils
+
+      - name: Set up Go for sparse super-image inspection
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
 
       - name: Download, verify, extract and inspect official India fastboot ROM
         run: |
@@ -64,5 +69,12 @@ jobs:
             surya-india-firmware-audit/uefi-deep/uefi-firmware-parser.log
             surya-india-firmware-audit/uefi-deep/pip-download.log
             surya-india-firmware-audit/uefi-deep/pip-install.log
+            surya-india-firmware-audit/super-audit/SUPER-PARTITIONS.txt
+            surya-india-firmware-audit/super-audit/SUPER-EXTRACTION-LOG.txt
+            surya-india-firmware-audit/super-audit/SUPER-PARTITION-MANIFEST.tsv
+            surya-india-firmware-audit/super-audit/SUPER-BATTERY-PATH-HITS.txt
+            surya-india-firmware-audit/super-audit/SUPER-BATTERY-CONTENT-HITS.txt
+            surya-india-firmware-audit/super-audit/SUPER-FILESYSTEM-EXTRACTION.log
+            surya-india-firmware-audit/super-audit/SUPER-TOOLCHAIN.txt
           if-no-files-found: warn
           retention-days: 14
