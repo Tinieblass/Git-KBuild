@@ -353,6 +353,65 @@ jobs:
           grep -Fq 'source "fs/nomount/Kconfig"' fs/Kconfig
           grep -Fq 'CONFIG_NOMOUNT' fs/Makefile
 
+      - name: Adapt KernelSU nolibc runner to Linux 4.19
+        run: |
+          cd kernel_tree
+          # The pinned modern nolibc runner assumes clone3/clone_args and linux/mount.h.
+          # On this ARM64 Linux 4.19 tree, use clone() with vfork-equivalent flags,
+          # and rely on linux/fs.h (already included by nolibc/sys.h) for MS_* flags.
+          python3 - <<'PY'
+          from pathlib import Path
+
+          sys_h = Path("drivers/kernelsu/preinit/runner/nolibc/sys.h")
+          s = sys_h.read_text()
+          start = "#ifndef sys_vfork"
+          end = "\nstatic __attribute__((unused))\npid_t vfork(void)"
+          a = s.find(start)
+          b = s.find(end, a + 1)
+          if a < 0 or b < 0:
+              raise SystemExit("Could not locate nolibc sys_vfork implementation")
+          old = s[a:b]
+          if old.count("struct clone_args") != 1 or old.count("__NR_clone3") != 1:
+              raise SystemExit("Unexpected nolibc sys_vfork implementation; refusing unsafe patch")
+          new = """#ifndef sys_vfork
+          static __attribute__((unused))
+          pid_t sys_vfork(void)
+          {
+          #if defined(__NR_vfork)
+              return my_syscall0(__NR_vfork);
+          #elif defined(__NR_clone)
+              return my_syscall5(__NR_clone, CLONE_VM | CLONE_VFORK | SIGCHLD, 0, 0, 0, 0);
+          #else
+          #error "KernelSU nolibc vfork requires __NR_vfork or __NR_clone"
+          #endif
+          }
+          #endif
+          """
+          s = s[:a] + new.rstrip() + s[b:]
+          if "struct clone_args" in s or "__NR_clone3" in s:
+              raise SystemExit("Modern clone3 references remain in nolibc sys.h")
+          if "#include <linux/sched.h>" not in s or "#include <linux/signal.h>" not in s:
+              raise SystemExit("Required clone/signal definitions are missing from nolibc sys.h")
+          sys_h.write_text(s)
+
+          mount_h = Path("drivers/kernelsu/preinit/runner/nolibc/sys/mount.h")
+          m = mount_h.read_text()
+          old_mount = "#include <linux/mount.h>"
+          if m.count(old_mount) != 1:
+              raise SystemExit("Expected exactly one unavailable linux/mount.h include")
+          if "#include <linux/fs.h>" not in s:
+              raise SystemExit("linux/fs.h does not provide the mount flag definitions")
+          mount_h.write_text(m.replace(old_mount, "", 1))
+
+          if "#include <linux/mount.h>" in mount_h.read_text():
+              raise SystemExit("Unavailable linux/mount.h include remains")
+          if "#include <linux/fs.h>" not in sys_h.read_text():
+              raise SystemExit("linux/fs.h include missing from nolibc sys.h")
+          PY
+          grep -n -A12 -B2 'pid_t sys_vfork' drivers/kernelsu/preinit/runner/nolibc/sys.h
+          ! grep -Eq 'struct clone_args|__NR_clone3' drivers/kernelsu/preinit/runner/nolibc/sys.h
+          ! grep -Fq '#include <linux/mount.h>' drivers/kernelsu/preinit/runner/nolibc/sys/mount.h
+
       - name: Preserve original variant and switch only root/NoMount
         run: |
           cd kernel_tree
