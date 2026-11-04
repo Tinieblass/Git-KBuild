@@ -167,7 +167,9 @@ jobs:
           export KBUILD_BUILD_HOST="dreamstate"
           export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
           cd kernel_tree
-          make O=out CC=clang -j"$(nproc --all)" CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
+          # This Neutron Clang build has no usable MLGO eviction model; force LLVM default advisor.
+          # This does not disable kernel Full LTO or change the original toolchain.
+          make O=out CC=clang KCFLAGS="-mllvm -regalloc-enable-advisor=default" -j"$(nproc --all)" CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
 
           if [[ "${{ matrix.kernel }}" == "1" ]]; then
             cp out/arch/arm64/boot/Image.gz ../Image.gz
