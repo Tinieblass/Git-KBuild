@@ -142,7 +142,8 @@ if [[ -n "$SUPER_IMAGE" ]]; then
   SUPER_TOOL="$SUPER_AUDIT/lucky-arch-src"
   SUPER_PARTS="$SUPER_AUDIT/partitions"
   SUPER_FILES="$SUPER_AUDIT/files"
-  SUPER_BIN="$SUPER_AUDIT/lucky-arch"
+  SUPER_BIN="$(realpath -m "$SUPER_AUDIT/lucky-arch")"
+  [[ "$SUPER_BIN" = /* ]]
   SUPER_TOOL_COMMIT='09ba1a6b4b2c8d603fcb1d8bfe7cf167c9e0463b'
   mkdir -p "$SUPER_AUDIT" "$SUPER_PARTS" "$SUPER_FILES"
   : > "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
