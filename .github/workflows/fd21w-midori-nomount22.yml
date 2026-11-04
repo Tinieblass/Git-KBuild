@@ -475,6 +475,33 @@ jobs:
           PY
           grep -n 'ksu_.*nofault' drivers/kernelsu/runtime/ksud_integration.c
 
+      - name: Adapt kernel nofault read helper to Linux 4.19
+        run: |
+          cd kernel_tree
+          # The updated ARM64 branch scanner uses copy_from_kernel_nofault(),
+          # introduced after this Linux 4.19 base. RenoRoi's FLOS 4.19 tree
+          # provides probe_kernel_read() in linux/uaccess.h and exports it
+          # from mm/maccess.c; it has the same fault-safe read semantics.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/arm64_branch_insn.h")
+          s = p.read_text()
+          old = "copy_from_kernel_nofault(&raw_instruction, (void *)curr_addr, sizeof(uint32_t))"
+          new = "probe_kernel_read(&raw_instruction, (void *)curr_addr, sizeof(uint32_t))"
+          if s.count(old) != 1:
+              raise SystemExit("Expected exactly one arm64 nofault kernel read call")
+          if "#include <linux/uaccess.h>" not in s:
+              raise SystemExit("uaccess.h include missing from ARM64 branch scanner")
+          uaccess = Path("include/linux/uaccess.h").read_text()
+          maccess = Path("mm/maccess.c").read_text()
+          if "probe_kernel_read" not in uaccess or "EXPORT_SYMBOL_GPL(probe_kernel_read)" not in maccess:
+              raise SystemExit("Linux 4.19 probe_kernel_read API/export not verified")
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+          grep -n -B2 -A2 'probe_kernel_read(&raw_instruction' drivers/kernelsu/arm64_branch_insn.h
+          ! grep -Fq 'copy_from_kernel_nofault(' drivers/kernelsu/arm64_branch_insn.h
+
       - name: Backport sulog nofault string copy to Linux 4.19
         run: |
           cd kernel_tree
