@@ -193,6 +193,27 @@ jobs:
           grep -n -B2 -A3 'KERNEL_VERSION(5, 1, 0)' drivers/kernelsu/infra/file_wrapper.c
           grep -n -B2 -A3 'REMAP_FILE_DEDUP' drivers/kernelsu/infra/file_wrapper.c
           grep -n 'wrapper_sec =' drivers/kernelsu/infra/file_wrapper.c
+
+          # Kernel 4.19 ARM64 uses NR_syscalls; newer seccomp headers name
+          # this bound SECCOMP_ARCH_NATIVE_NR. Keep the native syscall bitmap sized
+          # to the exact architecture syscall range on both kernel generations.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/infra/seccomp_cache.c")
+          s = p.read_text()
+          anchor = "#include <linux/seccomp.h>\n"
+          addition = "#include <asm/unistd.h>\n\n#ifndef SECCOMP_ARCH_NATIVE_NR\n#define SECCOMP_ARCH_NATIVE_NR NR_syscalls\n#endif\n"
+          if s.count(anchor) != 1:
+              raise SystemExit("Expected one linux/seccomp.h include in seccomp_cache.c")
+          if "SECCOMP_ARCH_NATIVE_NR" in s and "#define SECCOMP_ARCH_NATIVE_NR" not in s:
+              s = s.replace(anchor, anchor + addition, 1)
+          elif "#define SECCOMP_ARCH_NATIVE_NR NR_syscalls" not in s:
+              raise SystemExit("Unexpected seccomp syscall-bound state")
+          if "NR_syscalls" not in Path("arch/arm64/include/asm/unistd.h").read_text():
+              raise SystemExit("ARM64 NR_syscalls definition is missing")
+          p.write_text(s)
+          PY
+          grep -n -B2 -A3 'SECCOMP_ARCH_NATIVE_NR' drivers/kernelsu/infra/seccomp_cache.c
       - name: Integrate pinned NoMount 2.2.0 driver
         run: |
           cd kernel_tree
