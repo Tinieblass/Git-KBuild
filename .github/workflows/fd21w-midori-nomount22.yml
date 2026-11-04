@@ -47,7 +47,7 @@ jobs:
 
       - name: Checkout historical W source snapshot
         run: |
-          git clone --filter=blob:none --no-checkout --depth=400 --branch flos \
+          git clone --filter=blob:none --no-checkout --depth=5 --branch stable \
             https://github.com/re-noroi/kernel_sm8250.git kernel_tree
           if [[ "${{ matrix.kernel }}" == "3" || "${{ matrix.kernel }}" == "4" ]]; then
             git -C kernel_tree checkout --detach "${SOURCE_STOCK_GPU}"
