@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kernel: [1, 2, 3, 4]
+        kernel: [2]
     env:
       SOURCE_BASE: dc1defa88f947e28a14666151d6af2d084caa345
       SOURCE_STOCK_GPU: 4687149afb1d57eda185d279a6743d8e918fddb8
@@ -145,7 +145,48 @@ jobs:
           PY
           grep -n -B3 -A3 'probe_kernel_write(map' drivers/kernelsu/hook/arm64/patch_memory.c
           grep -Fq 'EXPORT_SYMBOL_GPL(probe_kernel_write)' mm/maccess.c
-          test -f drivers/kernelsu/Kconfig
+
+          # Adapt KernelSU's fd wrapper to the historical vendor 4.19 VFS API.
+          # iopoll is not part of this 4.19 file_operations; REMAP_FILE_DEDUP and
+          # remap_file_range are also absent. SELinux 4.19 exposes i_security directly.
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path("drivers/kernelsu/infra/file_wrapper.c")
+          s = p.read_text()
+
+          pat = re.compile(r'(#if LINUX_VERSION_CODE >= KERNEL_VERSION\\(6, 1, 0\\)\\nstatic int ksu_wrapper_iopoll.*?\\n#endif\\n)(\\n#if LINUX_VERSION_CODE < KERNEL_VERSION\\(6, 6, 0\\))', re.S)
+          s, n = pat.subn(r'#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)\\n\\1#endif\\n\\2', s, count=1)
+          if n != 1:
+              raise SystemExit("Could not guard iopoll wrapper for Linux 4.19")
+
+          old = "    p->ops.iopoll = fp->f_op->iopoll ? ksu_wrapper_iopoll : NULL;\\n"
+          if s.count(old) != 1:
+              raise SystemExit("Expected one iopoll file_operations assignment")
+          s = s.replace(old, "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)\\n" + old + "#endif\\n", 1)
+
+          pat = re.compile(r'(static loff_t ksu_wrapper_remap_file_range\\(.*?\\n}\\n)(\\nstatic int ksu_wrapper_fadvise)', re.S)
+          s, n = pat.subn(r'#ifdef REMAP_FILE_DEDUP\\n\\1#endif\\n\\2', s, count=1)
+          if n != 1:
+              raise SystemExit("Could not guard remap_file_range wrapper for Linux 4.19")
+
+          old = "    p->ops.remap_file_range = fp->f_op->remap_file_range ? ksu_wrapper_remap_file_range : NULL;\\n"
+          if s.count(old) != 1:
+              raise SystemExit("Expected one remap_file_range file_operations assignment")
+          s = s.replace(old, "#ifdef REMAP_FILE_DEDUP\\n" + old + "#endif\\n", 1)
+
+          old = "    struct inode_security_struct *wrapper_sec = selinux_inode(wrapper_inode);"
+          new = "    struct inode_security_struct *wrapper_sec = (struct inode_security_struct *)wrapper_inode->i_security;"
+          if s.count(old) != 1:
+              raise SystemExit("Expected one selinux_inode() call")
+          s = s.replace(old, new, 1)
+
+          p.write_text(s)
+          PY
+          grep -n -B2 -A3 'KERNEL_VERSION(5, 1, 0)' drivers/kernelsu/infra/file_wrapper.c
+          grep -n -B2 -A3 'REMAP_FILE_DEDUP' drivers/kernelsu/infra/file_wrapper.c
+          grep -n 'wrapper_sec =' drivers/kernelsu/infra/file_wrapper.c
+                    test -f drivers/kernelsu/Kconfig
           test -f drivers/kernelsu/Kbuild
           grep -Fq 'source "drivers/kernelsu/Kconfig"' drivers/Kconfig
           grep -Fq 'kernelsu/' drivers/Makefile
@@ -259,6 +300,7 @@ jobs:
             mv out/arch/arm64/boot/dtbo.img ../alioth-j3s-dtbo-aosp.img
             mv out/arch/arm64/boot/dtb.img ../alioth-normal-dtb
           elif [[ "${{ matrix.kernel }}" == "2" ]]; then
+            cp out/arch/arm64/boot/Image.gz ../Image.gz
             mv out/arch/arm64/boot/dtbo.img ../alioth-j3s-dtbo-miui.img
             mv out/arch/arm64/boot/dtb.img ../alioth-effcpu-dtb
           elif [[ "${{ matrix.kernel }}" == "3" ]]; then
@@ -289,29 +331,11 @@ jobs:
     env:
       ANYKERNEL_SHA: 40b2a7fbea8f8e1b41cdfc9c7f929d0a5ba21446
     steps:
-      - name: Download matrix 1 (J3S / AOSP / normal CPU / UV GPU)
-        uses: actions/download-artifact@v4
-        with:
-          name: kernel-1-1
-          path: kernel-1-1
-
-      - name: Download matrix 2 (J3S / MIUI / efficient CPU / UV GPU)
+      - name: Download target matrix (J3S / MIUI / efficient CPU / UV GPU)
         uses: actions/download-artifact@v4
         with:
           name: kernel-1-2
           path: kernel-1-2
-
-      - name: Download matrix 3 (stock battery / AOSP / normal CPU / stock GPU)
-        uses: actions/download-artifact@v4
-        with:
-          name: kernel-1-3
-          path: kernel-1-3
-
-      - name: Download matrix 4 (stock battery / MIUI / efficient CPU / stock GPU)
-        uses: actions/download-artifact@v4
-        with:
-          name: kernel-1-4
-          path: kernel-1-4
 
       - name: Checkout original AnyKernel3 installer
         run: |
@@ -321,15 +345,22 @@ jobs:
 
       - name: Assemble original AnyKernel3 package
         run: |
-          cp kernel-1-1/Image.gz AnyKernel3/
-          cp kernel-1-1/alioth-j3s-dtbo-aosp.img AnyKernel3/
-          cp kernel-1-1/alioth-normal-dtb AnyKernel3/
+          cp kernel-1-2/Image.gz AnyKernel3/
           cp kernel-1-2/alioth-j3s-dtbo-miui.img AnyKernel3/
           cp kernel-1-2/alioth-effcpu-dtb AnyKernel3/
-          cp kernel-1-3/alioth-stock-dtbo-aosp.img AnyKernel3/
-          cp kernel-1-3/alioth-normal-gpustk-dtb AnyKernel3/
-          cp kernel-1-4/alioth-stock-dtbo-miui.img AnyKernel3/
-          cp kernel-1-4/alioth-effcpu-gpustk-dtb AnyKernel3/
+
+          # This target-only ZIP carries the selected MIUI DTBO only.
+          # Make the original J3S selector tolerate the intentionally absent AOSP DTBO.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("AnyKernel3/anykernel.sh")
+          s = p.read_text()
+          old = "      mv alioth-j3s-dtbo-aosp.img alioth-aosp-dtbo.img"
+          new = "      if [ -f alioth-j3s-dtbo-aosp.img ]; then mv alioth-j3s-dtbo-aosp.img alioth-aosp-dtbo.img; fi"
+          if s.count(old) != 1:
+              raise SystemExit("Expected one J3S AOSP DTBO selector")
+          p.write_text(s.replace(old, new, 1))
+          PY
 
           ZIP_NAME="FlashKernel-FakeDreamer-v2.1-W-alioth-$(date -u +%Y%m%d)-j3s-miui-eff-uv.zip"
           echo "ZIP_NAME=${ZIP_NAME}" >> "$GITHUB_ENV"
@@ -344,6 +375,7 @@ jobs:
           Toolchain: Neutron Clang 06092026
           LTO: full
           Kernel config: MODULES=y, KPROBES=y, KSU=y, NOMOUNT=y, EXT4_FS=y, BPF=y, NTSYNC=y
+          Build matrix: J3S / MIUI / efficient CPU / UV GPU only
           Flash variant selected by ZIP name: -j3s-miui-eff-uv
           EOF
 
