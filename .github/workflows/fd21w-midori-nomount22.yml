@@ -128,6 +128,23 @@ jobs:
           p.write_text(s.replace(old, new, 1))
           PY
           grep -n -B2 -A4 'register_trace_.*sys_enter' drivers/kernelsu/hook/syscall_hook_manager.c
+
+          # Linux 4.19 provides probe_kernel_write(), not copy_to_kernel_nofault().
+          # Both perform a fault-safe kernel-memory write and return 0 / -EFAULT.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/hook/arm64/patch_memory.c")
+          s = p.read_text()
+          old = "ret = (int)copy_to_kernel_nofault(map, src, len);"
+          new = "ret = (int)probe_kernel_write(map, src, len);"
+          if s.count(old) != 1:
+              raise SystemExit("Expected one copy_to_kernel_nofault call; refusing unsafe patch")
+          if "probe_kernel_write" not in Path("include/linux/uaccess.h").read_text():
+              raise SystemExit("Kernel 4.19 probe_kernel_write declaration missing")
+          p.write_text(s.replace(old, new, 1))
+          PY
+          grep -n -B3 -A3 'probe_kernel_write(map' drivers/kernelsu/hook/arm64/patch_memory.c
+          grep -Fq 'EXPORT_SYMBOL_GPL(probe_kernel_write)' mm/maccess.c
           test -f drivers/kernelsu/Kconfig
           test -f drivers/kernelsu/Kbuild
           grep -Fq 'source "drivers/kernelsu/Kconfig"' drivers/Kconfig
