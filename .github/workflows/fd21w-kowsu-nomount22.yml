@@ -64,6 +64,30 @@ jobs:
           git -C KernelSU checkout --detach "${KOWSU_SHA}"
           ln -s ../KernelSU/kernel drivers/kernelsu
 
+          # Kernel 4.19 already gets its page-table interfaces through linux/mm.h.
+          # The newer linux/pgtable.h wrapper is absent in this source tree.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/feature/sucompat.c")
+          s = p.read_text()
+          old = "#include <linux/pgtable.h>"
+          new = """#if defined(__has_include)
+          #if __has_include(<linux/pgtable.h>)
+          #include <linux/pgtable.h>
+          #endif
+          #else
+          #include <linux/pgtable.h>
+          #endif"""
+          if s.count(old) != 1:
+              raise SystemExit("Expected one pgtable include; refusing unsafe compatibility patch")
+          p.write_text(s.replace(old, new, 1))
+          PY
+          grep -n -B2 -A5 'linux/pgtable.h' drivers/kernelsu/feature/sucompat.c
+          test -f drivers/kernelsu/Kconfig
+          test -f drivers/kernelsu/Kbuild
+          grep -Fq 'source "drivers/kernelsu/Kconfig"' drivers/Kconfig
+          grep -Fq 'kernelsu/' drivers/Makefile
+
           # Kernel 4.19 has no MODULE_IMPORT_NS; guard newer KernelSU namespace metadata.
           python3 - <<'PY'
           from pathlib import Path
