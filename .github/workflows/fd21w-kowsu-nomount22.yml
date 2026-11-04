@@ -470,32 +470,41 @@ jobs:
           PY
           grep -n 'ksu_.*nofault' drivers/kernelsu/runtime/ksud_integration.c
 
-      - name: Adapt kernel nofault read helper to Linux 4.19
+      - name: Backport KernelSU nofault kernel-read helper from RenoRoi compatibility
         run: |
           cd kernel_tree
-          # The updated ARM64 branch scanner uses copy_from_kernel_nofault(),
-          # introduced after this Linux 4.19 base. RenoRoi's FLOS 4.19 tree
-          # provides probe_kernel_read() in linux/uaccess.h and exports it
-          # from mm/maccess.c; it has the same fault-safe read semantics.
+          # RenoRoi's FakeDreamer 32707 driver supplies copy_from_kernel_nofault()
+          # on kernels < 5.8 using the legacy fault-safe kernel read API.
+          # Keep the updated KernelSU call sites intact and provide the same
+          # compatibility symbol for this Linux 4.19 base.
           python3 - <<'PY'
           from pathlib import Path
           p = Path("drivers/kernelsu/arm64_branch_insn.h")
           s = p.read_text()
-          old = "copy_from_kernel_nofault(&raw_instruction, (void *)curr_addr, sizeof(uint32_t))"
-          new = "probe_kernel_read(&raw_instruction, (void *)curr_addr, sizeof(uint32_t))"
-          if s.count(old) != 1:
-              raise SystemExit("Expected exactly one arm64 nofault kernel read call")
+          call = "copy_from_kernel_nofault(&raw_instruction, (void *)curr_addr, sizeof(uint32_t))"
+          if s.count(call) != 1:
+              raise SystemExit("Expected exactly one ARM64 copy_from_kernel_nofault call")
           if "#include <linux/uaccess.h>" not in s:
               raise SystemExit("uaccess.h include missing from ARM64 branch scanner")
-          uaccess = Path("include/linux/uaccess.h").read_text()
-          maccess = Path("mm/maccess.c").read_text()
-          if "probe_kernel_read" not in uaccess or "EXPORT_SYMBOL_GPL(probe_kernel_read)" not in maccess:
-              raise SystemExit("Linux 4.19 probe_kernel_read API/export not verified")
-          s = s.replace(old, new, 1)
+          if "RenoRoi Linux 4.19 nofault compatibility" not in s:
+              anchor = "#include <linux/uaccess.h>\\n"
+              compat = """/* RenoRoi Linux 4.19 nofault compatibility. */
+          #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
+          __weak long copy_from_kernel_nofault(void *dst, const void *src, size_t size)
+          {
+              return probe_kernel_read(dst, src, size);
+          }
+          #endif
+          """
+              if s.count(anchor) != 1:
+                  raise SystemExit("Expected one uaccess.h include insertion point")
+              s = s.replace(anchor, anchor + "\\n" + compat, 1)
           p.write_text(s)
           PY
-          grep -n -B2 -A2 'probe_kernel_read(&raw_instruction' drivers/kernelsu/arm64_branch_insn.h
-          ! grep -Fq 'copy_from_kernel_nofault(' drivers/kernelsu/arm64_branch_insn.h
+          grep -n -B2 -A5 'RenoRoi Linux 4.19 nofault compatibility' drivers/kernelsu/arm64_branch_insn.h
+          grep -n 'copy_from_kernel_nofault(&raw_instruction' drivers/kernelsu/arm64_branch_insn.h
+          grep -Fq 'extern long probe_kernel_read(void *dst, const void *src, size_t size);' include/linux/uaccess.h
+          grep -Fq 'EXPORT_SYMBOL_GPL(probe_kernel_read)' mm/maccess.c
 
       - name: Backport sulog nofault string copy to Linux 4.19
         run: |
