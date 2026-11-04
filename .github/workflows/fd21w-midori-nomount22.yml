@@ -361,7 +361,7 @@ jobs:
           if n != 1:
               raise SystemExit(f"Expected one path_mount declaration, removed {n}")
           old_mount = r"(?m)^[ \t]*// make root mount private\n[ \t]*struct path root_path;\n[ \t]*get_fs_root\(current->fs, &root_path\);\n[ \t]*int pm_ret = path_mount\([^;]*;\n[ \t]*path_put\(&root_path\);"
-          new_mount = """    // Linux 4.19 has no path_mount(); use its native mount syscall wrapper.
+          new_mount = """    // Linux 4.19 has no equivalent helper; use its native mount syscall wrapper.
               // userspace_stack_buffer() supplies the pathname in the calling task's address space.
               int pm_ret = ksyscall(mount, NULL, userspace_stack_buffer("/", sizeof("/")),
                                     NULL, MS_PRIVATE | MS_REC, NULL);"""
