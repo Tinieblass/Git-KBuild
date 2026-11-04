@@ -492,7 +492,7 @@ jobs:
           if "#include <linux/uaccess.h>" not in s:
               raise SystemExit("uaccess.h include missing from ARM64 branch scanner")
           if "RenoRoi Linux 4.19 nofault compatibility" not in s:
-              anchor = "#include <linux/uaccess.h>\\n"
+              anchor = "#include <linux/uaccess.h>\n"
               compat = """/* RenoRoi Linux 4.19 nofault compatibility. */
           #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
           __weak long copy_from_kernel_nofault(void *dst, const void *src, size_t size)
@@ -503,7 +503,7 @@ jobs:
           """
               if s.count(anchor) != 1:
                   raise SystemExit("Expected one uaccess.h include insertion point")
-              s = s.replace(anchor, anchor + "\\n" + compat, 1)
+              s = s.replace(anchor, anchor + "\n" + compat, 1)
           p.write_text(s)
           PY
           grep -n -B2 -A5 'RenoRoi Linux 4.19 nofault compatibility' drivers/kernelsu/arm64_branch_insn.h
