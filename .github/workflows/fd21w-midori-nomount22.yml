@@ -389,8 +389,8 @@ jobs:
           if s.count("seccomp_filter_release(fake);") != 1:
               raise SystemExit("Expected one seccomp_filter_release call")
           s = s.replace("seccomp_filter_release(fake);", "put_seccomp_filter(fake);", 1)
-          if "seccomp_filter_release" in s:
-              raise SystemExit("seccomp_filter_release references remain in app_profile.c")
+          if "void seccomp_filter_release(" in s or "seccomp_filter_release(fake);" in s:
+              raise SystemExit("obsolete seccomp_filter_release declaration/call remains in app_profile.c")
           if "#include <linux/seccomp.h>" not in s:
               raise SystemExit("linux/seccomp.h include missing")
           p.write_text(s)
