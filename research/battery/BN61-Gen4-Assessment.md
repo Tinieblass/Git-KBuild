@@ -189,3 +189,14 @@ The official India DTBO's M703 nodes strengthen the link between the 6000 mAh In
 - Deep parser source distribution: `uefi_firmware==1.16`, SHA-256 `1626b9930b1006f9ec10b75ef889ffc17c632e0b43a4aba07a1090d9023133ea`; parser exit status 0; 385 extracted files inventoried. The deep search's PM855 hits were generic PMIC/ADC paths and charger configuration text, not a battery profile.
 - Uploaded artifact ID `13202491403`, size 107,969 bytes, SHA-256 `f23fe8a06dd96af2067423ecac1eb4fd716ae847a30bb1bd2869d91b653050f6`; the downloaded ZIP was independently hashed and matched the GitHub artifact digest.
 - Archive member inventory confirms `images/super.img` exists, but run #16 did not extract or scan it. Vendor/ODM dynamic-partition inspection is the next highest-value firmware lead.
+
+
+### Quantitative profile comparison validation — 2026-11-04
+
+- Validation workflow run `41757745746`, commit `0acc0075364ab410b0973f095c558286e1293232`, completed successfully. All 16 M703 QG LUT dimensions, the nine-profile PM855B Gen4 comparison, the J3S provision export cross-check and the PM855GUI checksum checks passed.
+- M703 ATL 6000 and M703 PM7150B ATL 5160 share the same table axes (16/16) and scalar metadata (4.45 V profile max, 4.48 V FFC max, 100 kΩ battery ID, beta 4250, 100 kΩ thermistor), but their LUT values are not interchangeable. At 25 °C, the 6000 profile's FCC1/FCC2 are 5956/5955 mAh; the 5160 profile's FCC1/FCC2 are 5170/5180 mAh. The 6000 profile's source-native OCV v1/v2 and Z/Y tables remain QG data, not a PM855B Gen4 model.
+- The QG Z/Y table units remain unidentified. Some Y/Z surfaces differ substantially between the 6000 and 5160 models; no resistance/ESR unit is inferred and no table is copied into alioth.
+- Nine authentic PM855B Gen4 references were parsed: only 82/416 byte positions and 13/208 little-endian words are common across the full set. J3S's 416-byte DTSI payload matches the PM855GUI export for bytes 0–413, with two trailing `00 00` bytes. This validates the reference/provision pipeline, not a BN61 conversion.
+- Checksum verification passed for the three matched PM855GUI export pairs. The separate UMI NVT export discrepancy remains flagged: the export declares `0x2F06` but calculates `0x2D06`; the DTSI's `0x2F06` checksum validates. It is not used as BN61 source data.
+- Research artifact ID `13288158339`, size 61,204 bytes, SHA-256 `291e1ed347e725a0efcf8ca7df0b409b1ce1595deb3fe878018871ded21285c4`; downloaded ZIP independently matched the GitHub artifact digest.
+- Result remains unchanged: no BN61 PM855B Gen4 payload is available, no `-6K` DTBO is generated, and no battery safety/charge limit is altered.
