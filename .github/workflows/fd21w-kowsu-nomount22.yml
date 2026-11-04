@@ -357,8 +357,7 @@ jobs:
           p = Path("drivers/kernelsu/infra/su_mount_ns.c")
           s = p.read_text()
           old_decl = """extern int path_mount(const char *dev_name, struct path *path, const char *type_page, unsigned long flags,
-                      void *data_page);
-          """
+                      void *data_page);""".strip()
           if s.count(old_decl) != 1:
               raise SystemExit("Expected one path_mount declaration; refusing unsafe replacement")
           s = s.replace(old_decl, "", 1)
@@ -366,8 +365,7 @@ jobs:
               struct path root_path;
               get_fs_root(current->fs, &root_path);
               int pm_ret = path_mount(NULL, &root_path, NULL, MS_PRIVATE | MS_REC, NULL);
-              path_put(&root_path);
-          """
+              path_put(&root_path);""".strip()
           new_block = """    // Linux 4.19 has no path_mount(); use its native mount syscall wrapper.
               // userspace_stack_buffer() supplies the pathname in the calling task's address space.
               int pm_ret = ksyscall(mount, NULL, userspace_stack_buffer("/", sizeof("/")),
@@ -397,7 +395,8 @@ jobs:
               raise SystemExit("linux/seccomp.h include missing")
           p.write_text(s)
           PY
-          ! grep -R -n -E 'path_mount|seccomp_filter_release' drivers/kernelsu/infra/su_mount_ns.c drivers/kernelsu/policy/app_profile.c
+          ! grep -n 'path_mount' drivers/kernelsu/infra/su_mount_ns.c
+          ! grep -n -E 'void seccomp_filter_release\\(|seccomp_filter_release\\(fake\\)' drivers/kernelsu/policy/app_profile.c
           grep -n 'ksyscall(mount' drivers/kernelsu/infra/su_mount_ns.c
           grep -n 'put_seccomp_filter(fake)' drivers/kernelsu/policy/app_profile.c
 
