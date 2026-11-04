@@ -161,20 +161,23 @@ jobs:
           from pathlib import Path
           p = Path("drivers/kernelsu/core/init.c")
           s = p.read_text()
-          import re
-          pattern = re.compile(r'(?ms)^#if LINUX_VERSION_CODE >= KERNEL_VERSION\\(6, 13, 0\\)\\s*\\nMODULE_IMPORT_NS\\(.*?\\);\\s*\\n#else\\s*\\nMODULE_IMPORT_NS\\(.*?\\);\\s*\\n#endif')
-          match = pattern.search(s)
-          if match:
-              block = match.group(0)
-              if not block.startswith("#ifdef MODULE_IMPORT_NS"):
-                  s = s[:match.start()] + "#ifdef MODULE_IMPORT_NS\\n" + block + "\\n#endif" + s[match.end():]
-          elif "MODULE_IMPORT_NS(" in s and "#ifdef MODULE_IMPORT_NS" in s:
-              pass
+          lines = s.splitlines()
+          start = next((i for i, line in enumerate(lines) if line.strip() == "#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)"), -1)
+          if start < 0:
+              if "MODULE_IMPORT_NS(" not in s or "#ifdef MODULE_IMPORT_NS" not in s:
+                  raise SystemExit("Could not locate namespace metadata block")
           else:
-              raise SystemExit("Could not safely identify MODULE_IMPORT_NS metadata block")
-          p.write_text(s)
+              end = next((i for i in range(start + 1, len(lines)) if lines[i].strip() == "#endif"), -1)
+              block = lines[start:end + 1] if end >= 0 else []
+              if end < 0 or sum("MODULE_IMPORT_NS(" in line for line in block) != 2:
+                  raise SystemExit("Unexpected MODULE_IMPORT_NS block; refusing unsafe patch")
+              if start == 0 or lines[start - 1].strip() != "#ifdef MODULE_IMPORT_NS":
+                  lines[start:start] = ["#ifdef MODULE_IMPORT_NS"]
+                  end += 1
+                  lines.insert(end + 1, "#endif")
+          p.write_text("\n".join(lines) + ("\n" if s.endswith("\n") else ""))
           PY
-          grep -n -B1 -A6 'MODULE_IMPORT_NS' drivers/kernelsu/core/init.c
+          grep -n -B1 -A7 'MODULE_IMPORT_NS' drivers/kernelsu/core/init.c
 
           # Linux 4.19 may expose only the non-priority syscall trace registration API
           # when CONFIG_TRACEPOINTS is disabled. Preserve INT_MIN priority where supported.
