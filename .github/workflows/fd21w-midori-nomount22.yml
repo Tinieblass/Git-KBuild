@@ -214,6 +214,28 @@ jobs:
           p.write_text(s)
           PY
           grep -n -B2 -A3 'SECCOMP_ARCH_NATIVE_NR' drivers/kernelsu/infra/seccomp_cache.c
+      - name: Adapt mount namespace header to Linux 4.19
+        run: |
+          cd kernel_tree
+          # This 4.19 tree has no uapi/linux/mount.h. linux/fs.h already
+          # includes uapi/linux/fs.h, which defines MS_PRIVATE and MS_REC.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/infra/su_mount_ns.c")
+          s = p.read_text()
+          old = "#include <uapi/linux/mount.h>\\n"
+          if s.count(old) != 1:
+              raise SystemExit("Expected exactly one unavailable uapi/linux/mount.h include")
+          if "#include <linux/fs.h>" not in s:
+              raise SystemExit("linux/fs.h include missing; refusing unsafe compatibility patch")
+          s = s.replace(old, "", 1)
+          p.write_text(s)
+          PY
+          ! grep -Fq '#include <uapi/linux/mount.h>' drivers/kernelsu/infra/su_mount_ns.c
+          grep -Fq '#include <linux/fs.h>' drivers/kernelsu/infra/su_mount_ns.c
+          grep -Fq '#define MS_PRIVATE' include/uapi/linux/fs.h
+          grep -Fq '#define MS_REC' include/uapi/linux/fs.h
+
       - name: Integrate pinned NoMount 2.2.0 driver
         run: |
           cd kernel_tree
