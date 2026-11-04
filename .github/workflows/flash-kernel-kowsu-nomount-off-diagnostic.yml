@@ -966,12 +966,13 @@ jobs:
             mv out/arch/arm64/boot/dtb.img ../alioth-effcpu-gpustk-dtb
           fi
 
+      - name: Checksum diagnostic kernel Image
+        run: sha256sum Image.gz > Image.gz.sha256
+
       - name: Upload diagnostic kernel Image only
-        run: |
-          sha256sum Image.gz > Image.gz.sha256
         uses: actions/upload-artifact@v4
         with:
-          name: FlashKernel-FD21W-KowSU-NoMount-OFF-Image
+          name: FlashKernel-FakeDreamer-KowSU-NoMount-OFF-Image
           path: |
             Image.gz
             Image.gz.sha256
