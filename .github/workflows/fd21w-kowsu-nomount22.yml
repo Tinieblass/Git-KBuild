@@ -437,6 +437,7 @@ jobs:
 
 
 
+
       - name: Backport SELinux policy access for Linux 4.19
         run: |
           cd kernel_tree
@@ -444,9 +445,16 @@ jobs:
           from pathlib import Path
           p = Path("drivers/kernelsu/selinux/rules.c")
           s = p.read_text()
+          NL = chr(10)
 
           decl = "    struct selinux_policy *pol, *old_pol;"
-          compat_decl = "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\\n    struct selinux_ss *ss;\\n#else\\n" + decl + "\\n#endif"
+          compat_decl = NL.join([
+              "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)",
+              "    struct selinux_ss *ss;",
+              "#else",
+              decl,
+              "#endif",
+          ])
           if s.count(decl) != 2:
               raise SystemExit(f"Expected two SELinux policy declarations, got {s.count(decl)}")
           s = s.replace(decl, compat_decl, 2)
@@ -462,7 +470,20 @@ jobs:
           x = fn.index(lock)
           y = fn.index(dbline, x) + len(dbline)
           modern = fn[x:y]
-          compat = "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\\n    rcu_read_lock();\\n    ss = rcu_dereference(selinux_state.ss);\\n    if (!ss) {\\n        rcu_read_unlock();\\n        return;\\n    }\\n    write_lock(&ss->policy_rwlock);\\n    db = &ss->policydb;\\n#else\\n" + modern + "\\n#endif"
+          compat = NL.join([
+              "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)",
+              "    rcu_read_lock();",
+              "    ss = rcu_dereference(selinux_state.ss);",
+              "    if (!ss) {",
+              "        rcu_read_unlock();",
+              "        return;",
+              "    }",
+              "    write_lock(&ss->policy_rwlock);",
+              "    db = &ss->policydb;",
+              "#else",
+              modern,
+              "#endif",
+          ])
           fn = fn[:x] + compat + fn[y:]
 
           swap_start = "    rcu_assign_pointer(selinux_state.policy, pol);"
@@ -472,11 +493,19 @@ jobs:
           x = fn.index(swap_start)
           y = fn.index(unlock, x) + len(unlock)
           modern_tail = fn[x:y]
-          old_tail = "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\\n    write_unlock(&ss->policy_rwlock);\\n    rcu_read_unlock();\\n    reset_avc_cache();\\n#else\\n" + modern_tail + "\\n#endif"
+          old_tail = NL.join([
+              "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)",
+              "    write_unlock(&ss->policy_rwlock);",
+              "    rcu_read_unlock();",
+              "    reset_avc_cache();",
+              "#else",
+              modern_tail,
+              "#endif",
+          ])
           fn = fn[:x] + old_tail + fn[y:]
           s = s[:a] + fn + s[b:]
 
-          # Preserve the batch parser; apply validated commands to the 4.19 policydb under write lock.
+          # Preserve the batch parser; apply commands to the 4.19 policydb under write lock.
           a = s.index("int handle_sepolicy(")
           fn = s[a:]
           if fn.count(lock) != 1 or fn.count(dbline) != 1:
@@ -484,7 +513,21 @@ jobs:
           x = fn.index(lock)
           y = fn.index(dbline, x) + len(dbline)
           modern = fn[x:y]
-          compat = "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)\\n    rcu_read_lock();\\n    ss = rcu_dereference(selinux_state.ss);\\n    if (!ss) {\\n        rcu_read_unlock();\\n        ret = -EINVAL;\\n        goto out_free;\\n    }\\n    write_lock(&ss->policy_rwlock);\\n    db = &ss->policydb;\\n#else\\n" + modern + "\\n#endif"
+          compat = NL.join([
+              "#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)",
+              "    rcu_read_lock();",
+              "    ss = rcu_dereference(selinux_state.ss);",
+              "    if (!ss) {",
+              "        rcu_read_unlock();",
+              "        ret = -EINVAL;",
+              "        goto out_free;",
+              "    }",
+              "    write_lock(&ss->policy_rwlock);",
+              "    db = &ss->policydb;",
+              "#else",
+              modern,
+              "#endif",
+          ])
           fn = fn[:x] + compat + fn[y:]
 
           if fn.count(swap_start) != 1 or fn.count(unlock) != 1:
@@ -492,7 +535,22 @@ jobs:
           x = fn.index(swap_start)
           y = fn.index(unlock, x) + len(unlock)
           modern_tail = fn[x:y]
-          old_tail = "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)\\n" + modern_tail + "\\n#else\\n    write_unlock(&ss->policy_rwlock);\\n    rcu_read_unlock();\\n    reset_avc_cache();\\n    ret = success_cmd_count;\\n    goto out_free;\\n\\nout_drop_new_policy:\\nout_unlock:\\n    write_unlock(&ss->policy_rwlock);\\n    rcu_read_unlock();\\n#endif"
+          old_tail = NL.join([
+              "#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)",
+              modern_tail,
+              "#else",
+              "    write_unlock(&ss->policy_rwlock);",
+              "    rcu_read_unlock();",
+              "    reset_avc_cache();",
+              "    ret = success_cmd_count;",
+              "    goto out_free;",
+              "",
+              "out_drop_new_policy:",
+              "out_unlock:",
+              "    write_unlock(&ss->policy_rwlock);",
+              "    rcu_read_unlock();",
+              "#endif",
+          ])
           fn = fn[:x] + old_tail + fn[y:]
           s = s[:a] + fn
 
