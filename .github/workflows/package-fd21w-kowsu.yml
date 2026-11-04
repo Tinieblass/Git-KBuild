@@ -82,7 +82,7 @@ jobs:
 
           # Keep recovery output minimal; retain only the required branding line.
           lines = [line for line in s.splitlines() if not line.lstrip().startswith("ui_print ")]
-          s = "\\n".join(lines) + "\\n"
+          s = "\n".join(lines) + "\n"
           anchor = ". tools/ak3-core.sh;"
           if s.count(anchor) != 1:
               raise SystemExit("Expected one AnyKernel3 core include")
