@@ -236,6 +236,12 @@ jobs:
           grep -q 'K11A_GY_4520mah' "$OUT/stock-overlay-check.dts"
           grep -q 'qcom,fg-profile-data' "$OUT/stock-overlay-check.dts"
           python3 "$GITHUB_WORKSPACE/tools/extract_android_dtbo.py" --image "$BOOT/dtbo.img" --out "$OUT/stock-dtbo-entries"
+          STOCK_OVERLAY_SHA="$(sha256sum "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo" | awk '{print $1}')"
+          STOCK_ALIOTH_ENTRY_COUNT="$(awk -F '\t' -v sha="$STOCK_OVERLAY_SHA" '$7 == sha { count++ } END { print count + 0 }' "$OUT/stock-dtbo-entries/DTBO-MANIFEST.tsv")"
+          if [[ "$STOCK_ALIOTH_ENTRY_COUNT" -ne 1 ]]; then
+            echo "ERROR: exact stock alioth overlay must occur once in the combined DTBO; found $STOCK_ALIOTH_ENTRY_COUNT." >&2
+            exit 1
+          fi
           STOCK_ENTRY_COUNT=0
           ENTRY_DTS="$OUT/stock-entry-check.dts"
           for entry in "$OUT"/stock-dtbo-entries/dtbo-*.dtb; do
@@ -257,6 +263,8 @@ jobs:
             echo "Overlay SHA-256: $(sha256sum "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo" | awk '{print $1}')"
             echo "Combined DTBO SHA-256: $(sha256sum "$BOOT/dtbo.img" | awk '{print $1}')"
             echo "Stock FMT/GY profile entries in combined DTBO: $STOCK_ENTRY_COUNT"
+            echo "Exact alioth stock overlay entries in combined DTBO: $STOCK_ALIOTH_ENTRY_COUNT"
+            echo "Alioth stock overlay entry SHA-256: $STOCK_OVERLAY_SHA"
             grep -E 'qcom,(battery-type|nom-batt-capacity-mah|batt-id-kohm|battery-beta|checksum)' "$OUT/stock-overlay-check.dts"
           } > "$OUT/STOCK-DTBO-VERIFICATION.txt"
           rm -rf "$OUT/stock-dtbo-entries" "$OUT/stock-overlay-check.dts"
@@ -322,6 +330,12 @@ jobs:
           grep -q 'qcom,nom-batt-capacity-mah' "$OUT/j3s-overlay-check.dts"
           grep -q 'qcom,fg-profile-data' "$OUT/j3s-overlay-check.dts"
           python3 "$GITHUB_WORKSPACE/tools/extract_android_dtbo.py" --image "$OUT/dtbo-j3s.img" --out "$OUT/j3s-dtbo-entries"
+          J3S_OVERLAY_SHA="$(sha256sum "$OUT/alioth-sm8250-overlay-j3s.dtbo" | awk '{print $1}')"
+          J3S_ALIOTH_ENTRY_COUNT="$(awk -F '\t' -v sha="$J3S_OVERLAY_SHA" '$7 == sha { count++ } END { print count + 0 }' "$OUT/j3s-dtbo-entries/DTBO-MANIFEST.tsv")"
+          if [[ "$J3S_ALIOTH_ENTRY_COUNT" -ne 1 ]]; then
+            echo "ERROR: exact J3S alioth overlay must occur once in the combined DTBO; found $J3S_ALIOTH_ENTRY_COUNT." >&2
+            exit 1
+          fi
           J3S_ENTRY_COUNT=0
           ENTRY_DTS="$OUT/j3s-entry-check.dts"
           for entry in "$OUT"/j3s-dtbo-entries/dtbo-*.dtb; do
@@ -343,9 +357,11 @@ jobs:
           {
             echo 'Flash Kernel J3S Sun 5000mAh profile verification'
             echo "Source SHA-256: $(sha256sum "$J3S_SOURCE" | awk '{print $1}')"
-            echo "Overlay SHA-256: $(sha256sum "$OUT/alioth-sm8250-overlay-j3s.dtbo" | awk '{print $1}')"
+            echo "Overlay SHA-256: $J3S_OVERLAY_SHA"
             echo "Combined DTBO SHA-256: $(sha256sum "$OUT/dtbo-j3s.img" | awk '{print $1}')"
-            echo "Profile nodes in combined DTBO: $J3S_ENTRY_COUNT"
+            echo "Profile nodes in combined DTBO: $J3S_ENTRY_COUNT (includes other non-alioth platform entries)"
+            echo "Exact alioth J3S overlay entries in combined DTBO: $J3S_ALIOTH_ENTRY_COUNT"
+            echo "Alioth J3S overlay entry SHA-256: $J3S_OVERLAY_SHA"
             grep -E 'qcom,(battery-type|nom-batt-capacity-mah|batt-id-kohm|battery-beta|therm-room-temp|therm-pull-up|max-voltage-uv|fastchg-current-ma|checksum)' "$J3S_SOURCE"
           } > "$OUT/J3S-DTBO-VERIFICATION.txt"
           rm -rf "$OUT/j3s-dtbo-entries" "$OUT/j3s-overlay-check.dts"
