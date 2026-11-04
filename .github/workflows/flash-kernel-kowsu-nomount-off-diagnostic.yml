@@ -923,7 +923,15 @@ jobs:
           if s.count(broken) != 1:
               raise SystemExit("Expected exactly one unterminated scheduler SEQ_printf call")
           s = s.replace(broken, fixed, 1)
-          if "entity_eligible(&rq->cfs, &p->se)" not in s or fixed not in s:
+
+          macro_anchor = '#define __P(F)\\tSEQ_printf(m, "%-45s:%21Ld\\n",\\t     #F, (long long)F)'
+          macro = '#define __PS(F, V) SEQ_printf(m, "%-45s:%21Ld\\n", (F), (long long)(V))'
+          if s.count(macro_anchor) != 1:
+              raise SystemExit("Expected one scheduler __P macro anchor")
+          if macro not in s:
+              s = s.replace(macro_anchor, macro + "\\n" + macro_anchor, 1)
+
+          if "entity_eligible(&rq->cfs, &p->se)" not in s or fixed not in s or macro not in s:
               raise SystemExit("Scheduler diagnostics repair verification failed")
           debug.write_text(s)
           PY
