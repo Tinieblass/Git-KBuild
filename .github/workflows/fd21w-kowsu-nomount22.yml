@@ -64,6 +64,25 @@ jobs:
           git -C KernelSU checkout --detach "${KOWSU_SHA}"
           ln -s ../KernelSU/kernel drivers/kernelsu
 
+          # Linux 4.19 has min_t()/min() in linux/kernel.h, not linux/minmax.h.
+          # Keep the driver logic unchanged and swap only the unavailable wrapper header.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("drivers/kernelsu/sulog/event.c")
+          s = p.read_text()
+          old = "#include <linux/minmax.h>"
+          new = "#include <linux/kernel.h>"
+          if s.count(old) != 1:
+              raise SystemExit("Expected exactly one linux/minmax.h include in KernelSU sulog/event.c")
+          if new in s:
+              raise SystemExit("linux/kernel.h compatibility include already present; refusing duplicate")
+          if not Path("include/linux/kernel.h").is_file():
+              raise SystemExit("Linux 4.19 linux/kernel.h is missing")
+          p.write_text(s.replace(old, new, 1))
+          PY
+          grep -n -E 'linux/(kernel|minmax)\\.h' drivers/kernelsu/sulog/event.c
+          ! grep -Fq '#include <linux/minmax.h>' drivers/kernelsu/sulog/event.c
+
           # Adapt KernelSU package observer to this vendor Linux 4.19 fsnotify/task_work API.
           # 4.19 uses a bool notify argument (not TWA_RESUME), and fsnotify_ops
           # exposes handle_event(group, inode, mask, data, type, filename, cookie, iter_info).
