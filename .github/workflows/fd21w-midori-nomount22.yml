@@ -408,14 +408,14 @@ jobs:
           '''
           if s.count(marker) != 1:
               raise SystemExit("Expected one insertion marker in ksud_integration.c")
-          if "strncpy_from_user_nofault(" not in s or "copy_from_user_nofault(" not in s or "copy_to_user_nofault(" not in s:
-              raise SystemExit("Expected upstream nofault calls are missing")
+          if s.count("strncpy_from_user_nofault(buf,") != 1 or s.count("copy_from_user_nofault(&size,") != 1 or s.count("copy_to_user_nofault(st_size_ptr,") != 1:
+              raise SystemExit("Expected exact upstream nofault call sites; refusing unsafe patch")
           if "ksu_strncpy_from_user_nofault" in s or "ksu_copy_from_user_nofault" in s or "ksu_copy_to_user_nofault" in s:
               raise SystemExit("Compatibility helpers already present; refusing duplicate patch")
-          s = s.replace(marker, helper + "\\n" + marker, 1)
-          s = s.replace("strncpy_from_user_nofault(", "ksu_strncpy_from_user_nofault(", 1)
-          s = s.replace("copy_from_user_nofault(", "ksu_copy_from_user_nofault(", 1)
-          s = s.replace("copy_to_user_nofault(", "ksu_copy_to_user_nofault(", 1)
+          s = s.replace(marker, helper + "\n" + marker, 1)
+          s = s.replace("strncpy_from_user_nofault(buf,", "ksu_strncpy_from_user_nofault(buf,", 1)
+          s = s.replace("copy_from_user_nofault(&size,", "ksu_copy_from_user_nofault(&size,", 1)
+          s = s.replace("copy_to_user_nofault(st_size_ptr,", "ksu_copy_to_user_nofault(st_size_ptr,", 1)
           p.write_text(s)
           PY
           grep -n 'ksu_.*nofault' drivers/kernelsu/runtime/ksud_integration.c
