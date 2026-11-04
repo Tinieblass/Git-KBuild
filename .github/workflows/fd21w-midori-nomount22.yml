@@ -6,8 +6,6 @@ on:
   push:
     branches:
       - Flash-Kernel-FD21W-MidoriSU-NoMount22
-    paths:
-      - .github/workflows/fd21w-midori-nomount22.yml
   workflow_dispatch:
 
 permissions:
