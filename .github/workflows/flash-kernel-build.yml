@@ -270,9 +270,14 @@ jobs:
           fi
           BOOT=out/arch/arm64/boot
           rm -f "$BOOT/dtbo.img" "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo"
-          make O=out CC=clang LLVM=1 LLVM_IAS=1 -j"$(nproc)" dtbs dtbo.img
-          test -s "$BOOT/dtbo.img"
+          # Build DTBs/overlays first. This kernel's arm64/boot/Makefile expands
+          # DTBO_OBJS with an immediate $(shell find ...) at make parse time.
+          # A single "make dtbs dtbo.img" can therefore omit an overlay created
+          # later in that same invocation from the combined image.
+          make O=out CC=clang LLVM=1 LLVM_IAS=1 -j"$(nproc)" dtbs
           test -s "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo"
+          make O=out CC=clang LLVM=1 LLVM_IAS=1 -j"$(nproc)" dtbo.img
+          test -s "$BOOT/dtbo.img"
           cp "$BOOT/dtbo.img" "$OUT/dtbo-j3s.img"
           cp "$BOOT/dts/vendor/qcom/alioth-sm8250-overlay.dtbo" "$OUT/alioth-sm8250-overlay-j3s.dtbo"
           test -x "$DTC"
@@ -293,7 +298,12 @@ jobs:
             fi
           done
           rm -f "$ENTRY_DTS"
-          test "$J3S_ENTRY_COUNT" -gt 0
+          if [[ "$J3S_ENTRY_COUNT" -eq 0 ]]; then
+            echo "ERROR: combined DTBO image contains no J3S Sun profile entry." >&2
+            echo "Extracted DTBO manifest:" >&2
+            cat "$OUT/j3s-dtbo-entries/DTBO-MANIFEST.tsv" >&2
+            exit 1
+          fi
           {
             echo 'Flash Kernel J3S Sun 5000mAh profile verification'
             echo "Source SHA-256: $(sha256sum "$J3S_SOURCE" | awk '{print $1}')"
