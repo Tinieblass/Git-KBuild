@@ -937,10 +937,11 @@ jobs:
           s, count = re.subn(r"(?m)^([ \t]*const char \*fmt, \.\.\.)\n\n#else$", r"\1;\n\n#else", s, count=1)
           if count != 1:
               raise SystemExit(f"Expected exactly one unterminated nf_log_trace prototype, fixed {count}")
+          if not re.search(r"void nf_log_trace\\(.*?const char \\*fmt, \\.\\.\\.\\);", s, re.S):
+              raise SystemExit("nf_log_trace prototype still lacks its terminating semicolon")
           p.write_text(s)
           PY
-          grep -n -B1 -A1 'const char \*fmt, \.\.\.)' include/net/netfilter/nf_log.h
-          test "$(grep -cF 'const char *fmt, ...);' include/net/netfilter/nf_log.h)" -eq 1
+          grep -n -A9 'void nf_log_trace' include/net/netfilter/nf_log.h
 
       - name: Configure and verify kernel
         run: |
