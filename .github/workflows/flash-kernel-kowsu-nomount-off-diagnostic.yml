@@ -945,6 +945,51 @@ jobs:
           PY
           grep -n -A9 'void nf_log_trace' include/net/netfilter/nf_log.h
 
+      - name: Repair historical MM debug object and stale scheduler sysctl
+        run: |
+          cd kernel_tree
+          # DEBUG_KERNEL is a Kconfig symbol; use its generated CONFIG_ name.
+          # The historical Makefile used an unset make variable, omitting mm/debug.o
+          # and leaving dump_page/pageflag_names/gfpflag_names/vmaflag_names undefined.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("mm/Makefile")
+          s = p.read_text()
+          old = "obj-$(DEBUG_KERNEL)\\t+= debug.o"
+          new = "obj-$(CONFIG_DEBUG_KERNEL)\\t+= debug.o"
+          if s.count(old) != 1:
+              raise SystemExit("Expected one historical mm/debug.o selector")
+          p.write_text(s.replace(old, new, 1))
+
+          # This vendor fair.c no longer defines sysctl_sched_min_granularity.
+          # Remove only its obsolete CONFIG_SCHED_DEBUG sysctl entry and its
+          # now-unused bounds; retain the remaining scheduler diagnostics.
+          p = Path("kernel/sysctl.c")
+          s = p.read_text()
+          decls = (
+              "static int min_sched_granularity_ns = 100000;\\t\\t/* 100 usecs */\\n"
+              "static int max_sched_granularity_ns = NSEC_PER_SEC;\\t/* 1 second */\\n"
+          )
+          entry = (
+              "\\t{\\n"
+              "\\t\\t.procname\\t= \\"sched_min_granularity_ns\\",\\n"
+              "\\t\\t.data\\t\\t= &sysctl_sched_min_granularity,\\n"
+              "\\t\\t.maxlen\\t= sizeof(unsigned int),\\n"
+              "\\t\\t.mode\\t\\t= 0644,\\n"
+              "\\t\\t.proc_handler\\t= sched_proc_update_handler,\\n"
+              "\\t\\t.extra1\\t= &min_sched_granularity_ns,\\n"
+              "\\t\\t.extra2\\t= &max_sched_granularity_ns,\\n"
+              "\\t},\\n"
+          )
+          if s.count(decls) != 1 or s.count(entry) != 1:
+              raise SystemExit("Unexpected obsolete scheduler sysctl layout; refusing patch")
+          s = s.replace(decls, "", 1).replace(entry, "", 1)
+          p.write_text(s)
+          PY
+          grep -n 'CONFIG_DEBUG_KERNEL.*debug.o' mm/Makefile
+          ! grep -q 'sysctl_sched_min_granularity\|min_sched_granularity_ns\|max_sched_granularity_ns' kernel/sysctl.c
+          grep -n 'sched_proc_update_handler' kernel/sysctl.c
+
       - name: Configure and verify kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
