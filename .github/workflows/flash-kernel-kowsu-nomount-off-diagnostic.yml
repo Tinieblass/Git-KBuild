@@ -939,7 +939,7 @@ jobs:
           if s.count(old) != 1:
               raise SystemExit(f"Expected exactly one unterminated nf_log_trace declaration, found {s.count(old)}")
           s = s.replace(old, new, 1)
-          if "const char *fmt, ...);\\n\\n#else" not in s:
+          if s.count(new) != 1:
               raise SystemExit("nf_log_trace prototype still lacks its terminating semicolon")
           p.write_text(s)
           PY
