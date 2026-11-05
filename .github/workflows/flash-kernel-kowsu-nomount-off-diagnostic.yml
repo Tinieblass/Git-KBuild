@@ -934,10 +934,12 @@ jobs:
           import re
           p = Path("include/net/netfilter/nf_log.h")
           s = p.read_text()
-          s, count = re.subn(r"(?m)^([ \t]*const char \*fmt, \.\.\.)\n\n#else$", r"\1;\n\n#else", s, count=1)
-          if count != 1:
-              raise SystemExit(f"Expected exactly one unterminated nf_log_trace prototype, fixed {count}")
-          if not re.search(r"void nf_log_trace\\(.*?const char \\*fmt, \\.\\.\\.\\);", s, re.S):
+          old = "const char *fmt, ...)\\n\\n#else"
+          new = "const char *fmt, ...);\\n\\n#else"
+          if s.count(old) != 1:
+              raise SystemExit(f"Expected exactly one unterminated nf_log_trace declaration, found {s.count(old)}")
+          s = s.replace(old, new, 1)
+          if "const char *fmt, ...);\\n\\n#else" not in s:
               raise SystemExit("nf_log_trace prototype still lacks its terminating semicolon")
           p.write_text(s)
           PY
