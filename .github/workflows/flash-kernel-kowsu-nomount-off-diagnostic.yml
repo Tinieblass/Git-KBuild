@@ -931,17 +931,13 @@ jobs:
           # Repair only the checked-out build tree; do not alter the upstream base.
           python3 - <<'PY'
           from pathlib import Path
+          import re
           p = Path("include/net/netfilter/nf_log.h")
           s = p.read_text()
-          old = """           const char *fmt, ...)
-
-          #else"""
-          new = """           const char *fmt, ...);
-
-          #else"""
-          if s.count(old) != 1:
-              raise SystemExit("Expected exactly one unterminated nf_log_trace prototype")
-          p.write_text(s.replace(old, new, 1))
+          s, count = re.subn(r"(?m)^([ \\t]*const char \\*fmt, \\.\\.\\.)\\n\\n#else$", r"\\1;\\n\\n#else", s, count=1)
+          if count != 1:
+              raise SystemExit(f"Expected exactly one unterminated nf_log_trace prototype, fixed {count}")
+          p.write_text(s)
           PY
           grep -n -B1 -A1 'const char \*fmt, \.\.\.)' include/net/netfilter/nf_log.h
           test "$(grep -cF 'const char *fmt, ...);' include/net/netfilter/nf_log.h)" -eq 1
