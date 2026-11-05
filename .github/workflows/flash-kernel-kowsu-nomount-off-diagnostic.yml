@@ -949,45 +949,43 @@ jobs:
         run: |
           cd kernel_tree
           # DEBUG_KERNEL is a Kconfig symbol; use its generated CONFIG_ name.
-          # The historical Makefile used an unset make variable, omitting mm/debug.o
-          # and leaving dump_page/pageflag_names/gfpflag_names/vmaflag_names undefined.
+          # The old Makefile selector expanded an unset make variable, omitting mm/debug.o.
           python3 - <<'PY'
           from pathlib import Path
+
           p = Path("mm/Makefile")
-          s = p.read_text()
+          lines = p.read_text().splitlines()
           old = "obj-$(DEBUG_KERNEL)\\t+= debug.o"
-          new = "obj-$(CONFIG_DEBUG_KERNEL)\\t+= debug.o"
-          if s.count(old) != 1:
+          if lines.count(old) != 1:
               raise SystemExit("Expected one historical mm/debug.o selector")
-          p.write_text(s.replace(old, new, 1))
+          lines[lines.index(old)] = "obj-$(CONFIG_DEBUG_KERNEL)\\t+= debug.o"
+          p.write_text("\\n".join(lines) + "\\n")
 
           # This vendor fair.c no longer defines sysctl_sched_min_granularity.
-          # Remove only its obsolete CONFIG_SCHED_DEBUG sysctl entry and its
-          # now-unused bounds; retain the remaining scheduler diagnostics.
+          # Remove its obsolete sysctl table entry and now-unused bounds only.
           p = Path("kernel/sysctl.c")
-          s = p.read_text()
-          decls = (
-              "static int min_sched_granularity_ns = 100000;\\t\\t/* 100 usecs */\\n"
-              "static int max_sched_granularity_ns = NSEC_PER_SEC;\\t/* 1 second */\\n"
-          )
-          entry = (
-              "\\t{\\n"
-              "\\t\\t.procname\\t= \\"sched_min_granularity_ns\\",\\n"
-              "\\t\\t.data\\t\\t= &sysctl_sched_min_granularity,\\n"
-              "\\t\\t.maxlen\\t= sizeof(unsigned int),\\n"
-              "\\t\\t.mode\\t\\t= 0644,\\n"
-              "\\t\\t.proc_handler\\t= sched_proc_update_handler,\\n"
-              "\\t\\t.extra1\\t= &min_sched_granularity_ns,\\n"
-              "\\t\\t.extra2\\t= &max_sched_granularity_ns,\\n"
-              "\\t},\\n"
-          )
-          if s.count(decls) != 1 or s.count(entry) != 1:
-              raise SystemExit("Unexpected obsolete scheduler sysctl layout; refusing patch")
-          s = s.replace(decls, "", 1).replace(entry, "", 1)
-          p.write_text(s)
+          lines = p.read_text().splitlines()
+          decls = [i for i, line in enumerate(lines)
+                   if line.startswith("static int min_sched_granularity_ns =")
+                   or line.startswith("static int max_sched_granularity_ns =")]
+          if len(decls) != 2:
+              raise SystemExit(f"Expected two obsolete scheduler bounds, found {len(decls)}")
+          for i in reversed(decls):
+              del lines[i]
+          starts = [i for i, line in enumerate(lines)
+                    if line.strip() == '.procname\\t= "sched_min_granularity_ns",']
+          if len(starts) != 1:
+              raise SystemExit(f"Expected one obsolete scheduler sysctl entry, found {len(starts)}")
+          start = starts[0]
+          end = next((i for i in range(start + 1, len(lines))
+                      if lines[i].strip() == "},"), -1)
+          if end < 0 or not any("sysctl_sched_min_granularity" in x for x in lines[start:end + 1]):
+              raise SystemExit("Could not safely isolate obsolete scheduler sysctl entry")
+          del lines[start:end + 1]
+          p.write_text("\\n".join(lines) + "\\n")
           PY
           grep -n 'CONFIG_DEBUG_KERNEL.*debug.o' mm/Makefile
-          ! grep -q 'sysctl_sched_min_granularity\|min_sched_granularity_ns\|max_sched_granularity_ns' kernel/sysctl.c
+          ! grep -q 'sysctl_sched_min_granularity\\|min_sched_granularity_ns\\|max_sched_granularity_ns' kernel/sysctl.c
           grep -n 'sched_proc_update_handler' kernel/sysctl.c
 
       - name: Configure and verify kernel
