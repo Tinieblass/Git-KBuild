@@ -976,12 +976,17 @@ jobs:
                     if "sched_min_granularity_ns" in line and ".procname" in line]
           if len(starts) != 1:
               raise SystemExit(f"Expected one obsolete scheduler sysctl entry, found {len(starts)}")
-          start = starts[0]
-          end = next((i for i in range(start + 1, len(lines))
+          field_start = starts[0]
+          entry_start = field_start - 1
+          if entry_start < 0 or lines[entry_start].strip() != "{":
+              raise SystemExit("Obsolete scheduler sysctl entry has no immediately preceding opening brace")
+          end = next((i for i in range(field_start + 1, len(lines))
                       if lines[i].strip() == "},"), -1)
-          if end < 0 or not any("sysctl_sched_min_granularity" in x for x in lines[start:end + 1]):
-              raise SystemExit("Could not safely isolate obsolete scheduler sysctl entry")
-          del lines[start:end + 1]
+          entry = lines[entry_start:end + 1] if end >= 0 else []
+          if (end < 0 or not any("sysctl_sched_min_granularity" in x for x in entry)
+                  or not any(".procname" in x for x in entry)):
+              raise SystemExit("Could not safely isolate complete obsolete scheduler sysctl entry")
+          del lines[entry_start:end + 1]
           p.write_text(chr(10).join(lines) + chr(10))
           PY
           grep -n 'CONFIG_DEBUG_KERNEL.*debug.o' mm/Makefile
