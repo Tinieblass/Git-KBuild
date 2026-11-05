@@ -1,0 +1,33 @@
+name: Recover official FakeDreamer v2.1-W release ZIP
+
+on:
+  push:
+    branches:
+      - recover-original-fd-release-zip
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download and verify the exact official alioth release asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="FD-ksu-alioth-20260925-W.zip"
+          URL="https://github.com/re-noroi/kernel_sm8250/releases/download/v2.1-rel-w/FD-ksu-alioth-20260925-W.zip"
+          EXPECTED="4df33a0020d3ec21a53b4ade1c535dd614e0233806505b5d7322fe218bb6b565"
+          curl --fail --location --retry 4 --retry-all-errors --connect-timeout 20 --max-time 300 "$URL" --output "$FILE"
+          test "$(stat -c %s "$FILE")" -eq 15534588
+          echo "$EXPECTED  $FILE" | sha256sum --check --strict
+          unzip -t "$FILE"
+      - name: Upload verified original release ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: FakeDreamer-v2.1-W-original-release-verified
+          path: FD-ksu-alioth-20260925-W.zip
+          if-no-files-found: error
+          retention-days: 7
