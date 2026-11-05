@@ -5,7 +5,7 @@ FIRMWARE_NAME="surya_in_global_images_V13.0.1.0.SJGINXM_20220818.0000.00_12.0_in
 FIRMWARE_PATH="V13.0.1.0.SJGINXM/${FIRMWARE_NAME}"
 FIRMWARE_HOSTS=(cdnorg.d.miui.com hugeota.d.miui.com bigota.d.miui.com)
 PROBE_CONNECTIONS=16
-PROBE_BYTES=65536
+PROBE_BYTES=2097152
 MIN_PROBE_SPEED=300000
 FIRMWARE_URL=""
 EXPECTED_MD5="15727cb7de21880a9f0ff788f1e4a035"
@@ -44,7 +44,7 @@ if [[ ! -s "$OUT/$FIRMWARE_NAME" ]]; then
       start=$((index * PROBE_BYTES))
       end=$((start + PROBE_BYTES - 1))
       curl --fail --silent --show-error --location \
-        --range "$start-$end" --connect-timeout 10 --max-time 45 \
+        --range "$start-$end" --connect-timeout 10 --max-time 60 \
         --max-filesize "$PROBE_BYTES" --output "$probe_dir/range-$index.bin" \
         --write-out '%{http_code}' "$url" \
         > "$probe_dir/status-$index.txt" 2> "$probe_dir/error-$index.txt" &
