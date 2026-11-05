@@ -1,6 +1,6 @@
-name: Flash Kernel - FakeDreamer v2.1-W (KowSU KALLSYMS diagnostic)
+name: FakeDreamer v2.1-W - KowSU only (Linux 4.19)
 
-run-name: FD v2.1-W | alioth | KowSU KALLSYMS + NoMount OFF | j3s-miui-eff-uv
+run-name: FakeDreamer v2.1-W | alioth | KowSU only | j3s-miui-eff-uv
 
 on:
   push:
@@ -28,7 +28,6 @@ jobs:
       SOURCE_BASE: afba74c277a858f7ee46463f5ff6b7bfbdb6546a
       SOURCE_STOCK_GPU: 4687149afb1d57eda185d279a6743d8e918fddb8
       KOWSU_SHA: 6ecdd69224fe6769e6c8715a4ef2b91602b23362
-      NOMOUNT_SHA: bf1847f98fed382369c43bfd652cd93774b9b8e3
     steps:
       - name: Install build dependencies
         run: |
@@ -122,7 +121,7 @@ jobs:
               if (mask & FS_ISDIR)
                   return 0;
               if (strlen(file_name) == 13 && !memcmp(file_name, "packages.list", 13)) {
-                  pr_info("packages.list detected: %d\n", mask);
+                  pr_info("packages.list detected: %d\\n", mask);
                   ksu_defer_track_throne();
               }
               return 0;
@@ -292,7 +291,7 @@ jobs:
       - name: Disable incompatible SELinux hide backend on Linux 4.19
         run: |
           cd kernel_tree
-          # The pinned KowSU/MidoriSU selinux_hide.c uses post-5.10 SELinux
+          # The pinned KowSU selinux_hide.c uses post-5.10 SELinux
           # internals (selinux_state.policy/status_page and selinux_cred).
           # Linux 4.19 has a different policy representation. Keep normal
           # SELinux policy/rule support, but compile no-op lifecycle hooks
@@ -347,7 +346,7 @@ jobs:
           grep -Fq '#define MS_PRIVATE' include/uapi/linux/fs.h
           grep -Fq '#define MS_REC' include/uapi/linux/fs.h
 
-      - name: Adapt KowSU and MidoriSU APIs to Linux 4.19
+      - name: Adapt KowSU APIs to Linux 4.19
         run: |
           cd kernel_tree
           # The current drivers use path_mount(), introduced after this 4.19 base.
@@ -393,19 +392,6 @@ jobs:
           ! grep -n -E 'void seccomp_filter_release\\(|seccomp_filter_release\\(fake\\)' drivers/kernelsu/policy/app_profile.c
           grep -n 'ksyscall(mount' drivers/kernelsu/infra/su_mount_ns.c
           grep -n 'put_seccomp_filter(fake)' drivers/kernelsu/policy/app_profile.c
-
-      - name: Stage NoMount 2.2.0 source (disabled for diagnostic)
-        run: |
-          cd kernel_tree
-          rm -rf NoMount fs/nomount
-          git clone --filter=blob:none https://github.com/maxsteeel/nomount.git NoMount
-          git -C NoMount checkout --detach "${NOMOUNT_SHA}"
-          ln -s ../NoMount/kernel/src fs/nomount
-          test -f fs/nomount/Kconfig
-          test -f fs/nomount/Makefile
-          test -f fs/nomount/nomount.c
-          grep -Fq 'source "fs/nomount/Kconfig"' fs/Kconfig
-          grep -Fq 'CONFIG_NOMOUNT' fs/Makefile
 
       - name: Adapt KernelSU nolibc runner to Linux 4.19
         run: |
@@ -838,7 +824,7 @@ jobs:
               raise SystemExit("Unexpected historical 4.19 sepolicy source; refusing replacement")
           source = source.replace(anchor, anchor + "\n" + headers, 1)
 
-          # Match the public ksu_* API expected by the pinned KowSU/MidoriSU headers.
+          # Match the public ksu_* API expected by the pinned KowSU headers.
           rename = {
               "type": "ksu_type",
               "attribute": "ksu_attribute",
