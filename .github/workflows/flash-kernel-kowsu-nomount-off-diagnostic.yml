@@ -934,8 +934,8 @@ jobs:
           import re
           p = Path("include/net/netfilter/nf_log.h")
           s = p.read_text()
-          old = "const char *fmt, ...)\\n\\n#else"
-          new = "const char *fmt, ...);\\n\\n#else"
+          old = "const char *fmt, ...)" + "\n\n#else"
+          new = "const char *fmt, ...);" + "\n\n#else"
           if s.count(old) != 1:
               raise SystemExit(f"Expected exactly one unterminated nf_log_trace declaration, found {s.count(old)}")
           s = s.replace(old, new, 1)
