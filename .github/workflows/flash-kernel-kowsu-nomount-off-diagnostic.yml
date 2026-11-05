@@ -949,17 +949,17 @@ jobs:
         run: |
           cd kernel_tree
           # DEBUG_KERNEL is a Kconfig symbol; use its generated CONFIG_ name.
-          # The old Makefile selector expanded an unset make variable, omitting mm/debug.o.
+          # The old selector expanded an unset make variable, omitting mm/debug.o.
           python3 - <<'PY'
           from pathlib import Path
 
           p = Path("mm/Makefile")
           lines = p.read_text().splitlines()
-          old = "obj-$(DEBUG_KERNEL)\\t+= debug.o"
-          if lines.count(old) != 1:
-              raise SystemExit("Expected one historical mm/debug.o selector")
-          lines[lines.index(old)] = "obj-$(CONFIG_DEBUG_KERNEL)\\t+= debug.o"
-          p.write_text("\\n".join(lines) + "\\n")
+          matches = [i for i, line in enumerate(lines) if line.startswith("obj-$(DEBUG_KERNEL)")]
+          if len(matches) != 1:
+              raise SystemExit(f"Expected one historical mm/debug.o selector, found {len(matches)}")
+          lines[matches[0]] = lines[matches[0]].replace("obj-$(DEBUG_KERNEL)", "obj-$(CONFIG_DEBUG_KERNEL)", 1)
+          p.write_text(chr(10).join(lines) + chr(10))
 
           # This vendor fair.c no longer defines sysctl_sched_min_granularity.
           # Remove its obsolete sysctl table entry and now-unused bounds only.
@@ -973,7 +973,7 @@ jobs:
           for i in reversed(decls):
               del lines[i]
           starts = [i for i, line in enumerate(lines)
-                    if line.strip() == '.procname\\t= "sched_min_granularity_ns",']
+                    if "sched_min_granularity_ns" in line and ".procname" in line]
           if len(starts) != 1:
               raise SystemExit(f"Expected one obsolete scheduler sysctl entry, found {len(starts)}")
           start = starts[0]
@@ -982,10 +982,13 @@ jobs:
           if end < 0 or not any("sysctl_sched_min_granularity" in x for x in lines[start:end + 1]):
               raise SystemExit("Could not safely isolate obsolete scheduler sysctl entry")
           del lines[start:end + 1]
-          p.write_text("\\n".join(lines) + "\\n")
+          p.write_text(chr(10).join(lines) + chr(10))
           PY
           grep -n 'CONFIG_DEBUG_KERNEL.*debug.o' mm/Makefile
-          ! grep -q 'sysctl_sched_min_granularity\\|min_sched_granularity_ns\\|max_sched_granularity_ns' kernel/sysctl.c
+          if grep -Eq 'sysctl_sched_min_granularity|min_sched_granularity_ns|max_sched_granularity_ns' kernel/sysctl.c; then
+            echo "::error::Obsolete scheduler sysctl reference remains"
+            exit 1
+          fi
           grep -n 'sched_proc_update_handler' kernel/sysctl.c
 
       - name: Configure and verify kernel
