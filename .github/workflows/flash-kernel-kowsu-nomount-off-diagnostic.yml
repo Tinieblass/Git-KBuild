@@ -923,6 +923,29 @@ jobs:
           PY
           grep -n 'entity_eligible(struct cfs_rq' kernel/sched/sched.h
           grep -n -A2 'prio         wait-time' kernel/sched/debug.c
+      - name: Fix historical nf_log prototype exposed by DEBUG_KERNEL
+        run: |
+          cd kernel_tree
+          # The pinned v2.1-W source has a missing semicolon after nf_log_trace().
+          # DEBUG_KERNEL=y (required by KALLSYMS_ALL) exposes this dormant header typo.
+          # Repair only the checked-out build tree; do not alter the upstream base.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("include/net/netfilter/nf_log.h")
+          s = p.read_text()
+          old = """           const char *fmt, ...)
+
+          #else"""
+          new = """           const char *fmt, ...);
+
+          #else"""
+          if s.count(old) != 1:
+              raise SystemExit("Expected exactly one unterminated nf_log_trace prototype")
+          p.write_text(s.replace(old, new, 1))
+          PY
+          grep -n -B1 -A1 'const char \*fmt, \.\.\.)' include/net/netfilter/nf_log.h
+          test "$(grep -cF 'const char *fmt, ...);' include/net/netfilter/nf_log.h)" -eq 1
+
       - name: Configure and verify kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
