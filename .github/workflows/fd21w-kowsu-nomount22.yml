@@ -1009,11 +1009,16 @@ jobs:
           from pathlib import Path
           p = Path("AnyKernel3/anykernel.sh")
           s = p.read_text()
-          old = "      mv alioth-j3s-dtbo-aosp.img alioth-aosp-dtbo.img"
-          new = "      if [ -f alioth-j3s-dtbo-aosp.img ]; then mv alioth-j3s-dtbo-aosp.img alioth-aosp-dtbo.img; fi"
-          if s.count(old) != 1:
-              raise SystemExit("Expected one J3S AOSP DTBO selector")
-          p.write_text(s.replace(old, new, 1))
+          import re
+          marker = "# Battery variant detection with sideload-safe fallback"
+          if s.count(marker) != 1:
+              raise SystemExit("Expected one non-sideload battery selector")
+          head, tail = s.split(marker, 1)
+          pattern = r"(?m)^([ \t]*)mv alioth-j3s-dtbo-aosp\.img alioth-aosp-dtbo\.img[ \t]*$"
+          tail, count = re.subn(pattern, r"\1if [ -f alioth-j3s-dtbo-aosp.img ]; then mv alioth-j3s-dtbo-aosp.img alioth-aosp-dtbo.img; fi", tail, count=1)
+          if count != 1:
+              raise SystemExit("Could not safely guard the non-sideload J3S AOSP DTBO move")
+          p.write_text(head + marker + tail)
           PY
 
           ZIP_NAME="FlashKernel-FakeDreamer-v2.1-W-alioth-$(date -u +%Y%m%d)-j3s-miui-eff-uv.zip"
