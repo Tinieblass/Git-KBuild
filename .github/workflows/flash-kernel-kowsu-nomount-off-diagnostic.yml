@@ -1,19 +1,18 @@
-name: Flash Kernel - FakeDreamer v2.1-W (KowSU, NoMount OFF diagnostic)
+name: FakeDreamer v2.1-W - KowSU only (Linux 4.19)
 
-run-name: FD v2.1-W | alioth | KowSU / NoMount OFF | j3s-miui-eff-uv
+run-name: FakeDreamer v2.1-W | alioth | KowSU only | j3s-miui-eff-uv
 
 on:
   push:
     branches:
-      - Flash-Kernel-KowSU-NoMount-OFF-DIAG-CLEAN
-      - main
+      - Flash-Kernel-KowSU-KALLSYMS-DIAG
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: fd21w-kowsu-nomount-off-diag-clean-${{ github.ref }}
+  group: fd21w-kowsu-kallsyms-diag-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -29,7 +28,6 @@ jobs:
       SOURCE_BASE: afba74c277a858f7ee46463f5ff6b7bfbdb6546a
       SOURCE_STOCK_GPU: 4687149afb1d57eda185d279a6743d8e918fddb8
       KOWSU_SHA: 6ecdd69224fe6769e6c8715a4ef2b91602b23362
-      NOMOUNT_SHA: bf1847f98fed382369c43bfd652cd93774b9b8e3
     steps:
       - name: Install build dependencies
         run: |
@@ -293,7 +291,7 @@ jobs:
       - name: Disable incompatible SELinux hide backend on Linux 4.19
         run: |
           cd kernel_tree
-          # The pinned KowSU/MidoriSU selinux_hide.c uses post-5.10 SELinux
+          # The pinned KowSU selinux_hide.c uses post-5.10 SELinux
           # internals (selinux_state.policy/status_page and selinux_cred).
           # Linux 4.19 has a different policy representation. Keep normal
           # SELinux policy/rule support, but compile no-op lifecycle hooks
@@ -348,7 +346,7 @@ jobs:
           grep -Fq '#define MS_PRIVATE' include/uapi/linux/fs.h
           grep -Fq '#define MS_REC' include/uapi/linux/fs.h
 
-      - name: Adapt KowSU and MidoriSU APIs to Linux 4.19
+      - name: Adapt KowSU APIs to Linux 4.19
         run: |
           cd kernel_tree
           # The current drivers use path_mount(), introduced after this 4.19 base.
@@ -394,19 +392,6 @@ jobs:
           ! grep -n -E 'void seccomp_filter_release\\(|seccomp_filter_release\\(fake\\)' drivers/kernelsu/policy/app_profile.c
           grep -n 'ksyscall(mount' drivers/kernelsu/infra/su_mount_ns.c
           grep -n 'put_seccomp_filter(fake)' drivers/kernelsu/policy/app_profile.c
-
-      - name: Stage NoMount 2.2.0 source (disabled for diagnostic)
-        run: |
-          cd kernel_tree
-          rm -rf NoMount fs/nomount
-          git clone --filter=blob:none https://github.com/maxsteeel/nomount.git NoMount
-          git -C NoMount checkout --detach "${NOMOUNT_SHA}"
-          ln -s ../NoMount/kernel/src fs/nomount
-          test -f fs/nomount/Kconfig
-          test -f fs/nomount/Makefile
-          test -f fs/nomount/nomount.c
-          grep -Fq 'source "fs/nomount/Kconfig"' fs/Kconfig
-          grep -Fq 'CONFIG_NOMOUNT' fs/Makefile
 
       - name: Adapt KernelSU nolibc runner to Linux 4.19
         run: |
@@ -480,6 +465,8 @@ jobs:
           # KPROBES depends on MODULES in this kernel; the upstream defconfig disables MODULES.
           ./scripts/config --file "${DEFCONFIG}" --enable MODULES
           ./scripts/config --file "${DEFCONFIG}" --enable KPROBES
+          ./scripts/config --file "${DEFCONFIG}" --enable KALLSYMS
+          ./scripts/config --file "${DEFCONFIG}" --enable KALLSYMS_ALL
           ./scripts/config --file "${DEFCONFIG}" --enable KSU
           ./scripts/config --file "${DEFCONFIG}" --disable NOMOUNT
 
@@ -837,7 +824,7 @@ jobs:
               raise SystemExit("Unexpected historical 4.19 sepolicy source; refusing replacement")
           source = source.replace(anchor, anchor + "\n" + headers, 1)
 
-          # Match the public ksu_* API expected by the pinned KowSU/MidoriSU headers.
+          # Match the public ksu_* API expected by the pinned KowSU headers.
           rename = {
               "type": "ksu_type",
               "attribute": "ksu_attribute",
@@ -899,6 +886,116 @@ jobs:
           p.write_text(s)
           PY
           grep -n 'task_work_add(current, &tw->cb, true)' drivers/kernelsu/supercall/supercall.c
+      - name: Repair FakeDreamer scheduler diagnostics for Linux 4.19 build
+        run: |
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          sched = Path("kernel/sched/sched.h")
+          s = sched.read_text()
+          anchor = "extern u64 avg_vruntime(struct cfs_rq *cfs_rq);"
+          declaration = "extern int entity_eligible(struct cfs_rq *cfs_rq, struct sched_entity *se);"
+          if s.count(anchor) != 1:
+              raise SystemExit("Expected one avg_vruntime declaration anchor")
+          if declaration not in s:
+              s = s.replace(anchor, declaration + "\n" + anchor, 1)
+          sched.write_text(s)
+
+          debug = Path("kernel/sched/debug.c")
+          s = debug.read_text()
+          broken = '"prio         wait-time        sum-sleep       sum-block";'
+          fixed = '"prio         wait-time        sum-sleep       sum-block");'
+          if s.count(broken) != 1:
+              raise SystemExit("Expected exactly one unterminated scheduler SEQ_printf call")
+          s = s.replace(broken, fixed, 1)
+
+          macro_pattern = r'(?m)^#define __P\(F\)[ \t]*SEQ_printf\(m, "%-45s:%21Ld\\n",[ \t]*#F, \(long long\)F\)[ \t]*$'
+          macro = '#define __PS(F, V) SEQ_printf(m, "%-45s:%21Ld\\n", (F), (long long)(V))'
+          s, macro_count = re.subn(macro_pattern, lambda match: macro + "\n" + match.group(0), s, count=1)
+          if macro_count != 1:
+              raise SystemExit(f"Expected one scheduler __P macro definition, matched {macro_count}")
+
+          if "entity_eligible(&rq->cfs, &p->se)" not in s or fixed not in s or macro not in s:
+              raise SystemExit("Scheduler diagnostics repair verification failed")
+          debug.write_text(s)
+          PY
+          grep -n 'entity_eligible(struct cfs_rq' kernel/sched/sched.h
+          grep -n -A2 'prio         wait-time' kernel/sched/debug.c
+      - name: Fix historical nf_log prototype exposed by DEBUG_KERNEL
+        run: |
+          cd kernel_tree
+          # The pinned v2.1-W source has a missing semicolon after nf_log_trace().
+          # DEBUG_KERNEL=y (required by KALLSYMS_ALL) exposes this dormant header typo.
+          # Repair only the checked-out build tree; do not alter the upstream base.
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path("include/net/netfilter/nf_log.h")
+          s = p.read_text()
+          old = "const char *fmt, ...)" + "\n\n#else"
+          new = "const char *fmt, ...);" + "\n\n#else"
+          if s.count(old) != 1:
+              raise SystemExit(f"Expected exactly one unterminated nf_log_trace declaration, found {s.count(old)}")
+          s = s.replace(old, new, 1)
+          if s.count(new) != 1:
+              raise SystemExit("nf_log_trace prototype still lacks its terminating semicolon")
+          p.write_text(s)
+          PY
+          grep -n -A9 'void nf_log_trace' include/net/netfilter/nf_log.h
+
+      - name: Repair historical MM debug object and stale scheduler sysctl
+        run: |
+          cd kernel_tree
+          # DEBUG_KERNEL is a Kconfig symbol; use its generated CONFIG_ name.
+          # The old selector expanded an unset make variable, omitting mm/debug.o.
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("mm/Makefile")
+          lines = p.read_text().splitlines()
+          matches = [i for i, line in enumerate(lines) if line.startswith("obj-$(DEBUG_KERNEL)")]
+          if len(matches) != 1:
+              raise SystemExit(f"Expected one historical mm/debug.o selector, found {len(matches)}")
+          lines[matches[0]] = lines[matches[0]].replace("obj-$(DEBUG_KERNEL)", "obj-$(CONFIG_DEBUG_KERNEL)", 1)
+          p.write_text(chr(10).join(lines) + chr(10))
+
+          # This vendor fair.c no longer defines sysctl_sched_min_granularity.
+          # Remove its obsolete sysctl table entry and now-unused bounds only.
+          p = Path("kernel/sysctl.c")
+          lines = p.read_text().splitlines()
+          decls = [i for i, line in enumerate(lines)
+                   if line.startswith("static int min_sched_granularity_ns =")
+                   or line.startswith("static int max_sched_granularity_ns =")]
+          if len(decls) != 2:
+              raise SystemExit(f"Expected two obsolete scheduler bounds, found {len(decls)}")
+          for i in reversed(decls):
+              del lines[i]
+          starts = [i for i, line in enumerate(lines)
+                    if "sched_min_granularity_ns" in line and ".procname" in line]
+          if len(starts) != 1:
+              raise SystemExit(f"Expected one obsolete scheduler sysctl entry, found {len(starts)}")
+          field_start = starts[0]
+          entry_start = field_start - 1
+          if entry_start < 0 or lines[entry_start].strip() != "{":
+              raise SystemExit("Obsolete scheduler sysctl entry has no immediately preceding opening brace")
+          end = next((i for i in range(field_start + 1, len(lines))
+                      if lines[i].strip() == "},"), -1)
+          entry = lines[entry_start:end + 1] if end >= 0 else []
+          if (end < 0 or not any("sysctl_sched_min_granularity" in x for x in entry)
+                  or not any(".procname" in x for x in entry)):
+              raise SystemExit("Could not safely isolate complete obsolete scheduler sysctl entry")
+          del lines[entry_start:end + 1]
+          p.write_text(chr(10).join(lines) + chr(10))
+          PY
+          grep -n 'CONFIG_DEBUG_KERNEL.*debug.o' mm/Makefile
+          if grep -Eq 'sysctl_sched_min_granularity|min_sched_granularity_ns|max_sched_granularity_ns' kernel/sysctl.c; then
+            echo "::error::Obsolete scheduler sysctl reference remains"
+            exit 1
+          fi
+          grep -n 'sched_proc_update_handler' kernel/sysctl.c
+
       - name: Configure and verify kernel
         run: |
           export PATH="$(pwd)/clang/bin:$PATH"
@@ -912,17 +1009,23 @@ jobs:
           # KPROBES is unavailable while CONFIG_MODULES is disabled.
           ./scripts/config --file out/.config --enable MODULES
           ./scripts/config --file out/.config --enable KPROBES
+          ./scripts/config --file out/.config --enable KALLSYMS
+          # KALLSYMS_ALL depends on DEBUG_KERNEL in this Linux 4.19 tree.
+          ./scripts/config --file out/.config --enable DEBUG_KERNEL
+          ./scripts/config --file out/.config --enable KALLSYMS_ALL
           ./scripts/config --file out/.config --enable KSU
           ./scripts/config --file out/.config --disable NOMOUNT
           ./scripts/config --file out/.config --set-str LOCALVERSION "-FakeDreamer-W"
           make O=out olddefconfig
 
           echo "=== Effective kernel configuration ==="
-          grep -E '^(CONFIG_(MODULES|KSU|KPROBES|EXT4_FS|NOMOUNT|LTO_CLANG_FULL|BPF|NTSYNC)=|CONFIG_LOCALVERSION=)' out/.config || true
+          grep -E '^(CONFIG_(MODULES|KSU|KPROBES|KALLSYMS|KALLSYMS_ALL|EXT4_FS|NOMOUNT|LTO_CLANG_FULL|BPF|NTSYNC)=|CONFIG_LOCALVERSION=)' out/.config || true
           for expected in \
             'CONFIG_MODULES=y' \
             'CONFIG_KSU=y' \
             'CONFIG_KPROBES=y' \
+            'CONFIG_KALLSYMS=y' \
+            'CONFIG_KALLSYMS_ALL=y' \
             'CONFIG_EXT4_FS=y' \
             '# CONFIG_NOMOUNT is not set' \
             'CONFIG_LTO_CLANG_FULL=y' \
@@ -965,6 +1068,20 @@ jobs:
             mv out/arch/arm64/boot/dtbo.img ../alioth-stock-dtbo-miui.img
             mv out/arch/arm64/boot/dtb.img ../alioth-effcpu-gpustk-dtb
           fi
+
+      - name: Verify KowSU symbol resolver prerequisites in vmlinux
+        run: |
+          cd kernel_tree
+          test -s out/vmlinux
+          echo "=== KowSU required kernel symbols ==="
+          for symbol in sys_call_table security_hook_heads; do
+            if ! nm out/vmlinux | awk -v wanted="$symbol" '$NF == wanted { found=1 } END { exit !found }'; then
+              echo "::error::Required symbol missing from vmlinux: $symbol"
+              exit 1
+            fi
+            nm out/vmlinux | awk -v wanted="$symbol" '$NF == wanted { print }'
+          done
+          echo "KALLSYMS and KALLSYMS_ALL symbol prerequisites verified."
 
       - name: Checksum diagnostic kernel Image
         run: sha256sum Image.gz > Image.gz.sha256
