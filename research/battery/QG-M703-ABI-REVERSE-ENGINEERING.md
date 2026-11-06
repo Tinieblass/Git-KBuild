@@ -1233,3 +1233,78 @@ Sources:
 - Qualcomm QG interpolation helpers: https://android.googlesource.com/kernel/msm/+/e1e85fa160463d8c5e55c58c1806668e9740a117/drivers/power/supply/qcom/qg-profile-lib.c
 
 No kernel code, DTB/DTBO payload, charging limits, or BN61 profile was changed by this research follow-up.
+
+
+## Follow-up 21: cross-family validation of the QG Z1 scale
+
+The independent Qualcomm-QG consumer implementation in
+`asidko/pm6150-charger-mainline` was compared against a second OEM
+QG battery profile, `qg-batterydata-alium-3600mah.dtsi`, from the
+Realme 5 kernel source. Its source comment explicitly identifies
+`qcom,pc-temp-z1-lut` as the DC internal-resistance surface and states
+that the stored unit is 0.01 mΩ per LUT count.
+
+A controlled 50%-SOC comparison was made at the five shared temperature
+columns. The Realme/Alium profile's Z1 values at 0, 10, 25, 40 and 50 °C
+are 14220, 13210, 12116, 11756 and 11690. Applying the documented scale
+gives 142.20, 132.10, 121.16, 117.56 and 116.90 mΩ.
+
+The official Surya M703 ATL 6000 profile's corresponding Z1 values are
+12181, 11768, 11358, 11122 and 11051, giving 121.81, 117.68, 113.58,
+111.22 and 110.51 mΩ with the same scale.
+
+The two independent OEM profiles therefore produce physically plausible,
+same-order DC resistance surfaces under the same conversion. The
+temperature trend is also consistent: Z1 falls as temperature rises.
+At 25 °C and 50% SOC, the values are 121.16 mΩ (Alium 3600) and
+113.58 mΩ (M703 ATL 6000). The difference is expected to be cell-model
+specific; this is a scale cross-check, not a claim that the cells are
+interchangeable.
+
+For completeness, the M703 50%-SOC raw rows (temperature columns 0, 10,
+25, 40, 50 °C for Z; -10, 0, 10, 25, 40, 50 °C for Y) are:
+
+| LUT | Raw values at 50% SOC |
+|---|---|
+| Z1 | 12181, 11768, 11358, 11122, 11051 |
+| Z2 | 10719, 10714, 10626, 10512, 10497 |
+| Z3 | 19639, 19500, 19402, 19374, 19369 |
+| Z4 | 14861, 14826, 14804, 14788, 14780 |
+| Z5 | 45586, 29395, 21983, 21243, 22191 |
+| Z6 | 15009, 14789, 14635, 14573, 14556 |
+| Y1 | 6001, 5586, 5329, 5078, 4936, 4888 |
+| Y2 | 10001, 11454, 11574, 11432, 11168, 11093 |
+| Y3 | 13343, 13327, 13305, 13289, 13281, 13280 |
+| Y4 | 16662, 16555, 16509, 16472, 16464, 16465 |
+| Y5 | 14037, 23484, 23483, 22827, 20135, 20686 |
+| Y6 | 5463, 5200, 5083, 5016, 4994, 4989 |
+
+Only Z1 is assigned a physical meaning and scale by the inspected
+consumer source. The other eleven rows are recorded as raw reference
+data, not converted into ohms or assigned guessed meanings. Their
+different magnitudes and shapes are not sufficient to infer units,
+equivalent-circuit branches, polarization constants, or thermal
+parameters.
+
+### Consequence
+
+The Z1 scale is now independently corroborated across two OEM QG
+profiles and can be used when decoding other profiles in this QG
+family, subject to source-family confirmation. It still cannot be
+mapped directly to PM855GUI Rslow coefficients: the latter are
+calibrated PM855B Gen4 parameters with a different representation and
+driver contract. A Gen4 mapping requires an independently demonstrated
+model equation and calibration, not a unit conversion alone.
+
+Sources:
+- `asidko/pm6150-charger-mainline`,
+  `kernel/joyeuse_battery_shim/joyeuse_battery_shim.c`:
+  https://github.com/asidko/pm6150-charger-mainline/blob/main/kernel/joyeuse_battery_shim/joyeuse_battery_shim.c
+- Realme 5 OEM QG profile:
+  https://github.com/realme-kernel-opensource/realme5-kernel-source/blob/master/arch/arm64/boot/dts/qcom/qg-batterydata-alium-3600mah.dtsi
+- Official Surya M703 profile: checksum-verified India fastboot ROM,
+  DTBO node SHA-256
+  `d0f6b368d91cbdd618b1bbabc29b05cc1a64c6f49af3e399a0922106fc22f1b1`.
+
+No kernel code, DTS/DTBO, battery limits, profile payload, or flashable
+artifact was changed by this follow-up.
