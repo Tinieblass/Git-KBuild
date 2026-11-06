@@ -544,7 +544,34 @@ GO
   sed -n '1,250p' "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt" | tee -a "$REPORT"
   sed -n '1,500p' "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" | tee -a "$REPORT"
 
-  # Keep only compact, reproducible evidence in the artifact.
+  # Preserve the exact QG/QBG consumer and its init/permission context before
+  # deleting the large extracted logical partitions. These files are required
+  # for a real ioctl/device-node reverse engineering pass.
+  SUPER_EXPORT="$SUPER_AUDIT/consumer-export"
+  mkdir -p "$SUPER_EXPORT"
+  QG_CONSUMER="$SUPER_FILES/vendor/bin/bin/hvdcp_opti"
+  if [[ -s "$QG_CONSUMER" ]]; then
+    install -D -m 0644 "$QG_CONSUMER" "$SUPER_EXPORT/vendor/bin/hvdcp_opti"
+    sha256sum "$SUPER_EXPORT/vendor/bin/hvdcp_opti" > "$SUPER_EXPORT/hvdcp_opti.sha256"
+    readelf -h -d -Ws "$SUPER_EXPORT/vendor/bin/hvdcp_opti" > "$SUPER_EXPORT/hvdcp_opti.readelf.txt" 2>&1 || true
+    strings -a -n 4 "$SUPER_EXPORT/vendor/bin/hvdcp_opti" > "$SUPER_EXPORT/hvdcp_opti.strings.txt"
+  else
+    echo "ERROR: QG/QBG candidate hvdcp_opti was not found at expected extracted path." | tee -a "$REPORT"
+    exit 7
+  fi
+  if [[ -d "$SUPER_FILES/vendor/etc/etc/init" ]]; then
+    mkdir -p "$SUPER_EXPORT/vendor/etc/init"
+    cp -a "$SUPER_FILES/vendor/etc/etc/init/." "$SUPER_EXPORT/vendor/etc/init/"
+  fi
+  if [[ -d "$SUPER_FILES/vendor/etc/etc/permissions" ]]; then
+    mkdir -p "$SUPER_EXPORT/vendor/etc/permissions"
+    cp -a "$SUPER_FILES/vendor/etc/etc/permissions/." "$SUPER_EXPORT/vendor/etc/permissions/"
+  fi
+  find "$SUPER_EXPORT" -type f -print0 | sort -z | xargs -0 sha256sum > "$SUPER_EXPORT/MANIFEST.sha256"
+  echo "Preserved QG/QBG consumer export: $SUPER_EXPORT" | tee -a "$REPORT"
+
+  # Keep compact evidence and the selected consumer export; discard only the
+  # large extracted partition images, full filesystem trees and build source.
   rm -rf "$SUPER_PARTS" "$SUPER_FILES" "$SUPER_TOOL" "$SUPER_BIN"
 else
   echo "WARNING: no super.img member found in the checksum-verified India fastboot ROM; dynamic partitions were not inspected." | tee -a "$REPORT"
