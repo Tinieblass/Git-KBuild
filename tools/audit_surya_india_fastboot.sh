@@ -713,6 +713,15 @@ if [[ -d "$DEEP_ROOT/xbl" ]]; then
         head -n 80 "$DEEP_ROOT/deep-file-hits.tmp"
         printf '\n'
       } >> "$DEEP_HITS"
+      if [[ "$deep_file" == */section1.raw ]] && grep -Eiq 'Load Fuel Gauge Battery Profile|GndSel' "$DEEP_ROOT/deep-file-hits.tmp"; then
+        module_rel="$(dirname "$rel")"
+        module_target="$DEEP_ROOT/battery-profile-modules/$module_rel"
+        if [[ ! -d "$module_target" ]]; then
+          mkdir -p "$(dirname "$module_target")"
+          cp -a "$(dirname "$deep_file")" "$module_target"
+          printf '%s\n' "$module_rel" >> "$DEEP_ROOT/BATTERY-PROFILE-MODULES.txt"
+        fi
+      fi
     fi
   done < <(find "$DEEP_ROOT/xbl" -type f -print0 | sort -z)
 fi
