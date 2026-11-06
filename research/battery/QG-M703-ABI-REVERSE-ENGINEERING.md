@@ -1098,3 +1098,51 @@ The expanded search of public Xiaomi UEFI firmware backups still did
 not locate a 6000 mAh M703/BN61 PM855GUI provisioning record. The
 available high-capacity source remains the M703 ATL QG profile, which
 is not directly compatible with alioth Gen4.
+
+## Follow-up 20: Z1 has an independently corroborated physical scale
+
+A second, independent Qualcomm-QG consumer implementation was inspected:
+`asidko/pm6150-charger-mainline`, file
+`kernel/joyeuse_battery_shim/joyeuse_battery_shim.c`.
+
+That implementation explicitly uses the OEM
+`qcom,pc-temp-z1-lut` as the cell's DC internal-resistance model
+(`R_int`) for the approximation:
+
+`OCV ≈ V_terminal + I_load × R_int`
+
+Its source comment documents the Z1 data scale as **0.01 mΩ per LUT
+unit**, and converts a representative 50%-SOC row into mΩ. This is
+independent consumer-side evidence, not merely a guess based on the
+letter Z. It establishes a defensible physical interpretation and
+scale for **Z1** in this QG profile family.
+
+Important boundary:
+- Z1 can now be decoded as a temperature/SOC-dependent DC internal
+  resistance surface, with 1 LUT unit = 0.01 mΩ, subject to confirming
+  the exact vendor profile family uses the same convention.
+- This does not establish the meaning or scale of Z2–Z6 or Y1–Y6.
+- The M703 kernel's generic `BPIOCXVAR` ioctl still exposes those
+  tables as opaque interpolated integers; it does not label their
+  physical quantities or units.
+- The QG driver's separate runtime ESR measurement remains a different
+  mechanism. Z1 is a stored profile surface used by consumers; it must
+  not be confused with a live measured ESR sample.
+
+The Z1 discovery changes the reverse-engineering plan. Instead of
+treating all twelve Z/Y tables as an undifferentiated unknown, decode
+Z1 numerically into mΩ first, compare its temperature/SOC shape with
+known Gen4 Rslow/ESR calibration behavior, and then search for consumer
+code paths or other independent implementations that identify the
+remaining tables. Similar-looking values are not sufficient to assign
+Z2–Z6 or Y1–Y6 a meaning.
+
+Sources:
+- `asidko/pm6150-charger-mainline`,
+  `kernel/joyeuse_battery_shim/joyeuse_battery_shim.c`, branch `main`;
+- M703 QG profile ABI and interpolation implementation at
+  `stormbreaker-project/kernel_xiaomi_surya`,
+  commit `07843c4a74f3fde3df48b941091ce41141fe886d`.
+
+No kernel code, DTS/DTBO, battery limits, profile payload, or flashable
+artifact was changed by this follow-up.
