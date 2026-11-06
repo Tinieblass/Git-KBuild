@@ -98,6 +98,14 @@ data, n = learned_block.subn("", data)
 if n != 1:
     raise SystemExit(f"ERROR: expected one reload-only learned-capacity block, got {n}")
 
+# The removed learned-capacity block was the only user of the old two-byte
+# scratch buffer. Keep the profile-integrity byte used below, drop the dead
+# buffer so Clang's -Werror=unused-variable does not stop the build.
+old_decl = "\tu8 val, buf[2];"
+if data.count(old_decl) != 1:
+    raise SystemExit(f"ERROR: expected one profile_load_work scratch declaration, got {data.count(old_decl)}")
+data = data.replace(old_decl, "\tu8 val;", 1)
+
 done_needle = "done:\n"
 capacity_sync = """done:
 \t/* NOM_CAP_WORD is also read by charge-raw/SOC calculations. Keep it
