@@ -519,3 +519,58 @@ a mapping.
 
 No kernel code, DTS/DTBO, battery limits, profile payload, or installable
 artifact was changed by this follow-up.
+
+## Follow-up 7: the public QG kernel tree contains no in-kernel Z/Y consumers
+
+A symbol/reference scan was run across the M703 QG implementation files:
+`qpnp-qg.c`, `qg-soc.c`, `fg-alg.c`, `qg-core.h`,
+`qg-util.h`, `qg-reg.h`, `qg-defs.h`, and the profile parser.
+
+In the inspected source snapshot, Z1..Z6/Y1..Y6 appear in the profile
+parser's table-name/index mapping and are served by the generic
+`BPIOCXVAR` ioctl. The core QG algorithm files do not reference those
+table indices or query the profile values. By contrast, the QG runtime
+ESR implementation has explicit structures, register addresses, and
+functions for pre/post voltage/current measurements.
+
+This narrows the remaining unknown: the physical meaning of the Z/Y tables
+is not hidden in the public QG kernel algorithm implementation. If these
+tables are used operationally on the original Xiaomi build, the likely
+consumer is outside this kernel source (vendor/system userspace or another
+proprietary component). That is a search direction, not proof of a specific
+process or library.
+
+A global code search for `/dev/qg_battery`, `BPIOCXVAR`,
+`BPIOCXSLOPE`, and `m703-atl-6000mah` returned kernel/UAPI code and
+device-tree permissions, but no verified userspace call site. The
+Surya `ueventd.rc` grants `system:system` access to the character
+device, while other Qualcomm device trees label the node
+`vendor_qg_device`; neither permission entry identifies the caller.
+
+### What this rules out
+
+- There is no source-backed reason to translate Z1..Z6 into Gen4
+  `rslow-normal` / `rslow-low` coefficients.
+- There is no source-backed reason to translate Y1..Y6 into Gen4
+  thermistor coefficients.
+- A guessed interpretation based on the letter Z, the magnitude of the
+  numbers, or their SOC/temperature axes is not acceptable.
+- Reconstructing the 416-byte PM855GUI blob from QG tables alone remains
+  unjustified.
+
+### Next source targets
+
+1. Find a complete official Surya/Karna vendor image, not only the kernel
+   and device tree, and inventory `/vendor/bin`, `/vendor/lib`,
+   `/vendor/lib64`, `/system/bin`, and `/system/lib64`.
+2. Search ELF strings and dynamic symbols for `/dev/qg_battery`,
+   ioctl request values `0xC0284205` (ABI-size dependent; verify from
+   the target build's headers before use), and the table indices 4..15.
+3. Search service init rc files and SELinux policy for domains allowed to
+   open the QG battery device.
+4. If no userland consumer is found, keep Z/Y as undocumented vendor
+   lookup data and proceed with the PM855GUI-native calibration path
+   using verified matching cell measurements.
+
+No kernel code, DTS/DTBO, battery limits, profile payload, or installable
+artifact was changed by this follow-up.
