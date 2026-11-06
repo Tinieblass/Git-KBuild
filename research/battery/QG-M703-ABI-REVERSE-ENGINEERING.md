@@ -1064,3 +1064,35 @@ No battery charging/discharging procedure is initiated by this script.
 The schematic lead and logger improve the path to collecting physical
 evidence, but no NOHON-specific NTC curve, ID resistor, OCV table, or
 DCIR table has been established yet.
+
+## Follow-up 19: checksum search and parser validation
+
+The checksum investigation was extended across four independent original
+PM855GUI records (alioth J3S, alioth J11, vayu NVT, vayu Sunwoda).
+Common CRC-16 candidates were tested against the 414 provisioned data
+bytes, including several standard polynomials, reflected/non-reflected
+processing, and common initial/xor values. None reproduced all four
+published checksum words (BE8D, 2207, 65B6, 7304). This does not prove
+that the field is not a CRC; it means the checksum input/algorithm is
+not yet known. It may include metadata, GUI-internal representation,
+or another proprietary transform. The parser therefore continues to
+label checksum validation as not implemented and never invents a pass.
+
+The new parser unit-test fixture was exercised against the structural
+logic. It passed checks for:
+- 414 source bytes plus two zero padding bytes = 416 bytes;
+- Rslow normal little-endian mapping at bytes 26..29;
+- separate Rslow low conversion to four DT bytes;
+- SRAM nominal word 271 mapped to profile byte offset 412 and value
+  5037 for the J3S fixture;
+- rejection of an incomplete address table;
+- rejection of an Rslow metadata/payload mismatch.
+
+The Android telemetry shell script also passed a POSIX shell syntax
+check. These are parser/logger validation results only, not a physical
+battery characterization or a kernel build.
+
+The expanded search of public Xiaomi UEFI firmware backups still did
+not locate a 6000 mAh M703/BN61 PM855GUI provisioning record. The
+available high-capacity source remains the M703 ATL QG profile, which
+is not directly compatible with alioth Gen4.
