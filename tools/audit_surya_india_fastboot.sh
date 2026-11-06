@@ -427,7 +427,7 @@ GO
 
     case "$partition_type" in
       *ext4*|*ext3*|*ext2*)
-        for internal_path in /etc /firmware; do
+        for internal_path in /etc /firmware /bin /lib /lib64 /usr/bin /usr/lib /usr/lib64; do
           destination="$partition_root/${internal_path#/}"
           rm -rf "$destination"
           mkdir -p "$(dirname "$destination")"
@@ -464,6 +464,46 @@ GO
     > "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt" || true
   grep -RInaI -E '(^|[^[:alnum:]])(BN61|M703)([^[:alnum:]]|$)|BATTERY[.]PROVISION|PM855GUI|qcom,fg-profile-data|qcom,nom-batt-capacity-mah|qcom,pc-temp-|batterydata-M703|qg-battery-profile|qpnp-qg|qpnp-fg-gen4|thermistor|QG-D|QBG-D' \
     "$SUPER_FILES" 2>/dev/null | head -n 500 >> "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" || true
+
+  # Reverse-engineer the actual QG/QBG userspace consumers. The previous
+  # pass only searched raw partition strings and /etc,/firmware; it did not
+  # extract the ELF trees where ioctl callers and fixed-point scales live.
+  ELF_MANIFEST="$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt"
+  QG_BINARY_HITS="$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt"
+  QG_PATTERN='BPIOCXVAR|BPIOCXSOC|BPIOCXOCV|BPIOCXFCC|BPIOCXSLOPE|/dev/qg_battery|qg_battery|QG-D|QBG-D|Lookup VAR|Lookup ESR|Lookup SLOPE|profile-param|m703-atl-6000mah|DS28E16|BATT_ID|battery_profile'
+  printf '\n=== Extracted ELF inventory (paths, sizes, hashes) ===\n' >> "$ELF_MANIFEST"
+  printf 'relative_path\tbytes\tsha256\tfile_type\n' >> "$ELF_MANIFEST"
+  ELF_COUNT=0
+  QG_ELF_COUNT=0
+  while IFS= read -r -d '' candidate; do
+    candidate_type="$(file -b "$candidate" 2>/dev/null || true)"
+    [[ "$candidate_type" == *ELF* ]] || continue
+    ELF_COUNT=$((ELF_COUNT + 1))
+    relative_path="${candidate#"$SUPER_FILES"/}"
+    candidate_bytes="$(stat -c %s "$candidate")"
+    candidate_sha="$(sha256sum "$candidate" | awk '{print $1}')"
+    printf '%s\t%s\t%s\t%s\n' "$relative_path" "$candidate_bytes" "$candidate_sha" "$candidate_type" >> "$ELF_MANIFEST"
+
+    matches="$(strings -a -n 5 "$candidate" 2>/dev/null | grep -Ei "$QG_PATTERN" || true)"
+    if [[ -n "$matches" ]]; then
+      QG_ELF_COUNT=$((QG_ELF_COUNT + 1))
+      {
+        printf '\n=== QG/QBG string hits: %s ===\n' "$relative_path"
+        printf '%s\n' "$matches" | sed -n '1,160p'
+        printf '%s\n' '--- matching dynamic/static symbol names ---'
+        readelf -Ws "$candidate" 2>/dev/null | grep -Ei 'qg|qbg|battery|profile|esr|batt|ioctl' | sed -n '1,120p' || true
+        printf '%s\n' '--- dynamic dependencies ---'
+        readelf -d "$candidate" 2>/dev/null | grep -E 'NEEDED|SONAME' | sed -n '1,80p' || true
+      } >> "$QG_BINARY_HITS"
+    fi
+  done < <(find "$SUPER_FILES" -type f -print0 | sort -z)
+
+  {
+    echo
+    echo "ELF files inventoried from extracted bin/lib trees: $ELF_COUNT"
+    echo "ELF files containing QG/QBG consumer strings: $QG_ELF_COUNT"
+    echo "ELF manifest and binary-level QG hits are appended to the existing battery path/content reports."
+  } | tee -a "$REPORT"
 
   PARTITION_COUNT=$(($(wc -l < "$SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv") - 1))
   {
