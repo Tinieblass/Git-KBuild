@@ -83,6 +83,48 @@ def parse_provision(text: str) -> tuple[dict[str, str], bytes]:
     return metadata, profile
 
 
+def decode_profile_fields(metadata: dict[str, str], profile: bytes) -> dict[str, object]:
+    """Decode only fields whose location/byte order were verified in Gen4."""
+    decoded: dict[str, object] = {}
+
+    # PROFILE_LOAD_WORD is 65 in the Gen4 driver. RSLOW_COEFF_DISCHG_WORD
+    # is 78, i.e. 13 SRAM words (26 bytes) into the loaded profile.
+    normal_text = metadata.get("Rslow_Normal_Coefficients", "").strip()
+    if normal_text:
+        normal_value = int(normal_text, 16)
+        normal_bytes = normal_value.to_bytes(4, "little")
+        embedded = profile[26:30]
+        if embedded != normal_bytes:
+            raise ValueError(
+                "Rslow normal mismatch: PM855GUI metadata encodes "
+                f"{normal_bytes.hex()}, but profile bytes 26..29 are "
+                f"{embedded.hex()}"
+            )
+        decoded["rslow_normal_word"] = f"0x{normal_value:08X}"
+        decoded["rslow_normal_bytes"] = embedded.hex(" ")
+        decoded["rslow_normal_verified_at_profile_bytes"] = "26..29"
+
+    low_text = metadata.get("Rslow_Low_Coefficients", "").strip()
+    if low_text:
+        low_value = int(low_text, 16)
+        low_bytes = low_value.to_bytes(4, "little")
+        decoded["rslow_low_word"] = f"0x{low_value:08X}"
+        decoded["rslow_low_bytes_for_dt"] = low_bytes.hex(" ")
+        decoded["rslow_low_source"] = "separate DT property; not in 416-byte payload"
+
+    # Gen4's NOM_CAP_WORD is SRAM word 271. The profile is loaded at word
+    # 65, so this maps to (271 - 65) * 2 = byte offset 412.
+    internal_word = int.from_bytes(profile[412:414], "little")
+    decoded["gen4_nom_cap_sram_word"] = 271
+    decoded["gen4_nom_cap_profile_byte_offset"] = 412
+    decoded["gen4_nom_cap_embedded_word"] = f"0x{internal_word:04X}"
+    decoded["gen4_nom_cap_embedded_value"] = internal_word
+    decoded["gen4_nom_cap_warning"] = (
+        "internal profile calibration word; not the DTS mAh capacity"
+    )
+    return decoded
+
+
 def parse_dts_profile(text: str) -> bytes:
     match = DTS_RE.search(text)
     if not match:
@@ -106,6 +148,7 @@ def main() -> int:
         metadata, profile = parse_provision(
             args.provision.read_text(encoding="utf-8", errors="strict")
         )
+        decoded = decode_profile_fields(metadata, profile)
         if args.verify_dts:
             reference = parse_dts_profile(
                 args.verify_dts.read_text(encoding="utf-8", errors="strict")
@@ -117,6 +160,8 @@ def main() -> int:
                     f"provision=0x{profile[first]:02X}, DTS=0x{reference[first]:02X}"
                 )
             print("DTS comparison PASS: all 416 bytes match", file=sys.stderr)
+        if "rslow_normal_word" in decoded:
+            print("Rslow normal PASS: metadata matches profile bytes 26..29", file=sys.stderr)
 
         if args.output:
             if args.format != "bin":
@@ -134,6 +179,7 @@ def main() -> int:
                 "padding_bytes": 2,
                 "kernel_profile_bytes": len(profile),
                 "profile_hex": profile.hex(),
+                "decoded_gen4_fields": decoded,
                 "checksum_validation": "not implemented",
             }, indent=2))
         else:
