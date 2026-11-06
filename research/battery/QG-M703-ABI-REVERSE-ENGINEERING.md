@@ -1019,3 +1019,48 @@ capacity rating.
 
 No kernel code, DTS/DTBO, battery limits, profile payload, or flashable
 artifact was changed by these findings.
+
+## Follow-up 18: BN61 board-level thermistor/ID path and passive telemetry capture
+
+A Poco X3 (SM7150 / M703) board schematic was located and inspected.
+It shows separate battery-connector nets for `BATT_NTC` and
+`BATT_GPIO_ID`, alongside the battery positive/negative and pack-sense
+connections. It also identifies a DS28E16 1-Wire GPIO connection on the
+same design. The charger-side schematic includes a 100 kOhm NTC element
+in the thermistor network. This is consistent with the M703 DTS's
+100 kOhm / beta4250 thermistor metadata, but the schematic is board-side
+evidence, not a measurement of the NOHON replacement pack's own NTC.
+It does not prove the NOHON pack's battery-ID resistance.
+
+Added `research/battery/capture_bn61_telemetry.sh`, a passive-only
+Android sysfs logger. It samples standard battery properties every
+5 seconds for 30 minutes by default and writes a CSV under
+`/sdcard/Download`. It records timestamp, status, health, presence,
+capacity, voltage, current, temperature, charge counter/full/design,
+cycle count, and chemistry string when those nodes are exposed.
+
+The logger only reads sysfs; it never writes charge voltage, current,
+or control nodes. It is useful for observing ordinary device behaviour
+and correlating current/voltage/temperature changes. It is not, by
+itself, a substitute for rested OCV measurements or controlled pulse
+testing, and values exposed by ROM overlays must be treated as
+reported telemetry rather than laboratory truth.
+
+Example use from a root shell:
+
+```sh
+sh research/battery/capture_bn61_telemetry.sh
+```
+
+Optional overrides:
+
+```sh
+INTERVAL_SECONDS=2 DURATION_SECONDS=3600 sh research/battery/capture_bn61_telemetry.sh /sdcard/Download/bn61-one-hour.csv
+```
+
+If a sysfs node is absent or unreadable, its CSV field is left empty.
+No battery charging/discharging procedure is initiated by this script.
+
+The schematic lead and logger improve the path to collecting physical
+evidence, but no NOHON-specific NTC curve, ID resistor, OCV table, or
+DCIR table has been established yet.
