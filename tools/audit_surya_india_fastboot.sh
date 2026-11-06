@@ -441,9 +441,15 @@ GO
           destination="$partition_root/${internal_path#/}"
           rm -rf "$destination"
           mkdir -p "$(dirname "$destination")"
-          rdump_log="$partition_root/rdump-${internal_path#/}.log"
+          rdump_name="${internal_path#/}"
+          rdump_name="${rdump_name//\//_}"
+          rdump_log="$partition_root/rdump-${rdump_name}.log"
           if debugfs -R "rdump $internal_path $destination" "$partition_image" > "$rdump_log" 2>&1; then
-            extracted_files="$(find "$destination" -type f 2>/dev/null | wc -l | tr -d '[:space:]')"
+            if [[ -d "$destination" ]]; then
+              extracted_files="$(find "$destination" -type f 2>/dev/null | wc -l | tr -d '[:space:]' || true)"
+            else
+              extracted_files=0
+            fi
             if [[ "$extracted_files" -gt 0 ]]; then
               printf '%s\t%s\textracted\t%s files\n' "$partition_name" "$internal_path" "$extracted_files" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
             else
