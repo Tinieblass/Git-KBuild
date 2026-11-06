@@ -412,7 +412,7 @@ GO
   : > "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt"
   mapfile -d '' SUPER_PARTITION_FILES < <(find "$SUPER_PARTS" -maxdepth 1 -type f \( -name 'vendor*.img' -o -name 'odm*.img' -o -name 'product*.img' -o -name 'system_ext*.img' -o -name 'system*.img' \) -print0 | sort -z)
   if [[ "${#SUPER_PARTITION_FILES[@]}" -eq 0 ]]; then
-    echo "ERROR: the super image exposed no battery-relevant vendor/odm/product/system_ext partition images." | tee -a "$REPORT"
+    echo "ERROR: the super image exposed no battery-relevant vendor/odm/product/system_ext/system partition images." | tee -a "$REPORT"
     exit 6
   fi
 
