@@ -1308,3 +1308,32 @@ Sources:
 
 No kernel code, DTS/DTBO, battery limits, profile payload, or flashable
 artifact was changed by this follow-up.
+
+
+## Follow-up 22: QG-to-Gen4 binary anchor discovered
+
+The LineageOS OnePlus SM8250 tree contains QG and Gen4 profiles for the
+same named cell families (Alium 3600 mAh and Ascent 3450 mAh). A byte-level
+check found a direct mapping at the end of the Gen4 payload:
+
+- Alium QG `fcc2-temp-lut` at 25 °C = **3588 mAh**; the last four
+  bytes of its 416-byte Gen4 `fg-profile-data` are
+  `04 0E 00 00` = **3588** little-endian.
+- Ascent QG `fcc2-temp-lut` at 25 °C = **3492 mAh**; the last four
+  bytes of its 416-byte Gen4 payload are
+  `A4 0D 00 00` = **3492** little-endian.
+
+This is a verified cross-generation anchor: the final 32-bit word of these
+Gen4 payloads stores the QG FCC2 25 °C capacity. It does not decode the
+remaining 412 bytes, which remain PM855GUI-generated opaque data.
+
+A third reference, the Goertek Gen4 6100 mAh profile, also has 416 bytes;
+its final word is 6489. It is a different cell and uses a 4.35 V limit, so
+it is a format reference only and must not be copied into BN61.
+
+Sources:
+- https://github.com/LineageOS/android_kernel_oneplus_sm8250/blob/lineage-20/arch/arm64/boot/dts/vendor/qcom/qg-batterydata-alium-3600mah.dtsi
+- https://github.com/LineageOS/android_kernel_oneplus_sm8250/blob/lineage-20/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alium-3600mah.dtsi
+- https://github.com/LineageOS/android_kernel_oneplus_sm8250/blob/lineage-20/arch/arm64/boot/dts/vendor/qcom/qg-batterydata-ascent-3450mah.dtsi
+- https://github.com/LineageOS/android_kernel_oneplus_sm8250/blob/lineage-20/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-ascent-3450mah.dtsi
+- https://github.com/LineageOS/android_kernel_oneplus_sm8250/blob/lineage-20/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-goertek-6100mah.dtsi
