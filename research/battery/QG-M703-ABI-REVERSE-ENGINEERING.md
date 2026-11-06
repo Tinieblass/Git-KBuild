@@ -1172,3 +1172,64 @@ The next useful comparison is to extract the complete Z1 surfaces from
 other M703 QG battery variants and independent Qualcomm QG profile
 families, then test whether the same 0.01 mΩ convention is consistent.
 Only after that should Z2–Z6/Y1–Y6 be assigned candidate meanings.
+
+
+## Follow-up 6: official India firmware confirms the QG model and FCC scale
+
+A checksum-verified official POCO X3 India fastboot ROM was audited:
+- build: `V13.0.1.0.SJGINXM` (`surya_in_global`);
+- firmware package: `surya_in_global_images_V13.0.1.0.SJGINXM_20220818.0000.00_12.0_in`;
+- audit runs: `42149172897` (initial) and `42212148992` (expanded filesystem pass);
+- DTBO node: `qcom,m703-atl-6000mah`;
+- extracted DTBO node SHA-256: `d0f6b368d91cbdd618b1bbabc29b05cc1a64c6f49af3e399a0922106fc22f1b1`.
+
+The same 6000 mAh node hash is present in multiple DTBO entries in the official image. Its independently extracted metadata is:
+- `qcom,max-voltage-uv = 0x43e6d0 = 4,450,000 µV`;
+- `qcom,fastchg-current-ma = 0x1770 = 6,000 mA` (fast-charge current, not battery capacity);
+- battery ID and thermistor pull-up: 100 kΩ;
+- beta: 4250;
+- QG profile version: 100;
+- OEM profile version: 6;
+- six-pin battery flag.
+
+The official DTBO's 16 LUTs all pass the Qualcomm QG parser's strict dimension rule `lut_length == rows * cols`:
+- FCC1: 1 x 5;
+- FCC2: 1 x 6;
+- V1: 56 x 5;
+- V2: 56 x 6;
+- Z1..Z6: each 56 x 5;
+- Y1..Y6: each 56 x 6.
+
+The source-level QG implementation confirms the axis interpretation and interpolation contract:
+- temperature columns are multiplied by `DEGC_SCALE = 10`, i.e. input temperature is deci-degrees C;
+- OCV passed into the profile lookup is converted from µV to deci-µV by dividing by 100, and the reverse conversion multiplies by 100;
+- FCC1/FCC2 are one-row temperature LUTs, returned as mAh and converted by the QG helper to µAh;
+- SOC row coordinates use the 0..10000 basis;
+- Z/Y are exposed through the generic `BPIOCXVAR` path and remain physically opaque without consumer-side evidence.
+
+Decoded FCC data from the official `m703-atl-6000mah` DTBO node:
+
+| Table | Temperature (°C) | FCC (mAh) |
+|---|---|---|
+| FCC1 (charging) | 0, 10, 25, 40, 50 | 5713, 5843, 5956, 5994, 6012 |
+| FCC2 (not charging) | -10, 0, 10, 25, 40, 50 | 5881, 5936, 5953, 5955, 5958, 5955 |
+
+This is important: the commercial/profile name says 6000 mAh, but the actual QG FCC model is temperature-dependent and does not simply store a constant 6000 mAh. The `fastchg-current-ma` property is a separate 6000 mA charging-current limit and must not be mistaken for capacity.
+
+### Expanded vendor ELF audit correction
+
+The first expanded pass (run 27) extracted the logical partitions but inventoried zero ELF files. The extraction log showed the script had treated successful `debugfs rdump` exit status as proof that each requested path existed; it had not checked extracted file counts or recorded the actual filesystem root. Therefore run 27 does **not** establish that the vendor contains no QG consumer.
+
+The audit script was corrected in commit `2924219897470bb2574dd4b0a330e9b557cf1ca1`:
+- record each ext filesystem root listing;
+- inspect both conventional and system-as-root Android paths;
+- distinguish extracted directories from empty/missing paths by counting files;
+- preserve the extraction diagnostics in the compact report.
+
+Run 28 is the follow-up. Its output must identify actual ELF paths and hashes before any QG consumer semantics can be claimed. If it still finds no ELF consumers, the next step is to inspect the filesystem layout and extraction method rather than infer absence from an empty scan.
+
+Sources:
+- Qualcomm QG profile parser and LUT mapping: https://android.googlesource.com/kernel/msm/+/refs/heads/android-msm-orbital-4.9-pie-wear-dr/drivers/power/supply/qcom/qg-battery-profile.c
+- Qualcomm QG interpolation helpers: https://android.googlesource.com/kernel/msm/+/e1e85fa160463d8c5e55c58c1806668e9740a117/drivers/power/supply/qcom/qg-profile-lib.c
+
+No kernel code, DTB/DTBO payload, charging limits, or BN61 profile was changed by this research follow-up.
