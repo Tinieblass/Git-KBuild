@@ -806,3 +806,5 @@ echo "=== India XBL extracted RAW inventory ===" | tee -a "$REPORT"
 tee -a "$REPORT" < "$OUT/xbl-raw/RAW-MANIFEST.tsv"
 echo | tee -a "$REPORT"
 echo "Audit complete. This India firmware is a more relevant 6000mAh variant reference than the previously audited Global NFC package; it still does not prove a BN61 PM855B Gen4 profile." | tee -a "$REPORT"
+
+# Manual audit trigger: preserve the verified hvdcp_opti consumer export path.
