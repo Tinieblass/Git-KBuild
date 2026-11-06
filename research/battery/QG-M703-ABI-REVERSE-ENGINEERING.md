@@ -752,3 +752,70 @@ not independent higher-capacity battery sources.
 
 No kernel code, DTS/DTBO, battery limits, profile payload, or installable
 artifact was changed by this follow-up.
+
+## Follow-up 12: correction to the BATTERY.PROVISION2 byte-count interpretation
+
+A byte-for-byte reconstruction against the public alioth J3S DTS has now
+resolved the address-range detail precisely. The previous Follow-up 11
+wording that described addresses 0x041 through 0x110 as 416 provisioned
+bytes was incorrect and is corrected here.
+
+The actual PM855GUI text table in the alioth `BATTERY.PROVISION2` has
+207 addresses, 0x041 through 0x10F inclusive, each with offsets 0 and 1:
+207 x 2 = **414 provisioned data bytes**. The 416-byte DTS payload is
+those exact 414 bytes followed by two zero padding bytes.
+
+This was verified, not inferred: the 414 bytes parsed from the original
+alioth provision file match bytes 0..413 of the 416-byte J3S DTS payload
+with **zero differences**; the DTS bytes 414 and 415 are both 0x00.
+The final provision word at address 0x10F is AD 13, matching the
+known internal 5037 calibration word. The correct reconstruction rule is:
+ordered address table 0x041..0x10F, then append 00 00 to form the driver's
+416-byte profile. Do not invent an address 0x110.
+
+This also means a converter must explicitly distinguish:
+- PM855GUI provisioning table length: 414 bytes in these Xiaomi source
+  records;
+- Gen4 kernel profile buffer length: 416 bytes;
+- two trailing zero pad bytes present in the DTS representation.
+
+### Expanded original Xiaomi PM855GUI source set
+
+The same firmware-source collection provides raw PM855GUI provisioning
+records for additional Xiaomi battery classes:
+
+| Pack/profile | GUI | Capacity | Float | Battery ID | Thermistor | Checksum |
+|---|---:|---:|---:|---:|---:|---:|
+| Xiaomi J11 Sun | 1.0.0.13 | 4700 mAh | 4.45 V | 100 kOhm | 100 kOhm / beta4250 | 2207 |
+| Xiaomi J2GY BM4N | 1.0.0.13 | 4780 mAh | 4.40 V | 68 kOhm | 100 kOhm / beta4250 | 5DBF |
+| Xiaomi J2NVT BM4N | 1.0.0.13 | 4780 mAh | 4.40 V | 68 kOhm | 100 kOhm / beta4250 | 2F06 |
+| Xiaomi J20S NVT | 1.0.0.14 | 5160 mAh | 4.45 V | 68 kOhm | 100 kOhm / beta4250 | 65B6 |
+| Xiaomi J20S Sunwoda | 1.0.0.14 | 5160 mAh | 4.45 V | 68 kOhm | 100 kOhm / beta4250 | 7304 |
+| Xiaomi J3S Sun (alioth) | 1.0.0.14 | 5000 mAh | 4.45 V | 100 kOhm | 100 kOhm / beta4250 | BE8D |
+
+All of these source records contain 414 address/data bytes. The 5160
+mAh NVT and Sunwoda provision records were compared directly:
+272/414 bytes differ (65.7%), despite sharing capacity, GUI version,
+battery ID, thermistor metadata, and voltage ceiling. Their Rslow words
+also differ:
+- NVT normal 0x0B2A053C; low 0x126A00E7.
+- Sunwoda normal 0x129C0471; low 0x024C159D.
+
+This is another strong confirmation that nominal capacity and external
+metadata are insufficient to synthesize the 416-byte model or Rslow
+coefficients. Cell-maker-specific calibration remains essential.
+
+### Consequence for BN61
+
+The expanded raw source set gives us authentic Xiaomi PM855GUI examples
+from 4700 to 5160 mAh, plus the 5800 mAh ASUS PM855GUI Gen4 DTS reference.
+However, none is an exact 5850-rated / 6000-typical BN61 PM855GUI record.
+The closest physical-family evidence remains the M703 ATL QG 6000 profile,
+and the closest alioth-native reference remains J3S 5000.
+
+No 4700/4780/5160/5800 payload or Rslow coefficient is to be transplanted
+into the Nohon BN61 profile. The 4.45 V NOHON ceiling remains the
+documented upper bound for any future BN61 configuration.
+
+No kernel code, DTS/DTBO, battery limits, profile payload, or installable
+artifact was changed by this follow-up.
