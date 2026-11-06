@@ -302,3 +302,83 @@ The source establishes the following semantics:
 5. The user's actual cell's OCV curve, DCIR-vs-SOC/temperature, NTC R/T curve, safe charge termination, and independently measured capacity remain unknown. No Gen4 payload can be derived from these sysfs fields.
 
 These diagnostics materially improve the pack-specific evidence and explain the earlier sysfs fields, but they do **not** justify generating a 416-byte Gen4 profile, changing NTC coefficients, or altering safety thresholds. The only safe current kernel choices remain the separately verified alioth stock profile and J3S 5K reference; BN61 `-6K` remains reserved and non-flashable until a genuine BN61 Gen4/PM855GUI export or validated characterization and mapping exists.
+
+## Cross-validation against official POCO X3 India DTBO and independent source trees
+
+The 2026-11-06 firmware audit extracted the M703 ATL node directly from the
+checksum-verified India ROM DTBO. The decompiled FDT node has SHA-256
+`d0f6b368d91cbdd618b1bbabc29b05cc1a64c6f49af3e399a0922106fc22f1b1`;
+the same profile-node hash occurs in 11 DTBO entries. The companion M703
+PM7150B ATL 5160 profile occurs in 11 entries as well.
+
+The official M703 ATL node decodes to:
+
+- `qcom,max-voltage-uv`: 4,450,000 µV.
+- `qcom,ffc-max-voltage-uv`: 4,480,000 µV in the extracted DTBO.
+- `qcom,fastchg-current-ma`: 6000 mA.
+- `qcom,batt-id-kohm`: 100 kΩ.
+- `qcom,battery-beta`: 4250.
+- `qcom,battery-therm-kohm`: 100 kΩ.
+- `qcom,qg-batt-profile-ver`: 100.
+- `qcom,oem-batt-profile-ver`: 6.
+- `mi,six-pin-battery`: present.
+
+The 4.48 V FFC value and 6 A current are source facts for the original Surya
+platform only. They are **not** safe transfer values for alioth or for the
+aftermarket Nohon pack. Keep the alioth experiment's charge ceiling at or
+below the independently specified 4.45 V until exact cell-maker and hardware
+validation exists.
+
+### Independent source comparison
+
+The complete QG LUT block (v1/v2, FCC1/FCC2, Z1–Z6 and Y1–Y6) in this
+repository's archived M703 source (blob SHA
+`03bbe29811956896b42bbef75a5edad28b99c48d`) was normalized and compared
+with three independent Surya kernel trees:
+
+- stormbreaker-project/kernel_xiaomi_surya, blob
+  `723007ed5a974d89c3c59ab5f168a7b20c91a389`;
+- xiaomi-surya-devs/kernel_xiaomi_surya, blob
+  `8c991abadec768a389f55f18252cc70fb97c5452`;
+- subhajeetmuhuri/android_kernel_xiaomi_surya, blob
+  `03bbe29811956896b42bbef75a5edad28b99c48d`.
+
+All three LUT blocks are byte-for-byte identical after comment/whitespace
+normalization. This independently supports the table values recovered from
+the official firmware DTBO.
+
+A fourth community tree,
+`syahiddrakness/Kernel_Xioami_Surya-OSS`, differs: it reports
+`battery-beta=4450`, OEM profile revision 1, and its LUT axes/data block is
+not identical. This is a distinct profile revision/variant, not a reason to
+average the two versions. The official India DTBO and the three matching
+trees support beta 4250 / OEM revision 6 as the stronger reference for the
+original M703 ATL 6000 profile.
+
+### Electrical identity caution
+
+The M703 DT node declares both a 100 kΩ battery-ID resistor and a 100 kΩ
+thermistor network with beta 4250. These are separate electrical functions;
+a measured ~100.5 kΩ ID path does not establish that the NTC has the same
+100 kΩ/Beta-4250 response. The user's DS28E16 page-0 read of all `FF`
+also does not match the official QG selector's expected authenticated
+characters `61`. Consequently, the 100 kΩ ID measurement alone cannot
+prove that the Nohon BN61 pack is electrically identical to the original
+M703 ATL pack.
+
+### Reverse-engineering consequence
+
+We now have high-confidence QG source tables for the original M703 ATL
+reference and an independently confirmed QG table schema. This raises the
+confidence of the *reference dataset*, but it does not reveal a QG-to-PM855B
+Gen4 encoding. The QG interface exposes Z/Y as generic VAR lookups; the
+inspected source does not attach physical units to those 12 tables. They
+cannot be relabelled as ESR/DCIR or inserted into Gen4 coefficients without
+decoding the consuming QG algorithm and validating the PM855B model.
+
+Next useful reverse-engineering target: extract the Surya vendor executable
+trees (`/lib`, `/lib64`, `/bin`) from the official super partitions and
+inspect the QG/QBG consumer binaries for table-index semantics and scale
+factors. The current firmware audit extracted only `/etc` and
+`/firmware` directories from ext filesystems; its empty battery-path list
+does not rule out useful data or symbols in vendor libraries.
