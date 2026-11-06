@@ -26,10 +26,16 @@ The corresponding build log reports KernelSU version `32740`, and the workflow c
 
 This does not follow the user's supplied KowSU integration contract: the contract says to use the existing compatible backslashxx built-in driver, not replace it with a separate KOWX712 driver snapshot.
 
-## Strong positive evidence in the untouched FakeDreamer v2.1-W source
+## Strong positive evidence in the untouched FakeDreamer source
 
-Source commit: `afba74c277a858f7ee46463f5ff6b7bfbdb6546a`.
-The commit message identifies the in-tree driver as backslashxx KernelSU `3.3.0+ (32651)`.
+There are two distinct source anchors that must not be conflated:
+
+- Official v2.1-rel-w release tag source: `afba74c277a858f7ee46463f5ff6b7bfbdb6546a` (this is the source used by the failed MidoriSU and KowSU replacement builds).
+- Known-good 2026-10-29 Actions baseline: branch `bpf-testing` resolved at `f7030790d0ac6545920528ffd22d79f4d37a5f1f` at build time. The baseline workflow cloned the moving branch rather than pinning this commit; the commit is now recovered from GitHub history.
+
+The known-good `f7030790...` source has its own in-tree backslashxx driver at `drivers/kernelsu`. Its `drivers/kernelsu/Makefile` pins `KSU_VERSION=32707`, `ksu.c` includes `downstream/toolkit.h`, and `manager/apk_sign.c` already accepts the KowSU manager signature (size `0x375`, exact SHA-256 above).
+
+The failed MidoriSU and KowSU experiments instead used the older official release commit `afba74c...`, removed that source tree's `KernelSU` and `drivers/kernelsu` directories, and substituted other driver checkouts. Thus they differ from the proven bootable baseline in both the kernel source snapshot and the root-driver implementation. These are now the two leading shared variables to isolate; neither should be changed again in the same experiment.
 `drivers/kernelsu/manager/apk_sign.c` already accepts the KowSU manager signature as a built-in alternate:
 
 - certificate size `0x375`
