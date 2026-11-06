@@ -454,15 +454,15 @@ GO
     esac
 
     strings -a -n 8 "$partition_image" \
-      | grep -Ei 'BN61|M703|BATTERY[.]PROVISION|PM855GUI|fg-profile-data|nom-batt-capacity|fuel.?gauge|battery.?profile|thermistor|ATL' \
+      | grep -Ei 'BN61|M703|BATTERY[.]PROVISION|PM855GUI|qcom,fg-profile-data|qcom,nom-batt-capacity-mah|qcom,pc-temp-|batterydata-M703|qg-battery-profile|qpnp-qg|qpnp-fg-gen4|thermistor|QG-D|QBG-D|(^|[^[:alnum:]_])ATL([^[:alnum:]_]|$)' \
       | head -n 250 \
       | sed "s#^#[$partition_name raw] #" >> "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" || true
   done
 
   find "$SUPER_FILES" -type f -print \
-    | grep -Ei 'battery|fuel.?gauge|qg|fg|pmic|charger|thermistor|provision|bn61|m703|atl' \
+    | grep -Ei 'battery|fuel.?gauge|qg|fg.?profile|pmic|charger|thermistor|provision|bn61|m703' \
     > "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt" || true
-  grep -RInaI -E 'BN61|M703|ATL|BATTERY[.]PROVISION|PM855GUI|qcom,fg-profile-data|nom-batt-capacity|fuel.?gauge|battery.?profile|thermistor|QG' \
+  grep -RInaI -E 'BN61|M703|BATTERY[.]PROVISION|PM855GUI|qcom,fg-profile-data|qcom,nom-batt-capacity-mah|qcom,pc-temp-|batterydata-M703|qg-battery-profile|qpnp-qg|qpnp-fg-gen4|thermistor|QG-D|QBG-D' \
     "$SUPER_FILES" 2>/dev/null | head -n 500 >> "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" || true
 
   PARTITION_COUNT=$(($(wc -l < "$SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv") - 1))
