@@ -99,6 +99,10 @@ jobs:
           test -s research/battery/PM855GUI-Gen4-Map/multi-profile-verification.csv
           test -s research/battery/PM855GUI-Gen4-Map/multi-profile-register-words.csv
           grep -q "PM855GUI 1.0.0.13 and 1.0.0.14" research/battery/PM855GUI-Gen4-Map/MULTI-PROFILE-VALIDATION.md
+      - name: Unit-test guarded PM855GUI provision parser
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s research/battery -p 'test_parse_pm855gui_provision.py' -v
       - name: Verify Qualcomm PM855GUI checksum algorithm on all reference pairs
         run: |
           set -euo pipefail
