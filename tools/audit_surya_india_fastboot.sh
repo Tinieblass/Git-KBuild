@@ -251,7 +251,7 @@ changes = [
 \tselected := 0
 \textracted := 0
 \tfor _, part := range sp.Partitions {
-\t\tif !strings.HasPrefix(part.Name, "vendor") && !strings.HasPrefix(part.Name, "odm") && part.Name != "product" && part.Name != "system_ext" {
+\t\tif !strings.HasPrefix(part.Name, "vendor") && !strings.HasPrefix(part.Name, "odm") && part.Name != "product" && part.Name != "system_ext" && part.Name != "system" {
 \t\t\tcontinue
 \t\t}
 \t\tselected++
@@ -265,13 +265,13 @@ changes = [
 \t}
 
 \tif selected == 0 {
-\t\treturn fmt.Errorf("no battery-relevant vendor/odm/product/system_ext logical partitions found")
+\t\treturn fmt.Errorf("no battery-relevant vendor/odm/product/system_ext/system logical partitions found")
 \t}
 \tif extracted != selected {
 \t\treturn fmt.Errorf("extracted %d of %d selected battery-relevant logical partitions", extracted, selected)
 \t}
 \tif sp.verbose {
-\t\tfmt.Printf("\\nExtracted %d vendor/odm partition(s) to %s\\n", extracted, outDir)
+\t\tfmt.Printf("\\nExtracted %d vendor/odm/product/system_ext/system partition(s) to %s\\n", extracted, outDir)
 \t}
 \treturn nil
 }'''
@@ -401,7 +401,7 @@ GO
     echo "Reader zero-extent test: PASS"
     echo "Reader LP header checksum test: PASS"
     echo "Reader validates geometry and LP header/table SHA-256 checksums"
-    echo "Extraction scope: vendor*, odm*, product and system_ext logical partitions"
+    echo "Extraction scope: vendor*, odm*, product, system_ext and system logical partitions"
   } > "$SUPER_AUDIT/SUPER-TOOLCHAIN.txt"
 
   "$SUPER_BIN" -v -l "$SUPER_IMAGE" 2>&1 | tee "$SUPER_AUDIT/SUPER-PARTITIONS.txt"
@@ -410,7 +410,7 @@ GO
   printf 'partition\tbytes\tsha256\tfile_type\n' > "$SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv"
   : > "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt"
   : > "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt"
-  mapfile -d '' SUPER_PARTITION_FILES < <(find "$SUPER_PARTS" -maxdepth 1 -type f \( -name 'vendor*.img' -o -name 'odm*.img' -o -name 'product*.img' -o -name 'system_ext*.img' \) -print0 | sort -z)
+  mapfile -d '' SUPER_PARTITION_FILES < <(find "$SUPER_PARTS" -maxdepth 1 -type f \( -name 'vendor*.img' -o -name 'odm*.img' -o -name 'product*.img' -o -name 'system_ext*.img' -o -name 'system*.img' \) -print0 | sort -z)
   if [[ "${#SUPER_PARTITION_FILES[@]}" -eq 0 ]]; then
     echo "ERROR: the super image exposed no battery-relevant vendor/odm/product/system_ext partition images." | tee -a "$REPORT"
     exit 6
@@ -454,7 +454,7 @@ GO
     esac
 
     strings -a -n 8 "$partition_image" \
-      | grep -Ei 'BN61|M703|BATTERY[.]PROVISION|PM855GUI|qcom,fg-profile-data|qcom,nom-batt-capacity-mah|qcom,pc-temp-|batterydata-M703|qg-battery-profile|qpnp-qg|qpnp-fg-gen4|thermistor|QG-D|QBG-D|(^|[^[:alnum:]_])ATL([^[:alnum:]_]|$)' \
+      | grep -Ei '(^|[^[:alnum:]])(BN61|M703)([^[:alnum:]]|$)|BATTERY[.]PROVISION|PM855GUI|qcom,fg-profile-data|qcom,nom-batt-capacity-mah|qcom,pc-temp-|batterydata-M703|qg-battery-profile|qpnp-qg|qpnp-fg-gen4|thermistor|QG-D|QBG-D' \
       | head -n 250 \
       | sed "s#^#[$partition_name raw] #" >> "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" || true
   done
@@ -462,13 +462,13 @@ GO
   find "$SUPER_FILES" -type f -print \
     | grep -Ei 'battery|fuel.?gauge|qg|fg.?profile|pmic|charger|thermistor|provision|bn61|m703' \
     > "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt" || true
-  grep -RInaI -E 'BN61|M703|BATTERY[.]PROVISION|PM855GUI|qcom,fg-profile-data|qcom,nom-batt-capacity-mah|qcom,pc-temp-|batterydata-M703|qg-battery-profile|qpnp-qg|qpnp-fg-gen4|thermistor|QG-D|QBG-D' \
+  grep -RInaI -E '(^|[^[:alnum:]])(BN61|M703)([^[:alnum:]]|$)|BATTERY[.]PROVISION|PM855GUI|qcom,fg-profile-data|qcom,nom-batt-capacity-mah|qcom,pc-temp-|batterydata-M703|qg-battery-profile|qpnp-qg|qpnp-fg-gen4|thermistor|QG-D|QBG-D' \
     "$SUPER_FILES" 2>/dev/null | head -n 500 >> "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" || true
 
   PARTITION_COUNT=$(($(wc -l < "$SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv") - 1))
   {
     echo
-    echo "Dynamic partitions: $PARTITION_COUNT vendor/odm/product/system_ext partition image(s) extracted and hashed."
+    echo "Dynamic partitions: $PARTITION_COUNT vendor/odm/product/system_ext/system partition image(s) extracted and hashed."
     echo "Partition manifest: $SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv"
     echo "Battery-related file paths: $(wc -l < "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt" | tr -d '[:space:]')"
     echo "Battery-related file/string hits: $(wc -l < "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" | tr -d '[:space:]')"
