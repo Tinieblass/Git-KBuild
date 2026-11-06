@@ -658,3 +658,38 @@ assuming the batterysecret binary is responsible.
 
 No kernel code, DTS/DTBO, battery limits, profile payload, or installable
 artifact was changed by this follow-up.
+
+## Follow-up 10: inspect the remaining obvious Surya health/thermal candidates
+
+The Surya proprietary vendor package's remaining battery/thermal-named
+components were inspected by extracting printable strings from their
+published ELF blobs:
+
+- `mi_thermald`: reads thermal zones, thermal configuration files,
+  board sensors, CPU cooling/frequency controls, and the ordinary
+  `/sys/class/power_supply/battery/capacity` node. No
+  `/dev/qg_battery`, QG ioctl, Z/Y table name, or QG profile consumer
+  reference was found.
+- `libbatterylistener.so` (32- and 64-bit): exports Android Health HAL
+  listener functions and reports whether the battery is charging. It is
+  not a QG battery-profile lookup client.
+- `libthermalclient.so`: uses thermal client sockets and thermal request
+  APIs; no QG profile access found.
+- `libsystem_health_mon.so`: opens `/dev/system_health_monitor` and
+  issues a health-check ioctl. It is unrelated to the QG battery profile
+  device.
+- `libthermalfeature.so` and `power_off_alarm`: no QG table identifiers
+  or `/dev/qg_battery` strings found in the extracted printable strings.
+
+The most obvious public Surya vendor candidates are therefore not the
+missing Z/Y consumer. This is a useful negative result: we have inspected
+the named battery/thermal services rather than assuming that a service
+with "battery" or "thermal" in its name owns the QG profile ABI.
+
+The search remains open for other Xiaomi/QTI vendor services, libraries,
+or framework components. A complete matching stock vendor image remains
+the best source because the open-source proprietary-vendor repositories
+do not provide an indexed call graph for all binaries.
+
+No kernel code, DTS/DTBO, battery limits, profile payload, or installable
+artifact was changed by this follow-up.
