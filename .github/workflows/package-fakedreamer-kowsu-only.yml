@@ -27,6 +27,14 @@ jobs:
       DIAGNOSTIC_ARTIFACT_SHA256: e487f819fa22a6908a960e173af3e7edf7e19456e474208b6609bcfa2c1dbc00
       IMAGE_SHA256: b68a5e30d828613433264becc089f827c86cb7653bcf34162652bbc010a15bf8
     steps:
+      - name: Block the known bootlooping driver-replacement image
+        run: |
+          set -euo pipefail
+          if [[ "$DIAGNOSTIC_ARTIFACT_ID" == "13454039612" || "$IMAGE_SHA256" == "b68a5e30d828613433264becc089f827c86cb7653bcf34162652bbc010a15bf8" ]]; then
+            echo "::error::DISABLED: this KOWX712 driver-replacement image caused a device bootloop. The original FakeDreamer tree already accepts the KowSU manager signature; do not package this image again."
+            exit 1
+          fi
+
       - name: Download the exact previously validated KowSU Image.gz artifact
         run: |
           set -euo pipefail
