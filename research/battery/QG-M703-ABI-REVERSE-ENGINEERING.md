@@ -1146,3 +1146,29 @@ Sources:
 
 No kernel code, DTS/DTBO, battery limits, profile payload, or flashable
 artifact was changed by this follow-up.
+
+### Numeric extraction from the actual M703 ATL 6000 Z1 surface
+
+The M703 source LUT was parsed using its declared axes, not by visual
+guessing. It contains 56 SOC rows and five temperature columns
+(0, 10, 25, 40, 50 °C). At the 50% SOC row (SOC coordinate 5000),
+the raw Z1 values are:
+
+| Temperature | Raw Z1 | Converted using 0.01 mΩ/unit |
+|---:|---:|---:|
+| 0 °C | 12181 | 121.81 mΩ |
+| 10 °C | 11768 | 117.68 mΩ |
+| 25 °C | 11358 | 113.58 mΩ |
+| 40 °C | 11122 | 111.22 mΩ |
+| 50 °C | 11051 | 110.51 mΩ |
+
+This is a reproducible decode of the **M703 ATL reference profile**.
+It demonstrates the shape and approximate magnitude encoded by that
+specific Z1 surface: resistance decreases as the cell temperature rises
+at 50% SOC. It is not a measurement of the NOHON pack and must not be
+copied into the alioth Gen4 model as its Rslow/ESR coefficients.
+
+The next useful comparison is to extract the complete Z1 surfaces from
+other M703 QG battery variants and independent Qualcomm QG profile
+families, then test whether the same 0.01 mΩ convention is consistent.
+Only after that should Z2–Z6/Y1–Y6 be assigned candidate meanings.
