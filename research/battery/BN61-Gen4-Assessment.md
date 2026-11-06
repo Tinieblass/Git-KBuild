@@ -252,32 +252,50 @@ Decision: keep -6K reserved and non-flashable. Do not transplant the M703 4.48 V
 Decision remains unchanged: no BN61 Gen4 payload, no -6K DTBO, no changed charge limits. Do not infer a Gen4 profile from generic QG driver strings or bootloader charger settings.
 
 
-## User's actual Nohon BN61 pack on alioth — sysfs evidence (2026-11-02)
+## User's actual Nohon BN61 pack on alioth — sysfs evidence and driver-semantic audit (2026-11-02)
 
-The user supplied live POCO F3 alioth diagnostics for the complete Nohon BN61 pack **with its own BMS**; the original BM4Y BMS was **not** transferred. These are BMS/sysfs reports, not laboratory cell characterization.
+The user supplied live POCO F3 alioth diagnostics for the complete Nohon BN61 pack **with its own BMS**; the original BM4Y BMS was **not** transferred. These are power-supply/driver reports, not laboratory cell characterization. A follow-up source audit pinned the exact alioth driver implementation to the builder's kernel base commit `4d8105023e3d1474323f4118abc3b4ce6485070d`.
 
-### Identity and authentication
+### Physical identity and DS28E16 authentication
 
-- BMS model string: `Nohon_BN61_6000mAh`.
-- `capacity_raw=5998`; `charge_full_design=5,850,000 µAh`; learned `charge_full=5,037,000 µAh`; reported cycle count 485.
-- `batt_verify` reports model `ds28e16`, `AUTHEN_RESULT=1`, `CHIP_OK=1`, and the BMS reports `AUTHENTIC=1`.
+- User-confirmed physical pack: Nohon BN61 6000 mAh with its supplied BMS.
+- The `batt_verify` device reports model `ds28e16`, `AUTHEN_RESULT=1`, `CHIP_OK=1`, and the BMS reports `AUTHENTIC=1`.
 - ROMID: `9f,51,39,14,13,f0,04,20`; DS status: `00,00,08,03,02,00,00,00`.
-- Crucially, `PAGEDATA`, `PAGE0_DATA`, and `PAGE1_DATA` were each reported as sixteen `ff` bytes. Therefore the diagnostic does **not** show the ASCII/page-0 identifier `61` that the Surya QG selection code checks for the M703 ATL 6000 profile. Authentication success and a DS28E16 ROMID are not equivalent to that profile-selection identifier. The M703 profile is still a strong platform reference, but the exact Nohon pack has not been shown to select it through the same page-0 path.
+- Crucially, `PAGEDATA`, `PAGE0_DATA`, and `PAGE1_DATA` were each reported as sixteen `ff` bytes. This does **not** show the page-0 identifier `61` used by the Surya QG M703 selection path. A valid DS28E16 authentication and its ROMID are not equivalent to the M703 profile selector. The exact Nohon pack has therefore not been shown to select the M703 ATL 6000 profile through that path.
+- `resistance_id=100500`. In the pinned alioth Gen4 driver, `POWER_SUPPLY_PROP_RESISTANCE_ID` returns the PMIC-derived `fg->batt_id_ohms`; the ADC conversion is expressed in ohms. The reported value is approximately 100.5 kΩ, consistent with a nominal 100 kΩ ID but not unique to BN61.
 
-### Electrical and gauge fields reported by the pack
+### Important correction: several apparent “BMS identity/capacity” fields are DT/gauge values
 
-- `resistance_id=100500` (nominally about 100.5 kΩ); a separate `resistance` field was 96,679 and another attribute read was 113,769. The driver/property units and reason for the differing readings were not established; do not label these values as DCIR or use them to reconstruct impedance tables.
-- BMS `voltage_max_design=4,480,000 µV`; `constant_charge_voltage=4,439,948 µV`; a reported `FFC full voltage=4490` (raw property value; unit semantics not independently confirmed).
-- The separate alioth `main` supply reported `max_voltage=4,450,000 µV` and `max_current=6,000,000 µA`.
-- BMS OCV field: 3,945,562 µV; average-voltage field: 4,076,306 µV.
-- The main battery uevent sample reported 63%, 4,039,052 µV, −552,734 µA and temperature raw 377; individual sysfs attributes from the same diagnostic session reported capacity 98%, voltage 4,338,367 µV and temperature raw 275. Charger temperature raw 501 was also reported. These interfaces disagree materially; they are not a synchronized measurement set and must not be used as OCV/temperature calibration points.
+Pinned source files and Git blob SHAs:
+
+- `drivers/power/supply/qcom/qpnp-fg-gen4.c`: `ba1af3dac45de5c1c3a25e066ed07c512d96c3ae`.
+- `drivers/power/supply/qcom/fg-util.c`: `71e8765ee6053620215c84f4e4c347552a5eb487`.
+- `arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi`: `c947dd6a715facbd0f358fc4fb07de437ecc2c97`; the alioth node enables `qcom,soc-hi-res`.
+
+The source establishes the following semantics:
+
+- `POWER_SUPPLY_PROP_BATTERY_TYPE` returns `fg->bp.batt_type_str`, loaded from the active DT profile's `qcom,battery-type`. Thus the reported string `Nohon_BN61_6000mAh` is a profile label supplied by the loaded DT/overlay, not an independent model read from the DS28E16 pack.
+- `POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN` returns `fg->bp.float_volt_uv`, loaded from DT `qcom,max-voltage-uv`. The observed 4.480 V is therefore the active profile's configured metadata, not a direct measurement or manufacturer-confirmed maximum of the physical BN61 cell.
+- `POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN` returns `qcom,nom-batt-capacity-mah × 1000` when that DT property is present. The reported 5,850,000 µAh is a configured design value, not a capacity test.
+- `POWER_SUPPLY_PROP_CHARGE_FULL` returns the gauge's learned capacity. The observed 5,037,000 µAh is a learned estimate, not a laboratory measurement.
+- With `qcom,soc-hi-res` enabled, `CAPACITY_RAW` is a centi-percent SOC value (scaled from monotonic SOC when input is present, or capacity ×100 when it is absent). Therefore the observed `capacity_raw=5998` is approximately 59.98% SOC, **not 5,998 mAh**. This corrects the earlier interpretation of that field.
+- `POWER_SUPPLY_PROP_RESISTANCE` calls `fg_get_battery_resistance()`; `fg-util.c` defines it as `ESR (µΩ) + Rslow (µΩ)`. The observed 96,679 is 96.679 mΩ as a gauge-derived ESR+Rslow estimate; another attribute sample of 113,769 corresponds to 113.769 mΩ. These are state-dependent gauge estimates, not direct laboratory DCIR measurements and not an OCV/impedance table.
+- `POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE` reads the Gen4 SRAM `FG_SRAM_VBATT_FULL`. The reported 4,439,948 µV is the current gauge/FG full-voltage register value.
+- `POWER_SUPPLY_PROP_FFC_VBATT_FULL_VOL` returns `fg->bp.ffc_vbatt_full_mv`, loaded from DT `qcom,fg-ffc-cc-cv-threshold-mv`. The reported raw `FFC full voltage=4490` is therefore a 4,490 mV DT threshold, not an independent measurement of the cell's safe charge limit.
+
+### Values supplied by the user and their limits
+
+- BMS/power-supply fields: `capacity_raw=5998`; `charge_full_design=5,850,000 µAh`; learned `charge_full=5,037,000 µAh`; cycle count 485; `resistance_id=100500 Ω`; `resistance=96679 µΩ` (with another sample 113,769 µΩ); OCV field 3,945,562 µV; average-voltage field 4,076,306 µV.
+- Profile-derived fields: `battery_type=Nohon_BN61_6000mAh`; `voltage_max_design=4,480,000 µV`; `FFC full voltage=4490 mV`.
+- Charger/FG fields: `constant_charge_voltage=4,439,948 µV`; the separate `main` supply reported `max_voltage=4,450,000 µV` and `max_current=6,000,000 µA`.
+- The main battery uevent sample reported 63%, 4,039,052 µV, −552,734 µA and temperature raw 377; individual sysfs attributes from the same diagnostic session reported capacity 98%, voltage 4,338,367 µV and temperature raw 275. Charger temperature raw 501 was also reported. These interfaces/samples disagree materially and are not a synchronized measurement set; do not use them as OCV/temperature calibration points.
 
 ### Safety and engineering interpretation
 
-1. The actual pack identity and authentication are now confirmed by the user's device diagnostics, but its cell's OCV curve, DCIR-vs-SOC/temperature, NTC R/T curve, charge-termination behavior and true capacity remain unmeasured.
-2. The BMS's 4.48 V design field and raw FFC 4490 value conflict with the BN61 replacement documentation's 4.45 V charging limit. The separate alioth main supply reports 4.45 V maximum and the BMS constant-charge field is about 4.44 V. Preserve the existing alioth 4.45 V ceiling; do not raise it to 4.48/4.49 V and do not import the Surya M703 FFC/JEITA settings.
-3. `capacity_raw=5998` is a BMS configuration/report field, not a measured discharge capacity. `charge_full=5037` is a learned gauge estimate after 485 reported cycles, not proof of the cell's present laboratory capacity.
-4. The approximately 100 kΩ ID is shared by M703 and alioth FMT/GY metadata and cannot distinguish their profile formats. The DS28E16 page-0 bytes currently shown as all `ff` do not confirm the M703 `61` selector. No M703 QG table may be copied into the alioth Gen4 payload.
-5. These observations justify retaining the user's pack-specific evidence in the research record and investigating the DS28E16 page-read path/property semantics. They do **not** justify generating a 416-byte Gen4 profile, changing NTC coefficients, or altering any safety threshold.
+1. Hardware evidence confirms an authentic DS28E16 response and a nominal ~100.5 kΩ ID reading, but page 0 is all `ff`; the M703 selector value `61` is not present in the supplied diagnostic.
+2. The profile-reported 4.48 V maximum and 4.49 V FFC threshold exceed the BN61 replacement documentation's stated 4.45 V limit. The separate alioth `main` supply reports a 4.45 V maximum and the current FG SRAM full-voltage value was about 4.44 V. Preserve the 4.45 V hardware ceiling; do not raise it to 4.48/4.49 V or transplant Surya M703 FFC/JEITA values. The runtime interaction between the FG threshold and charger cap has not been validated here.
+3. The string `Nohon_BN61_6000mAh`, `capacity_raw=5998`, 5850 mAh design capacity and 4.48 V design field must not be treated as independent physical-pack characterization; the pinned driver shows they are profile/gauge-derived values.
+4. The ESR+Rslow value is one gauge estimate at one operating state. It cannot reconstruct the BN61's full DCIR-vs-SOC/temperature surface.
+5. The user's actual cell's OCV curve, DCIR-vs-SOC/temperature, NTC R/T curve, safe charge termination, and independently measured capacity remain unknown. No Gen4 payload can be derived from these sysfs fields.
 
-The only safe current kernel choices remain the verified alioth stock profile and the separate J3S 5K reference. BN61 `-6K` remains reserved and non-flashable until a genuine BN61 Gen4/PM855GUI export or validated characterization and mapping exists.
+These diagnostics materially improve the pack-specific evidence and explain the earlier sysfs fields, but they do **not** justify generating a 416-byte Gen4 profile, changing NTC coefficients, or altering safety thresholds. The only safe current kernel choices remain the separately verified alioth stock profile and J3S 5K reference; BN61 `-6K` remains reserved and non-flashable until a genuine BN61 Gen4/PM855GUI export or validated characterization and mapping exists.
