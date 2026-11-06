@@ -1,0 +1,63 @@
+name: Validate original FakeDreamer KowSU manager compatibility
+
+on:
+  push:
+    branches:
+      - Flash-Kernel
+    paths:
+      - '.github/workflows/validate-kowsu-driver-compat.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-original-driver:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SOURCE_BASE: afba74c277a858f7ee46463f5ff6b7bfbdb6546a
+      KOWSU_CERT_SIZE: '0x375'
+      KOWSU_CERT_SHA256: 484fcba6e6c43b1fb09700633bf2fb4758f13cb0b2f4457b80d075084b26c588
+    steps:
+      - name: Checkout validation workflow
+        uses: actions/checkout@v4
+      - name: Fetch exact original FakeDreamer v2.1-W source
+        run: |
+          set -euo pipefail
+          git init kernel_tree
+          git -C kernel_tree remote add origin https://github.com/re-noroi/kernel_sm8250.git
+          git -C kernel_tree fetch --depth=1 origin "$SOURCE_BASE"
+          git -C kernel_tree checkout --detach FETCH_HEAD
+          test "$(git -C kernel_tree rev-parse HEAD)" = "$SOURCE_BASE"
+      - name: Verify in-tree backslashxx driver and KowSU certificate acceptance
+        run: |
+          set -euo pipefail
+          cd kernel_tree
+          test -s drivers/kernelsu/ksu.c
+          test -s drivers/kernelsu/manager/apk_sign.c
+          test -s drivers/kernelsu/Makefile
+          grep -Fq 'CFLAGS_ksu.o += -DKSU_VERSION=32651' drivers/kernelsu/Makefile
+          grep -Fq "check_v2_signature(path, $KOWSU_CERT_SIZE, \"$KOWSU_CERT_SHA256\")" drivers/kernelsu/manager/apk_sign.c
+          grep -Fq '#include "downstream/toolkit.h"' drivers/kernelsu/ksu.c
+          grep -Fq 'source "drivers/kernelsu/Kconfig"' drivers/Kconfig
+          grep -Fq 'kernelsu/' drivers/Makefile
+          echo 'PASS: original backslashxx in-tree driver is present.'
+          echo "PASS: KowSU v2 manager certificate accepted (size $KOWSU_CERT_SIZE, SHA-256 $KOWSU_CERT_SHA256)."
+          echo 'PASS: backslashxx toolkit integration is present.'
+          echo 'No driver replacement, compatibility rewrite, kernel build, package build or device action was performed.'
+          {
+            echo "source_commit=$SOURCE_BASE"
+            echo "driver_makefile_sha256=$(sha256sum drivers/kernelsu/Makefile | awk '{print $1}')"
+            echo "driver_apk_sign_sha256=$(sha256sum drivers/kernelsu/manager/apk_sign.c | awk '{print $1}')"
+            echo "driver_ksu_sha256=$(sha256sum drivers/kernelsu/ksu.c | awk '{print $1}')"
+            echo "kowsu_cert_size=$KOWSU_CERT_SIZE"
+            echo "kowsu_cert_sha256=$KOWSU_CERT_SHA256"
+          } > ../KOWSU-DRIVER-COMPAT-MANIFEST.txt
+      - name: Upload compatibility evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: original-fakedreamer-kowsu-compatibility-evidence
+          path: KOWSU-DRIVER-COMPAT-MANIFEST.txt
+          if-no-files-found: error
+          retention-days: 30
