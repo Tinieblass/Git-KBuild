@@ -60,7 +60,7 @@ The source replacement and broad compatibility patch set are strong suspects, bu
 
 1. Keep both failed ZIPs permanently excluded.
 2. Do not use the KOWX712 driver-replacement workflow again for this device.
-3. Start from exact FakeDreamer v2.1-W source commit `afba74c277a858f7ee46463f5ff6b7bfbdb6546a`; preserve its existing `drivers/kernelsu`, hook strategy, SELinux implementation, config, DTB/DTBO and AnyKernel3.
+3. Start from the recovered known-good source snapshot `f7030790d0ac6545920528ffd22d79f4d37a5f1f` (the `bpf-testing` branch state used by the 2026-10-29 baseline), not the older `afba74c...` release snapshot used by both failed experiments. Preserve its existing `drivers/kernelsu`, hook strategy, SELinux implementation, config, DTB/DTBO and AnyKernel3.
 4. Verify that the KowSU manager signature check is present and byte-for-byte matches the developer reference. This is already true in the inspected source.
 5. If a kernel-side update beyond the existing manager-signature support is still required, derive a minimal patch against the actual backslashxx source/tag. Do not substitute another fork or invent a version mapping. The previously referenced backslashxx `v3.3.1-21` URL returned 404 in the earlier investigation; do not silently substitute `v3.3.1-35`.
 6. Before producing another flashable ZIP, build and compare the untouched baseline first, capture the exact final `.config`, toolchain, source commit, `Image.gz`, DTB/DTBO hashes and package manifest, and run static boot-image/ZIP validation. A successful CI build is not proof of device bootability.
@@ -71,6 +71,6 @@ The source replacement and broad compatibility patch set are strong suspects, bu
 - Failed KowSU image artifact: `13454039612`.
 - Diagnostic build run: `42112777026`.
 - Known-good baseline run: `40863118533`, artifact `12893385859`.
-- Source commit: `afba74c277a858f7ee46463f5ff6b7bfbdb6546a`.
+- Failed experiment source: `afba74c277a858f7ee46463f5ff6b7bfbdb6546a`.
 - KowSU developer reference: `https://telegra.ph/KowSU-11-24`.
 - Compatible backslashxx driver repository: `https://github.com/backslashxx/KernelSU`.
