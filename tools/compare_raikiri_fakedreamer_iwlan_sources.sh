@@ -14,7 +14,8 @@ rm -rf "$OUT" "$WORK"
 mkdir -p "$OUT" "$WORK"
 
 checkout_exact() {
-  local name="$1" url="$2" sha="$3" dir="$WORK/$name"
+  local name="$1" url="$2" sha="$3"
+  local dir="$WORK/$name"
   mkdir -p "$dir"
   git -C "$dir" init -q
   git -C "$dir" remote add origin "$url"
