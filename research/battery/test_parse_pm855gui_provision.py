@@ -50,10 +50,9 @@ class ProvisionParserTests(unittest.TestCase):
         self.assertEqual(int(metadata["Checksum"], 16), calculate_qcom_checksum(profile))
 
     def test_bad_checksum_is_rejected(self):
-        text = "\\n".join(
-            "Checksum,0000" if line.startswith("Checksum,") else line
-            for line in make_provision().splitlines()
-        )
+        text = make_provision()
+        actual = text.split("Checksum,", 1)[1].splitlines()[0]
+        text = text.replace("Checksum," + actual, "Checksum,0000", 1)
         with self.assertRaisesRegex(ValueError, "checksum mismatch"):
             parse_provision(text)
 
