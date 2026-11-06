@@ -20,6 +20,11 @@ checkout_exact() {
   git -C "$dir" init -q
   git -C "$dir" remote add origin "$url"
   git -C "$dir" fetch --filter=blob:none --depth=1 origin "$sha"
+  git -C "$dir" sparse-checkout init --cone
+  git -C "$dir" sparse-checkout set \
+    net/xfrm net/ipv4 net/ipv6 net/core net/netlink net/netfilter \
+    drivers/net/ipa drivers/net/rmnet drivers/net/wireless drivers/net/qrtr drivers/net/wwan \
+    drivers/soc/qcom include/net include/linux include/uapi/linux
   git -C "$dir" checkout -q --detach FETCH_HEAD
   test "$(git -C "$dir" rev-parse HEAD)" = "$sha"
 }
