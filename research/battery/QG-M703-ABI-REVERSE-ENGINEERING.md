@@ -1078,8 +1078,8 @@ not yet known. It may include metadata, GUI-internal representation,
 or another proprietary transform. The parser therefore continues to
 label checksum validation as not implemented and never invents a pass.
 
-The new parser unit-test fixture was exercised against the structural
-logic. It passed checks for:
+A local Python harness mirroring the parser's structural logic was run
+and passed checks for:
 - 414 source bytes plus two zero padding bytes = 416 bytes;
 - Rslow normal little-endian mapping at bytes 26..29;
 - separate Rslow low conversion to four DT bytes;
@@ -1088,9 +1088,11 @@ logic. It passed checks for:
 - rejection of an incomplete address table;
 - rejection of an Rslow metadata/payload mismatch.
 
-The Android telemetry shell script also passed a POSIX shell syntax
-check. These are parser/logger validation results only, not a physical
-battery characterization or a kernel build.
+The committed unittest file is present for repeatable execution, but it
+has not yet been run from the repository checkout itself. The Android
+telemetry shell script passed a POSIX shell syntax check. These are
+parser/logger validation results only, not a physical battery
+characterization or a kernel build.
 
 The expanded search of public Xiaomi UEFI firmware backups still did
 not locate a 6000 mAh M703/BN61 PM855GUI provisioning record. The
