@@ -1,0 +1,114 @@
+name: FakeDreamer W — ESP shared-fragment guard experiment
+
+run-name: FD W alioth | ESP shared-frag guard | baseline f7030790
+
+on:
+  push:
+    branches:
+      - Flash-Kernel
+    paths:
+      - '.github/workflows/build-fakedreamer-esp-shared-frag-experiment.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fd-w-esp-shared-frag-experiment
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      SOURCE_BASE: f7030790d0ac6545920528ffd22d79f4d37a5f1f
+    steps:
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential flex gcc-aarch64-linux-gnu libelf-dev libncurses-dev libssl-dev python3 rsync zstd
+      - name: Cache original Neutron Clang
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/neutron-clang-06092026.tar.zst
+          key: neutron-clang-06092026-${{ runner.os }}-v1
+      - name: Prepare exact Neutron Clang toolchain
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.cache
+          if [[ ! -s ~/.cache/neutron-clang-06092026.tar.zst ]]; then
+            wget -q https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/06092026/neutron-clang-06092026.tar.zst -O ~/.cache/neutron-clang-06092026.tar.zst
+          fi
+          mkdir clang
+          zstd -dc ~/.cache/neutron-clang-06092026.tar.zst | tar -xf - -C clang
+          clang/bin/clang --version
+      - name: Checkout exact known-good FakeDreamer source
+        run: |
+          set -euo pipefail
+          git init kernel_tree
+          git -C kernel_tree remote add origin https://github.com/re-noroi/kernel_sm8250.git
+          git -C kernel_tree fetch --depth=1 origin "$SOURCE_BASE"
+          git -C kernel_tree checkout --detach FETCH_HEAD
+          test "$(git -C kernel_tree rev-parse HEAD)" = "$SOURCE_BASE"
+          echo "SOURCE_COMMIT=$(git -C kernel_tree rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Apply one isolated ESP copy-on-write guard correction
+        run: |
+          set -euo pipefail
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ("net/ipv4/esp4.c", "net/ipv6/esp6.c"):
+              p = Path(name)
+              s = p.read_text()
+              old = "} else if (!skb_has_frag_list(skb)) {"
+              new = "} else if (!skb_has_frag_list(skb) && !skb_has_shared_frag(skb)) {"
+              if s.count(old) != 1:
+                  raise SystemExit(f"{name}: expected exactly one target guard, found {s.count(old)}")
+              p.write_text(s.replace(old, new, 1))
+          PY
+          git diff --check
+          test "$(git diff --name-only | sort | tr '\n' ' ')" = "net/ipv4/esp4.c net/ipv6/esp6.c "
+          test "$(git diff --numstat | awk '{s+=$1; d+=$2} END {print s ":" d}')" = "2:2"
+          grep -n -F '!skb_has_frag_list(skb) && !skb_has_shared_frag(skb)' net/ipv4/esp4.c net/ipv6/esp6.c
+          git diff -- net/ipv4/esp4.c net/ipv6/esp6.c > ../ESP-SHARED-FRAG-GUARD.patch
+      - name: Build original alioth defconfig with no KSU or DT changes
+        run: |
+          set -euo pipefail
+          cd kernel_tree
+          sed -i -e 's/CONFIG_LOCALVERSION="-FakeDreamer"/CONFIG_LOCALVERSION="-FakeDreamer-W"/' arch/arm64/configs/vendor/alioth_defconfig
+          export ARCH=arm64
+          export KBUILD_BUILD_USER=renoroi
+          export KBUILD_BUILD_HOST=dreamstate
+          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
+          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+          make O=out vendor/alioth_defconfig
+          cp out/.config ../FINAL-CONFIG
+          grep -E '^(CONFIG_(KSU|KPROBES|KALLSYMS|KALLSYMS_ALL|NOMOUNT)=|CONFIG_LOCALVERSION=)' out/.config || true
+          make O=out CC=clang -j"$(nproc --all)" CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
+          install -D -m 0644 out/arch/arm64/boot/Image.gz ../Image.gz
+          install -D -m 0644 out/System.map ../System.map
+          {
+            echo "source_commit=$SOURCE_COMMIT"
+            echo "esp4_sha256=$(sha256sum net/ipv4/esp4.c | awk '{print $1}')"
+            echo "esp6_sha256=$(sha256sum net/ipv6/esp6.c | awk '{print $1}')"
+            echo "image_sha256=$(sha256sum ../Image.gz | awk '{print $1}')"
+            echo "config_sha256=$(sha256sum ../FINAL-CONFIG | awk '{print $1}')"
+            echo 'changed_source_files=net/ipv4/esp4.c,net/ipv6/esp6.c'
+            echo 'KSU_driver_replaced=no'
+            echo 'NoMount_modified=no'
+            echo 'DTB_DTBO_modified=no'
+            echo 'Flashable_ZIP_created=no'
+          } > ../BUILD-PROVENANCE.txt
+      - name: Upload image-only diagnostic artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FakeDreamer-W-alioth-ESP-shared-frag-guard-Image-only
+          path: |
+            Image.gz
+            FINAL-CONFIG
+            System.map
+            ESP-SHARED-FRAG-GUARD.patch
+            BUILD-PROVENANCE.txt
+          if-no-files-found: error
+          retention-days: 30
