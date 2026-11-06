@@ -80,7 +80,8 @@ jobs:
           export ARCH=arm64
           export KBUILD_BUILD_USER=renoroi
           export KBUILD_BUILD_HOST=dreamstate
-          export KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
+          KBUILD_BUILD_TIMESTAMP="$(TZ=UTC-7 date)"
+          export KBUILD_BUILD_TIMESTAMP
           export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
           make O=out vendor/alioth_defconfig
           cp out/.config ../FINAL-CONFIG
