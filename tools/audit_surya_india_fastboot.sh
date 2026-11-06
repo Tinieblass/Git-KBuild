@@ -444,19 +444,22 @@ GO
           rdump_name="${internal_path#/}"
           rdump_name="${rdump_name//\//_}"
           rdump_log="$partition_root/rdump-${rdump_name}.log"
-          if debugfs -R "rdump $internal_path $destination" "$partition_image" > "$rdump_log" 2>&1; then
-            if [[ -d "$destination" ]]; then
-              extracted_files="$(find "$destination" -type f 2>/dev/null | wc -l | tr -d '[:space:]' || true)"
-            else
-              extracted_files=0
-            fi
-            if [[ "$extracted_files" -gt 0 ]]; then
-              printf '%s\t%s\textracted\t%s files\n' "$partition_name" "$internal_path" "$extracted_files" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
-            else
-              printf '%s\t%s\tempty-or-missing\t0 files\n' "$partition_name" "$internal_path" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
-            fi
+          rdump_ls_log="$partition_root/rdump-${rdump_name}.ls.log"
+          debugfs -R "ls -l $internal_path" "$partition_image" > "$rdump_ls_log" 2>&1 || true
+          mkdir -p "$destination"
+          debugfs -R "rdump $internal_path $destination" "$partition_image" > "$rdump_log" 2>&1 || true
+          extracted_files="$(find "$destination" -type f 2>/dev/null | wc -l | tr -d '[:space:]' || true)"
+          if [[ "$extracted_files" -eq 0 ]]; then
+            rm -rf "$destination"
+            mkdir -p "$destination"
+            source_path="${internal_path#/}"
+            debugfs -R "rdump $source_path $destination" "$partition_image" >> "$rdump_log" 2>&1 || true
+            extracted_files="$(find "$destination" -type f 2>/dev/null | wc -l | tr -d '[:space:]' || true)"
+          fi
+          if [[ "$extracted_files" -gt 0 ]]; then
+            printf '%s\t%s\textracted\t%s files\n' "$partition_name" "$internal_path" "$extracted_files" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
           else
-            printf '%s\t%s\tnot-present-or-unreadable\t0 files\n' "$partition_name" "$internal_path" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
+            printf '%s\t%s\tempty-or-missing\t0 files\n' "$partition_name" "$internal_path" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
           fi
         done
         ;;
