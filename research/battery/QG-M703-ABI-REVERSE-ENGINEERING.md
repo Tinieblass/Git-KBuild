@@ -262,3 +262,78 @@ compatibility gap.
 
 No kernel code, DTS/DTBO, battery limits, or installable artifact was
 changed by this follow-up.
+
+
+## Follow-up 3: a closer high-capacity PM855GUI candidate (5160 mAh)
+
+A targeted search for the exact PM855GUI family used by the alioth J3S
+profile located two independent 5160 mAh Gen4 profiles in Xiaomi vayu
+(Poco X3 Pro) kernel sources:
+
+- J20S NVT 5160 mAh, PM855GUI 1.0.0.14, revision 24,
+  checksum 0x65B6.
+- J20S Sunwoda 5160 mAh, PM855GUI 1.0.0.14, revision 24,
+  checksum 0x7304.
+
+Both expose a complete 416-byte profile payload. Both also specify:
+- battery ID: 100 kOhm;
+- beta: 4250;
+- thermistor room resistance: 100 kOhm;
+- thermistor polynomial: 0x2318, 0x0D0C, 0xDAF7, 0xC556, 0x848D;
+- thermistor center offset: 0x70;
+- pull-up: 100 kOhm;
+- max voltage: 4.46 V;
+- CC/CV threshold: 4.44 V;
+- FFC CC/CV threshold: 4.49 V.
+
+The alioth J3S Sun 5000 mAh profile is also PM855GUI 1.0.0.14,
+revision 24, 100 kOhm ID, beta 4250, 100 kOhm thermistor,
+and has the exact same five thermistor coefficients, center offset,
+and pull-up. Thus these 5160 mAh profiles are materially closer
+structurally and electrically to the known J3S baseline than the
+6100 mAh PM660GUI profile.
+
+Important differences remain:
+- NVT and Sunwoda have different 416-byte fuel-gauge payloads.
+- Their Rslow normal/low coefficients differ from J3S.
+- Their JEITA, fast-charge, FFC and voltage thresholds are not
+  automatically transferable to the Nohon BN61 pack.
+- They are J20S battery models, not identified as BN61/Nohon.
+
+This is the strongest newly located candidate for a controlled
+comparison, not an approved drop-in BN61 profile. The 5160 mAh
+capacity is a real model-specific value; it must not be relabelled
+as 6000 mAh. The two variants provide useful independent profile
+data to study how PM855GUI models similar-capacity cells from
+different suppliers.
+
+A separate PM855GUI 8720 mAh Nabu/Sunwoda profile was also found.
+It uses a 10 kOhm battery ID and beta 3800, with a different
+thermistor polynomial. It is a tablet pack and is not a suitable
+candidate for alioth/Nohon; it is retained only as evidence that
+PM855GUI supports capacities well above 5000 mAh when the physical
+battery and electrical parameters are designed for it.
+
+## Corrected target terminology
+
+The known alioth J3S profile identifies its gauge-data family as
+PM855GUI 1.0.0.14. The matching search target is therefore the exact
+PM855GUI profile family and its full external parameters, rather than
+a broad label such as "Gen4" or the PM660GUI 6100 mAh profile.
+Do not infer the PMIC silicon identity solely from the GUI string.
+
+## Updated candidate ranking
+
+1. Alioth J3S Sun 5000 mAh: proven baseline, keep as the known working
+   extended profile.
+2. Vayu J20S NVT / Sunwoda 5160 mAh: closest newly found PM855GUI
+   candidates; compare payloads and all external parameters against
+   alioth J3S before any adaptation. Not yet validated on alioth or BN61.
+3. PM660GUI Goertek 6100 mAh: structural reference only; wrong GUI family.
+4. PM855GUI Nabu/Sunwoda 8720 mAh: wrong battery ID, thermistor and
+   physical platform; not an alioth candidate.
+5. M703 QG 6000 mAh: separate QG architecture; requires unresolved
+   userspace table semantics and a Gen4 reconstruction.
+
+No kernel code, DTS/DTBO, battery limits, or installable artifact was
+changed by this follow-up.
