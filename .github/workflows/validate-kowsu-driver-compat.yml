@@ -15,8 +15,14 @@ jobs:
   verify-original-driver:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        source_base:
+          - afba74c277a858f7ee46463f5ff6b7bfbdb6546a
+          - f7030790d0ac6545920528ffd22d79f4d37a5f1f
     env:
-      SOURCE_BASE: afba74c277a858f7ee46463f5ff6b7bfbdb6546a
+      SOURCE_BASE: ${{ matrix.source_base }}
       KOWSU_CERT_SIZE: '0x375'
       KOWSU_CERT_SHA256: 484fcba6e6c43b1fb09700633bf2fb4758f13cb0b2f4457b80d075084b26c588
     steps:
@@ -37,7 +43,7 @@ jobs:
           test -s drivers/kernelsu/ksu.c
           test -s drivers/kernelsu/manager/apk_sign.c
           test -s drivers/kernelsu/Makefile
-          grep -Fq 'CFLAGS_ksu.o += -DKSU_VERSION=32651' drivers/kernelsu/Makefile
+          grep -Eq 'CFLAGS_ksu.o \+= -DKSU_VERSION=[0-9]+' drivers/kernelsu/Makefile
           grep -Fq "check_v2_signature(path, $KOWSU_CERT_SIZE, \"$KOWSU_CERT_SHA256\")" drivers/kernelsu/manager/apk_sign.c
           grep -Fq '#include "downstream/toolkit.h"' drivers/kernelsu/ksu.c
           grep -Fq 'source "drivers/kernelsu/Kconfig"' drivers/Kconfig
@@ -57,7 +63,7 @@ jobs:
       - name: Upload compatibility evidence
         uses: actions/upload-artifact@v4
         with:
-          name: original-fakedreamer-kowsu-compatibility-evidence
+          name: original-fakedreamer-kowsu-compatibility-${{ matrix.source_base }}
           path: KOWSU-DRIVER-COMPAT-MANIFEST.txt
           if-no-files-found: error
           retention-days: 30
