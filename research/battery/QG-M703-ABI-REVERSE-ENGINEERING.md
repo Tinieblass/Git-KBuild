@@ -205,3 +205,60 @@ thermistor curve itself.
 
 No kernel code, DTS/DTBO, battery limits, or installable artifact was
 changed by this follow-up.
+
+
+## Follow-up 2: search for an existing high-capacity Gen4 profile
+
+A wider public-source search found a genuine Qualcomm Gen4 6100 mAh
+battery profile in the upstream msm-extra devicetree tree:
+
+- file: `qcom/fg-gen4-batterydata-goertek-6100mah.dtsi`
+- source tag: `android-11.0.0_r0.56`
+- GUI family: PM660GUI 0.0.0.45
+- nominal capacity: 6100 mAh
+- max voltage: 4.35 V
+- CC/CV threshold: 4.34 V
+- battery ID: 35 kOhm
+- beta: 4250
+- complete Gen4 profile payload and checksum are present in the source.
+
+This proves that the Gen4 profile format is not inherently limited to
+5000 mAh. It does **not** make this 6100 mAh profile a safe alioth
+replacement: the source is PM660GUI/PM660 platform data, whereas alioth
+uses the PM855B/SM8250 Gen4 fuel-gauge integration. Battery chemistry,
+cell design, thermistor, ID resistor, charging limits, and gauge silicon
+configuration are not established as matching. It is therefore a
+reference candidate for decoding and format comparison only, not a profile
+to install or transplant.
+
+A second public Gen4 reference found was the PM855GUI Ascent 3450 mAh
+profile (revision 24), which includes all five thermal coefficients,
+center offset, pull-up and both four-byte Rslow coefficient arrays. It
+confirms that these are separately calibrated parameters in the PM855
+profile family; it is not a capacity match for BN61.
+
+Searches for a public PM855/PM855B Gen4 profile above 5000 mAh did not
+return a verifiable matching battery profile in this pass. The only
+6100 mAh Gen4 hit located was PM660GUI, so it cannot close the alioth
+compatibility gap.
+
+## Updated route to maximize capacity without fabricating data
+
+1. Use the 6100 mAh PM660 Gen4 profile as a structural reference only:
+   compare its 416-byte payload layout, revision/checksum, and parameter
+   dependencies against the alioth J3S and stock PM855B profiles.
+2. Search full SM8250/PM855B device trees and firmware dumps for any
+   battery profile with nominal capacity above 5000 mAh, including
+   alternate OEM/ODM cell profiles. Require an exact PM855B-compatible
+   source and matching electrical metadata before considering reuse.
+3. Continue the M703 path only after obtaining the Surya vendor userspace
+   binaries or equivalent consumer implementation; public kernel/UAPI
+   search results still expose the ABI, not the proprietary Z/Y table
+   semantic mapping.
+4. Do not derive a BN61 profile by copying the 6100 PM660 payload, scaling
+   the J3S payload, or changing only `NOM_CAP_WORD`. The 6100 source is
+   evidence that higher-capacity Gen4 profiles exist, not evidence that
+   their opaque coefficients can be transplanted between gauge families.
+
+No kernel code, DTS/DTBO, battery limits, or installable artifact was
+changed by this follow-up.
