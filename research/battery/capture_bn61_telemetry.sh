@@ -4,10 +4,10 @@
 
 set -u
 
-BASE="\${BATTERY_SYSFS:-/sys/class/power_supply/battery}"
-INTERVAL="\${INTERVAL_SECONDS:-5}"
-DURATION="\${DURATION_SECONDS:-1800}"
-OUT="\${1:-/sdcard/Download/BN61-telemetry-$(date +%Y%m%d-%H%M%S).csv}"
+BASE="${BATTERY_SYSFS:-/sys/class/power_supply/battery}"
+INTERVAL="${INTERVAL_SECONDS:-5}"
+DURATION="${DURATION_SECONDS:-1800}"
+OUT="${1:-/sdcard/Download/BN61-telemetry-$(date +%Y%m%d-%H%M%S).csv}"
 
 if [ ! -d "$BASE" ]; then
     echo "Battery power_supply directory not found: $BASE" >&2
