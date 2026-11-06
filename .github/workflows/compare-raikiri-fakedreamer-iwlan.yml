@@ -1,0 +1,45 @@
+name: Compare Raikiri and FakeDreamer IWLAN source paths
+
+on:
+  push:
+    branches:
+      - Flash-Kernel
+    paths:
+      - '.github/workflows/compare-raikiri-fakedreamer-iwlan.yml'
+      - 'tools/compare_raikiri_fakedreamer_iwlan_sources.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iwlan-source-diff-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout comparison script
+        uses: actions/checkout@v4
+
+      - name: Install comparison dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git python3 diffutils coreutils
+
+      - name: Compare exact source commits
+        run: |
+          set -euo pipefail
+          chmod +x tools/compare_raikiri_fakedreamer_iwlan_sources.sh
+          tools/compare_raikiri_fakedreamer_iwlan_sources.sh
+
+      - name: Upload read-only source comparison
+        uses: actions/upload-artifact@v4
+        with:
+          name: raikiri-fakedreamer-iwlan-source-diff
+          path: ims-network-source-diff/
+          if-no-files-found: error
+          compression-level: 6
+          retention-days: 30
