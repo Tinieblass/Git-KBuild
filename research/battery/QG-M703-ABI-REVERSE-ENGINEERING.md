@@ -454,3 +454,68 @@ secondary format references only.
 
 No kernel code, DTS/DTBO, battery limits, or installable artifact was
 changed by this follow-up.
+
+## Follow-up 6: exact meaning of the QG Z/Y ioctl confirmed at source level
+
+Additional inspection of the QG profile implementation resolves an important
+part of the ABI, while also defining the limit of what the public source tells
+us.
+
+In `include/uapi/linux/qg-profile.h`, `struct battery_params` contains
+`soc`, `ocv_uv`, `fcc_mah`, `slope`, `var`, `batt_temp`, and
+`table_index`. The comment for `var` is literally
+`'X' axis param for interpolation`; `BPIOCXVAR` is described as
+`All-other`. There is no unit or named physical quantity attached to
+Z1..Z6 or Y1..Y6.
+
+The implementation in `qg-battery-profile.c` confirms that
+`BPIOCXVAR`:
+1. accepts table indices from `TABLE_Z1` through `TABLE_MAX - 1`;
+2. calls `qg_interpolate_var(profile, batt_temp, soc)`;
+3. returns the result in the generic `var` member;
+4. clamps it to the generic 0..65535 range.
+
+The shared `qg-profile-lib.c` implementation shows that this is
+bilinear interpolation: first across the two temperature columns bracketing
+the requested battery temperature, then across the SOC rows bracketing the
+requested SOC. The routine is intentionally generic and has no knowledge
+of resistance, ESR, time constants, or physical units.
+
+The driver also has a distinct `BPIOCXSLOPE` path, calculated from the
+OCV/SOC tables, while FCC is queried through its own `BPIOCXFCC` path.
+This makes the UAPI separation explicit: OCV/SOC, FCC, OCV slope, and
+opaque Z/Y table values are different outputs.
+
+Consequently, the accurate statement is now stronger than before:
+Z1..Z6/Y1..Y6 are generic two-dimensional battery-model lookup tables
+indexed by temperature and SOC. Public kernel code does not name their
+physical meanings. Their names alone do not prove that they are impedance
+or resistance values. The userspace client is still needed to determine
+which indices it queries, how it labels the returned values, and what
+fixed-point scaling or downstream equations it applies.
+
+A further source check of the QG implementation shows that runtime ESR is
+measured separately from the LUT interface using hardware measurement
+samples. It is not the value returned by `BPIOCXVAR` by definition.
+Do not substitute any Z/Y table for the Gen4 Rslow or ESR calibration
+fields based on a numerical resemblance.
+
+### Consequence for the conversion plan
+
+The conversion pipeline must now be split into two independent jobs:
+
+- **QG data interpretation:** recover the proprietary userspace consumer,
+  establish the Z/Y index-to-parameter mapping and fixed-point scales,
+  and identify whether any of those outputs are used in fuel-gauge
+  compensation.
+- **PM855GUI reconstruction:** independently decode the Gen4 416-byte
+  payload and external thermistor/Rslow parameters using PM855GUI-native
+  profiles and driver behavior.
+
+Only an explicitly demonstrated common physical quantity, with known
+units and compatible temperature/SOC axes, may be considered for mapping
+between the two jobs. The current source evidence does not establish such
+a mapping.
+
+No kernel code, DTS/DTBO, battery limits, profile payload, or installable
+artifact was changed by this follow-up.
