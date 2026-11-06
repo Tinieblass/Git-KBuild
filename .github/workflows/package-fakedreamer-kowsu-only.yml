@@ -125,7 +125,8 @@ jobs:
             echo "Diagnostic artifact ID: $DIAGNOSTIC_ARTIFACT_ID"
             echo "Diagnostic artifact SHA-256: $DIAGNOSTIC_ARTIFACT_SHA256"
             echo "Replacement Image.gz SHA-256: $IMAGE_SHA256"
-            echo "Changed payload entry: Image.gz only"\n            echo "Info-ZIP may normalize the UTF-8 general-purpose flag on entries; non-kernel payload bytes remain identical."
+            echo "Changed payload entry: Image.gz only"
+            echo "Info-ZIP may normalize the UTF-8 general-purpose flag on entries; non-kernel payload bytes remain identical."
             echo "DTB/DTBO, AnyKernel3, installer scripts and all other archive entries: preserved and verified"
             echo "Device flashing: not performed"
           } > PACKAGE-VERIFICATION.txt
