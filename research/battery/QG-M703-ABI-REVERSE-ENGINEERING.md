@@ -337,3 +337,47 @@ Do not infer the PMIC silicon identity solely from the GUI string.
 
 No kernel code, DTS/DTBO, battery limits, or installable artifact was
 changed by this follow-up.
+
+
+## Follow-up 4: byte-level comparison of the three PM855GUI profiles
+
+The three full profile payloads were fetched and parsed locally from their
+published DTSI sources. Each is exactly 416 bytes.
+
+Byte-level comparison:
+- J3S 5000 vs J20S NVT 5160: 266/416 bytes differ (63.9%).
+- J3S 5000 vs J20S Sunwoda 5160: 284/416 bytes differ (68.3%).
+- J20S NVT 5160 vs J20S Sunwoda 5160: 272/416 bytes differ (65.4%).
+
+The long shared regions are very limited; the payloads are not simple
+capacity-scaled variants. This confirms that copying the 5160 profile
+and editing its capacity word, or interpolating the J3S payload toward it,
+would not reconstruct a calibrated BN61 model.
+
+The final 16-bit little-endian calibration word in the payload is:
+- J3S Sun 5000: bytes AD 13 -> 0x13AD = 5037.
+- J20S NVT 5160: bytes 64 14 -> 0x1464 = 5220.
+- J20S Sunwoda 5160: bytes 22 14 -> 0x1422 = 5154.
+
+These internal calibration words are close to, but not identical to,
+the external nominal capacity values. They are not independent measured
+capacity tests and must not be used to claim a pack's real capacity.
+
+The three profiles share the same external thermistor polynomial,
+center offset, and pull-up, while their Rslow coefficients differ.
+That separation is useful: it confirms that identical thermistor setup
+does not imply identical cell impedance/gauge behavior.
+
+Current technical conclusion:
+- The 5160 mAh PM855GUI profiles are the best public high-capacity
+  comparison candidates found so far.
+- Neither is a safe drop-in for BN61 without matching the physical cell,
+  ID behavior, charge-voltage limits and resistance model.
+- The next productive step is to identify the actual Nohon BN61 cell's
+  electrical characteristics and search for its OEM cell/vendor model;
+  if no exact profile exists, characterize OCV-vs-SOC and DC resistance
+  across temperature, then calibrate the PM855GUI model rather than
+  synthesizing a profile from another battery.
+
+No kernel code, DTS/DTBO, battery limits, or installable artifact was
+changed by this follow-up.
