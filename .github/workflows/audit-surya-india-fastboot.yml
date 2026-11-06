@@ -76,7 +76,7 @@ jobs:
             surya-india-firmware-audit/super-audit/SUPER-BATTERY-CONTENT-HITS.txt
             surya-india-firmware-audit/super-audit/SUPER-FILESYSTEM-EXTRACTION.log
             surya-india-firmware-audit/super-audit/SUPER-ROOT-DIR-LISTINGS.txt
-            surya-india-firmware-audit/super-audit/partitions/**/rdump-*.log
+            surya-india-firmware-audit/super-audit/files/**/rdump-*.log
             surya-india-firmware-audit/super-audit/SUPER-TOOLCHAIN.txt
           if-no-files-found: warn
           retention-days: 14
