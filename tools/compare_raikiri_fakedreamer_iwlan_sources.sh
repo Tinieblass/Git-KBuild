@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# This script only reads the two pinned source trees and writes comparison reports.
 
 ROOT="${GITHUB_WORKSPACE:-$PWD}"
 OUT="$ROOT/ims-network-source-diff"
