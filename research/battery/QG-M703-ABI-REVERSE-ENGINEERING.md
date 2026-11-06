@@ -1375,3 +1375,83 @@ impedance/thermistor characteristics of an aftermarket replacement pack.
 References:
 - https://manuals.plus/ae/1005005950829288
 - https://www.ifixit.com/en-eu/products/xiaomi-poco-x3-battery
+
+
+## Follow-up 22: successful full super-image extraction and QG/QBG consumer identification
+
+Official POCO X3 India fastboot audit run #37
+(`42217572196`) completed successfully. The sparse `super.img` was
+verified at SHA-256
+`23eb421ca7a84e90cfab198ac1faf8dde6a93a384f72b7b64be5cbcef436acd5`.
+All four dynamic partitions (product, system, system_ext and vendor)
+were extracted. The corrected extraction map distinguishes the real
+system-as-root paths from absent paths; 3,956 ELF files were inventoried.
+
+### QG/QBG consumer binary
+
+The strongest QG/QBG string cluster is in:
+
+- path: `vendor/bin/hvdcp_opti`
+- size: 311,304 bytes
+- SHA-256: `6372b250ca1f698c08fc8e40f477d52f619cf36ba31f5759763f42934686feb6`
+- ELF: 64-bit AArch64 shared object, dynamically linked, stripped
+- Build ID: `56957a3666ce91272b6b8467f85b4f30`
+
+The binary contains a large coherent QG/QBG logging and algorithm string
+set, including QG OCV/FCC/VAR lookups, ESR charge/discharge handling,
+battery SOC calculations, QBG profile validation, battery ID/checksum
+matching, profile loading, impedance and capacity fields, and kernel
+read/write operations. This is materially stronger evidence than isolated
+strings: `hvdcp_opti` is a QG/QBG implementation-bearing vendor binary
+candidate and is the next target for static reverse engineering.
+
+Other QG-like matches in `libpdfium.so` and `npu_launcher` are not
+equivalent evidence: their hits are short/noisy and appear to be incidental
+string matches. The 4-ELF count is a broad string screen, not four confirmed
+fuel-gauge consumers.
+
+### UEFI charger configuration recovered
+
+The deep UEFI parser exposed an embedded Qualcomm charger configuration
+file, UI name `qcomChargerCfg.cfg`, stored in FFS file GUID
+`45fe4b7c-150c-45da-a021-4beb2048ec6f` inside nested FV GUID
+`1d301fe9-be79-4353-91c2-d23bc959ae0c`.
+
+Its extracted RAW section SHA-256 is
+`1f125e03e748a3e2b4d96a3a87d95c4aa63bf4b9100a708e5aae32fe1d1e12`.
+The configuration identifies version 32 and includes battery ID ranges,
+thermistor configuration, JEITA limits, Rconn compensation and a
+`LoadBatteryProfile` switch. In the recovered PlatformCommon section,
+`LoadBatteryProfile = FALSE`; `RconnComp = 0`. Therefore this file
+documents the bootloader charger's policy/configuration, not the actual
+runtime QG LUT payload. It must not be mistaken for the M703 profile.
+
+The XBL scan found no FFS UI-name match for `BATTERY.PROVISION` among
+104 inventoried FFS files. That is a bounded negative result only:
+the scan did not decompress every GUID-defined or EFI-compressed payload.
+The recovered nested charger configuration proves the UEFI path is
+inspectable, but no BN61-specific calibration table has yet been recovered
+from it.
+
+### Consequence and next target
+
+We now have:
+1. Authentic M703 ATL 6000 QG LUTs from the official DTBO.
+2. A QG/QBG vendor implementation candidate with a cryptographic hash.
+3. A recovered UEFI charger config with explicit battery-profile loading
+   disabled in PlatformCommon.
+4. No confirmed `BATTERY.PROVISION` FFS entry and no authentic BN61
+   Gen4 profile payload.
+
+The next reverse-engineering pass must extract `hvdcp_opti` and its
+vendor init/service configuration as a reproducible artifact, identify
+its device nodes, property names, QG/QBG ioctl usage and profile search
+paths, then compare its expected profile schema against the M703 DTBO
+and the alioth Gen4 416-byte profile. In parallel, continue EFI
+GUID-defined-section decompression and inspect the nested charger module
+without assuming the charger config is the profile itself.
+
+The audit workflow now includes the `hvdcp_opti` binary and vendor
+init/permissions files in its artifact paths for the next run. No
+battery profile, capacity value, thermal limit, DTB/DTBO or flashable
+artifact was modified.
