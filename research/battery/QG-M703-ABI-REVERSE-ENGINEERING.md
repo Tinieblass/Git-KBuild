@@ -381,3 +381,76 @@ Current technical conclusion:
 
 No kernel code, DTS/DTBO, battery limits, or installable artifact was
 changed by this follow-up.
+
+
+## Follow-up 5: identify the physical BN61 reference more precisely
+
+The NOHON BN61 replacement specification lists:
+- typical capacity: 6000 mAh;
+- rated capacity: 5850 mAh / 22.6 Wh;
+- nominal voltage: 3.87 V;
+- charge-voltage limit: 4.45 V.
+
+The same specification distinguishes BN61 (POCO X3, 6000 mAh) from
+BN57 (POCO X3 NFC / X3 Pro, 5160 mAh). This matters because the
+PM855GUI 5160 mAh J20S profiles found above correspond to a different
+battery class; they are useful gauge-format references, not the
+physical BN61 battery model.
+
+The public Xiaomi Surya/Karna kernel tree contains a dedicated
+batterydata-M703-ATL-6000mah.dtsi profile. It is explicitly:
+- M703 ATL 6000 mAh;
+- max voltage 4.45 V;
+- FFC max voltage 4.48 V;
+- 100 kOhm battery ID;
+- beta 4250;
+- 100 kOhm battery thermistor;
+- QG profile version 100, OEM profile version 6;
+- six-pin battery.
+
+Its FCC-vs-temperature LUT reaches approximately 6012 mAh at 50 C,
+and the second FCC LUT is approximately 5955 mAh across ordinary
+temperatures. Its OCV/SOC and Z1-Z6 LUTs are complete QG-format data.
+
+This is a much stronger physical reference for BN61 than the J20S
+5160 profiles: model family and capacity match BN61, and the 4.45 V
+normal charge limit matches the NOHON BN61 specification. However,
+the M703 profile belongs to the SM7150 QG gauge architecture and is
+not a PM855GUI/alioth Gen4 payload. Its QG LUTs still require the
+previously documented semantic/algorithm reconstruction.
+
+The M703 driver adds another important constraint: the 6000 mAh profile
+is selected through a DS28E16 authentication identity, not merely by
+the 100 kOhm battery ID. The code checks page-0 identity bytes and
+selects m703-atl-6000mah only for the '6','1' signature; it marks
+the 6000 mAh path active for the associated charging termination
+behavior. The 5160 profile uses a separate '5','7' identity.
+Thus a third-party BN61 pack with a generic/unprogrammed DS28E16
+may not select the 6000 profile even when its resistance and NTC match.
+The user's previously observed all-FF DS28E16 page-0 read is not the
+M703 ATL '6','1' identity, so the original M703 authentication
+selection cannot be assumed to work on that Nohon pack.
+
+Practical implications for the alioth reconstruction:
+1. Treat 5850 mAh as the BN61 rated-capacity target and 6000 mAh as
+   typical, not as interchangeable labels.
+2. Treat 4.45 V as the pack's stated charge-voltage ceiling. Do not
+   copy the J3S 4.48 V maximum or M703 FFC 4.48 V into the Nohon path.
+3. Use the M703 ATL 6000 QG data as the closest known cell-family
+   reference for OCV/SOC/temperature/resistance characterization.
+4. Do not copy its QG tables into Gen4. First recover QG table
+   semantics, then map only demonstrably equivalent physical quantities
+   into the PM855GUI/alioth model.
+5. The BN61 pack's actual DS28E16 page data, NTC resistance curve,
+   battery-ID resistor, and pulse resistance remain required validation
+   inputs. The user's all-FF page-0 observation rules out claiming
+   exact M703 identity at present.
+
+This updates the priority: the main target is no longer a generic
+"PM855GUI 6000" file hunt. It is a controlled QG-M703-to-PM855GUI
+reconstruction for the actual BN61/Nohon cell, with 4.45 V as the
+documented ceiling. The PM855GUI J20S 5160 profiles remain useful
+secondary format references only.
+
+No kernel code, DTS/DTBO, battery limits, or installable artifact was
+changed by this follow-up.
