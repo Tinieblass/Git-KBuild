@@ -425,16 +425,31 @@ GO
     partition_root="$SUPER_FILES/$partition_name"
     mkdir -p "$partition_root"
 
+    # Capture the actual root layout. Android images may use system-as-root
+    # (/system/bin) or conventional partition roots (/bin, /lib64).
+    if [[ "$partition_type" == *ext4* || "$partition_type" == *ext3* || "$partition_type" == *ext2* ]]; then
+      {
+        printf '\n=== %s filesystem root ===\n' "$partition_name"
+        debugfs -R "ls -l /" "$partition_image" 2>&1 || true
+      } >> "$SUPER_AUDIT/SUPER-ROOT-DIR-LISTINGS.txt"
+    fi
+
     case "$partition_type" in
       *ext4*|*ext3*|*ext2*)
-        for internal_path in /etc /firmware /bin /lib /lib64 /usr/bin /usr/lib /usr/lib64; do
+        for internal_path in /etc /firmware /bin /lib /lib64 /usr/bin /usr/lib /usr/lib64 /system/bin /system/lib /system/lib64 /vendor/bin /vendor/lib /vendor/lib64 /product/bin /product/lib /product/lib64; do
           destination="$partition_root/${internal_path#/}"
           rm -rf "$destination"
           mkdir -p "$(dirname "$destination")"
-          if debugfs -R "rdump $internal_path $destination" "$partition_image" > "$partition_root/rdump-${internal_path#/}.log" 2>&1; then
-            printf '%s\t%s\textracted\n' "$partition_name" "$internal_path" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
+          rdump_log="$partition_root/rdump-${internal_path#/}.log"
+          if debugfs -R "rdump $internal_path $destination" "$partition_image" > "$rdump_log" 2>&1; then
+            extracted_files="$(find "$destination" -type f 2>/dev/null | wc -l | tr -d '[:space:]')"
+            if [[ "$extracted_files" -gt 0 ]]; then
+              printf '%s\t%s\textracted\t%s files\n' "$partition_name" "$internal_path" "$extracted_files" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
+            else
+              printf '%s\t%s\tempty-or-missing\t0 files\n' "$partition_name" "$internal_path" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
+            fi
           else
-            printf '%s\t%s\tnot-present-or-unreadable\n' "$partition_name" "$internal_path" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
+            printf '%s\t%s\tnot-present-or-unreadable\t0 files\n' "$partition_name" "$internal_path" >> "$SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
           fi
         done
         ;;
@@ -500,6 +515,8 @@ GO
 
   {
     echo
+    echo "Filesystem root listings: $SUPER_AUDIT/SUPER-ROOT-DIR-LISTINGS.txt"
+    echo "Extraction diagnostics: $SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
     echo "ELF files inventoried from extracted bin/lib trees: $ELF_COUNT"
     echo "ELF files containing QG/QBG consumer strings: $QG_ELF_COUNT"
     echo "ELF manifest and binary-level QG hits are appended to the existing battery path/content reports."
