@@ -251,7 +251,7 @@ changes = [
 \tselected := 0
 \textracted := 0
 \tfor _, part := range sp.Partitions {
-\t\tif !strings.HasPrefix(part.Name, "vendor") && !strings.HasPrefix(part.Name, "odm") {
+\t\tif !strings.HasPrefix(part.Name, "vendor") && !strings.HasPrefix(part.Name, "odm") && part.Name != "product" && part.Name != "system_ext" {
 \t\t\tcontinue
 \t\t}
 \t\tselected++
@@ -265,10 +265,10 @@ changes = [
 \t}
 
 \tif selected == 0 {
-\t\treturn fmt.Errorf("no vendor/odm logical partitions found")
+\t\treturn fmt.Errorf("no battery-relevant vendor/odm/product/system_ext logical partitions found")
 \t}
 \tif extracted != selected {
-\t\treturn fmt.Errorf("extracted %d of %d selected vendor/odm partitions", extracted, selected)
+\t\treturn fmt.Errorf("extracted %d of %d selected battery-relevant logical partitions", extracted, selected)
 \t}
 \tif sp.verbose {
 \t\tfmt.Printf("\\nExtracted %d vendor/odm partition(s) to %s\\n", extracted, outDir)
@@ -316,7 +316,7 @@ for old, new in changes:
         raise SystemExit(f"Expected one patch target in super.go, found {count}: {old[:90]!r}")
     s = s.replace(old, new, 1)
 p.write_text(s)
-print("PATCHED: zero extents preserve partition offsets; unknown extents and multi-device metadata fail closed; only vendor/odm partitions are extracted; extraction failures are fatal.")
+print("PATCHED: zero extents preserve partition offsets; unknown extents and multi-device metadata fail closed; vendor/odm/product/system_ext partitions are extracted; extraction failures are fatal.")
 PY
 
   cat > "$SUPER_TOOL/super_zero_extent_test.go" <<'GO'
@@ -401,7 +401,7 @@ GO
     echo "Reader zero-extent test: PASS"
     echo "Reader LP header checksum test: PASS"
     echo "Reader validates geometry and LP header/table SHA-256 checksums"
-    echo "Extraction scope: vendor*, odm* logical partitions only"
+    echo "Extraction scope: vendor*, odm*, product and system_ext logical partitions"
   } > "$SUPER_AUDIT/SUPER-TOOLCHAIN.txt"
 
   "$SUPER_BIN" -v -l "$SUPER_IMAGE" 2>&1 | tee "$SUPER_AUDIT/SUPER-PARTITIONS.txt"
@@ -410,9 +410,9 @@ GO
   printf 'partition\tbytes\tsha256\tfile_type\n' > "$SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv"
   : > "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt"
   : > "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt"
-  mapfile -d '' SUPER_PARTITION_FILES < <(find "$SUPER_PARTS" -maxdepth 1 -type f \( -name 'vendor*.img' -o -name 'odm*.img' \) -print0 | sort -z)
+  mapfile -d '' SUPER_PARTITION_FILES < <(find "$SUPER_PARTS" -maxdepth 1 -type f \( -name 'vendor*.img' -o -name 'odm*.img' -o -name 'product*.img' -o -name 'system_ext*.img' \) -print0 | sort -z)
   if [[ "${#SUPER_PARTITION_FILES[@]}" -eq 0 ]]; then
-    echo "ERROR: the super image exposed no vendor/odm partition images." | tee -a "$REPORT"
+    echo "ERROR: the super image exposed no battery-relevant vendor/odm/product/system_ext partition images." | tee -a "$REPORT"
     exit 6
   fi
 
@@ -468,7 +468,7 @@ GO
   PARTITION_COUNT=$(($(wc -l < "$SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv") - 1))
   {
     echo
-    echo "Dynamic partitions: $PARTITION_COUNT vendor/odm partition image(s) extracted and hashed."
+    echo "Dynamic partitions: $PARTITION_COUNT vendor/odm/product/system_ext partition image(s) extracted and hashed."
     echo "Partition manifest: $SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv"
     echo "Battery-related file paths: $(wc -l < "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt" | tr -d '[:space:]')"
     echo "Battery-related file/string hits: $(wc -l < "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" | tr -d '[:space:]')"
