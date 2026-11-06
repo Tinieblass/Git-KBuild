@@ -1,0 +1,143 @@
+name: Package FakeDreamer v2.1-W KowSU image into official alioth ZIP
+
+on:
+  push:
+    branches:
+      - Flash-Kernel-KowSU-Package
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: fd-kowsu-official-zip-package
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BASE_URL: https://github.com/re-noroi/kernel_sm8250/releases/download/v2.1-rel-w/FD-ksu-alioth-20260925-W.zip
+      BASE_SHA256: 4df33a0020d3ec21a53b4ade1c535dd614e0233806505b5d7322fe218bb6b565
+      BASE_SIZE: 15534588
+      DIAGNOSTIC_ARTIFACT_ID: 13454039612
+      DIAGNOSTIC_ARTIFACT_SHA256: e487f819fa22a6908a960e173af3e7edf7e19456e474208b6609bcfa2c1dbc00
+      IMAGE_SHA256: b68a5e30d828613433264becc089f827c86cb7653bcf34162652bbc010a15bf8
+    steps:
+      - name: Download the exact previously validated KowSU Image.gz artifact
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-all-errors \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/Tinieblass/Git-KBuild/actions/artifacts/$DIAGNOSTIC_ARTIFACT_ID/zip" \
+            --output diagnostic-image.zip
+          echo "$DIAGNOSTIC_ARTIFACT_SHA256  diagnostic-image.zip" | sha256sum --check
+          mkdir diagnostic
+          unzip -q diagnostic-image.zip -d diagnostic
+          test -s diagnostic/Image.gz
+          test -s diagnostic/Image.gz.sha256
+          (cd diagnostic && sha256sum --check Image.gz.sha256)
+          ACTUAL_IMAGE_SHA="$(sha256sum diagnostic/Image.gz | awk '{print $1}')"
+          test "$ACTUAL_IMAGE_SHA" = "$IMAGE_SHA256"
+          test "$(stat -c %s diagnostic/Image.gz)" -eq 18537807
+          echo "PASS: exact previously validated Image.gz: $ACTUAL_IMAGE_SHA"
+
+      - name: Download and authenticate the official FakeDreamer v2.1-W base ZIP
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-all-errors \
+            "$BASE_URL" --output official-base.zip
+          echo "$BASE_SHA256  official-base.zip" | sha256sum --check
+          test "$(stat -c %s official-base.zip)" -eq "$BASE_SIZE"
+          unzip -t official-base.zip
+          test "$(unzip -Z1 official-base.zip | grep -cx '^Image.gz$')" -eq 1
+          echo "PASS: official release asset authenticated by SHA-256 and exact byte size."
+
+      - name: Replace Image.gz only; preserve every other original ZIP entry
+        run: |
+          set -euo pipefail
+          OUTPUT=FD-ksu-alioth-20260925-W-j3s-miui-eff-uv-KowSU.zip
+          mkdir original
+          unzip -q official-base.zip -d original
+          test -s original/Image.gz
+          ORIGINAL_IMAGE_SHA="$(sha256sum original/Image.gz | awk '{print $1}')"
+          cp official-base.zip "$OUTPUT"
+          zip -q -d "$OUTPUT" Image.gz
+          cp diagnostic/Image.gz original/Image.gz
+          (cd original && zip -q -9 "../$OUTPUT" Image.gz)
+
+          python3 - "$OUTPUT" "$IMAGE_SHA256" "$ORIGINAL_IMAGE_SHA" <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
+          from zipfile import ZipFile
+          import sys
+
+          output = Path(sys.argv[1])
+          expected_image = sys.argv[2]
+          original_image = sys.argv[3]
+          with ZipFile("official-base.zip") as base, ZipFile(output) as final:
+              base_names = base.namelist()
+              final_names = final.namelist()
+              if len(base_names) != len(set(base_names)):
+                  raise SystemExit("ERROR: official base contains duplicate ZIP paths")
+              if len(final_names) != len(set(final_names)):
+                  raise SystemExit("ERROR: final ZIP contains duplicate ZIP paths")
+              if set(base_names) != set(final_names):
+                  raise SystemExit("ERROR: ZIP entry set changed")
+              changed = []
+              for name in base_names:
+                  before = base.read(name)
+                  after = final.read(name)
+                  if before != after:
+                      changed.append(name)
+                  if name != "Image.gz":
+                      if before != after:
+                          raise SystemExit(f"ERROR: non-kernel payload changed: {name}")
+                      a, b = base.getinfo(name), final.getinfo(name)
+                      for field in ("compress_type", "date_time", "file_size", "CRC", "external_attr", "flag_bits"):
+                          if getattr(a, field) != getattr(b, field):
+                              raise SystemExit(f"ERROR: original ZIP metadata changed for {name}: {field}")
+              actual = sha256(final.read("Image.gz")).hexdigest()
+              if actual != expected_image:
+                  raise SystemExit(f"ERROR: packaged Image.gz hash {actual} != {expected_image}")
+              if sha256(base.read("Image.gz")).hexdigest() != original_image:
+                  raise SystemExit("ERROR: original Image.gz provenance mismatch")
+              if changed != ["Image.gz"]:
+                  raise SystemExit(f"ERROR: expected only Image.gz to change; changed={changed}")
+              print("PASS: ZIP paths unchanged; every non-Image.gz payload and its metadata are byte-identical.")
+              print(f"Original Image.gz SHA-256: {original_image}")
+              print(f"Replacement Image.gz SHA-256: {actual}")
+              print("Changed ZIP entries: Image.gz only")
+              print(f"Entry count: {len(base_names)}")
+          PY
+
+          unzip -t "$OUTPUT"
+          sha256sum "$OUTPUT" | tee package.sha256
+          {
+            echo "Base release: re-noroi/kernel_sm8250 v2.1-rel-w"
+            echo "Base asset: FD-ksu-alioth-20260925-W.zip"
+            echo "Base size: $BASE_SIZE"
+            echo "Base SHA-256: $BASE_SHA256"
+            echo "Diagnostic artifact ID: $DIAGNOSTIC_ARTIFACT_ID"
+            echo "Diagnostic artifact SHA-256: $DIAGNOSTIC_ARTIFACT_SHA256"
+            echo "Replacement Image.gz SHA-256: $IMAGE_SHA256"
+            echo "Changed ZIP entry: Image.gz only"
+            echo "DTB/DTBO, AnyKernel3, installer scripts and all other archive entries: preserved and verified"
+            echo "Device flashing: not performed"
+          } > PACKAGE-VERIFICATION.txt
+          cat PACKAGE-VERIFICATION.txt
+
+      - name: Upload the verified flashable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: FakeDreamer-v2.1-W-alioth-KowSU-Image-only-package
+          path: |
+            FD-ksu-alioth-20260925-W-j3s-miui-eff-uv-KowSU.zip
+            PACKAGE-VERIFICATION.txt
+            package.sha256
+          if-no-files-found: error
+          retention-days: 30
