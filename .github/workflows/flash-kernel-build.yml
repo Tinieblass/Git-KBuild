@@ -100,15 +100,17 @@ jobs:
           ln -s ../KernelSU/kernel kernel/drivers/kernelsu
           test -f kernel/drivers/kernelsu/Kconfig
           test -f kernel/drivers/kernelsu/Makefile
-          # The source filename belongs to the pinned upstream tree; the local config and product identity are Flash Kernel.
+          # The selected source config is inherited from the pinned upstream tree; local config and product identity are Flash Kernel.
           cp kernel/arch/arm64/configs/vendor/xiaomi/raikiri.config kernel/arch/arm64/configs/vendor/xiaomi/flash-kernel.config
           python3 - <<'PY'
           from pathlib import Path
           p = Path("kernel/arch/arm64/configs/vendor/xiaomi/flash-kernel.config")
-          s = p.read_text()
-          if s.count('CONFIG_LOCALVERSION="-Raikiri-v1.7"') != 1:
-              raise SystemExit("ERROR: expected one inherited local-version string")
-          s = s.replace('CONFIG_LOCALVERSION="-Raikiri-v1.7"', 'CONFIG_LOCALVERSION="-Flash-Kernel-v1.7"', 1)
+          lines = p.read_text().splitlines()
+          version_lines = [i for i, line in enumerate(lines) if line.startswith("CONFIG_LOCALVERSION=")]
+          if len(version_lines) != 1:
+              raise SystemExit(f"ERROR: expected one CONFIG_LOCALVERSION entry, found {len(version_lines)}")
+          lines[version_lines[0]] = 'CONFIG_LOCALVERSION="-Flash-Kernel-v1.7"'
+          s = "\n".join(lines) + "\n"
           if s.count("CONFIG_LOCALVERSION_AUTO=y") != 1:
               raise SystemExit("ERROR: expected one CONFIG_LOCALVERSION_AUTO=y")
           s = s.replace("CONFIG_LOCALVERSION_AUTO=y", "# CONFIG_LOCALVERSION_AUTO is not set", 1)
