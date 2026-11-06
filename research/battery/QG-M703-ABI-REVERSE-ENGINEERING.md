@@ -853,3 +853,43 @@ byte reconstruction remains exact.
 
 No kernel code, DTS/DTBO, battery limits, profile payload, or installable
 artifact was changed by this follow-up.
+
+## Follow-up 14: add a guarded PM855GUI-to-Gen4 profile extraction utility
+
+Added `research/battery/parse_pm855gui_provision.py` on the
+`Flash-Kernel` branch. It is a research conversion utility, not a kernel
+patch or installer.
+
+The parser:
+- requires a complete, non-duplicated address/offset table covering
+  0x041..0x10F;
+- preserves the exact byte order of offsets 0 then 1;
+- reconstructs the 414 provisioned bytes and appends the two verified
+  zero padding bytes required for the 416-byte Gen4 buffer;
+- can emit DTS, hex, JSON metadata, or a binary file;
+- can compare its reconstructed output against an existing
+  `qcom,fg-profile-data` DTS payload using `--verify-dts`;
+- explicitly reports that PM855GUI checksum validation is not implemented.
+
+Example commands:
+
+```sh
+python3 research/battery/parse_pm855gui_provision.py alioth/RawFiles/BATTERY.PROVISION2 --format json
+python3 research/battery/parse_pm855gui_provision.py alioth/RawFiles/BATTERY.PROVISION2 --verify-dts fg-gen4-batterydata-apollo-sun-5000mah.dtsi
+python3 research/battery/parse_pm855gui_provision.py alioth/RawFiles/BATTERY.PROVISION2 --format bin --output j3s-reference.bin
+```
+
+The utility deliberately refuses incomplete or duplicate tables instead
+of silently filling missing battery calibration values. It parses one
+profile per input file; multi-profile provisioning files must be split
+into individual profile sections before conversion. It does not guess
+battery chemistry, synthesize OCV/impedance data, change Rslow, or
+produce a BN61 profile from another cell's calibration.
+
+The reconstruction logic is grounded by the independent J3S comparison:
+the 414 source bytes match the known alioth DTS payload exactly, and
+the final two DTS bytes are zero. The checksum field remains metadata
+only until its PM855GUI algorithm is independently identified.
+
+No kernel code, DTS/DTBO, battery limits, profile payload, or installable
+artifact was changed by this follow-up.
