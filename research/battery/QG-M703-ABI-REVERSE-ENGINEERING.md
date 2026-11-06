@@ -819,3 +819,37 @@ documented upper bound for any future BN61 configuration.
 
 No kernel code, DTS/DTBO, battery limits, profile payload, or installable
 artifact was changed by this follow-up.
+
+## Follow-up 13: alioth UEFI itself contains two original PM855GUI battery records
+
+The alioth UEFI raw-binary collection contains both:
+- `BATTERY.PROVISION1`: Xiaomi J11 Sun, 4700 mAh, PM855GUI 1.0.0.13,
+  checksum 0x2207, 4.45 V, 100 kOhm battery ID, beta4250,
+  100 kOhm thermistor.
+- `BATTERY.PROVISION2`: Xiaomi J3S Sun, 5000 mAh, PM855GUI 1.0.0.14,
+  checksum 0xBE8D, 4.45 V, 100 kOhm battery ID, beta4250,
+  100 kOhm thermistor.
+
+The two records share the same external ID/thermistor class and 4.45 V
+float limit, but their 414-byte provisioning tables differ at 258 bytes
+(62.3%). Their Rslow values are also different:
+- J11 4700: normal 0x125B064B; low 0x028815E4.
+- J3S 5000: normal 0x0BBAFC2D; low 0x128FCBCA.
+
+This is a particularly useful controlled comparison because both records
+are actually packaged in alioth UEFI, not borrowed from another phone.
+It shows that even on the same physical device platform, same nominal
+battery ID, same thermistor, same beta, and same 4.45 V ceiling do not
+make one battery's Gen4 calibration transferable to another.
+
+The J11 record is a legitimate extra PM855GUI reference for the
+100 kOhm / beta4250 / 4.45 V class, but it is not the NOHON BN61 model
+and must not be used as a substitute. The J3S remains the known-working
+alioth 5000 mAh baseline; the J11 is a secondary comparison only.
+
+The 4700 and 5000 records both reconstruct as 414 bytes plus two 0x00
+padding bytes for the kernel's 416-byte profile buffer. The J3S byte-for-
+byte reconstruction remains exact.
+
+No kernel code, DTS/DTBO, battery limits, profile payload, or installable
+artifact was changed by this follow-up.
