@@ -1361,3 +1361,17 @@ The Gen4 Rslow coefficients vary materially between cell models even
 when beta is 4250, so they cannot be copied from Alioth FMT/GY, Sun,
 or Goertek. They still need to be derived from the M703 impedance
 surfaces or obtained from PM855GUI.
+
+
+## Follow-up 24: BN61 rated/typical capacity confirmation
+
+BN61 documentation lists 5850 mAh rated / 6000 mAh typical, 3.87 V
+nominal, 4.45 V maximum and 22.6 Wh rated energy. That agrees with the
+M703 ATL 6000 QG node's 4.45 V maximum and 5955 mAh FCC2 at 25 °C.
+This is strong confirmation that the Surya M703 profile is the right OEM
+battery-family reference for BN61. It still cannot certify the exact
+impedance/thermistor characteristics of an aftermarket replacement pack.
+
+References:
+- https://manuals.plus/ae/1005005950829288
+- https://www.ifixit.com/en-eu/products/xiaomi-poco-x3-battery
