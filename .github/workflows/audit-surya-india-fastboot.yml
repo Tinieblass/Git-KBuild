@@ -80,5 +80,8 @@ jobs:
             surya-india-firmware-audit/super-audit/SUPER-ROOT-DIR-LISTINGS.txt
             surya-india-firmware-audit/super-audit/files/**/rdump-*.log
             surya-india-firmware-audit/super-audit/SUPER-TOOLCHAIN.txt
+            surya-india-firmware-audit/super-audit/files/vendor/bin/bin/hvdcp_opti
+            surya-india-firmware-audit/super-audit/files/vendor/etc/etc/init/**
+            surya-india-firmware-audit/super-audit/files/vendor/etc/etc/permissions/**
           if-no-files-found: warn
           retention-days: 14
