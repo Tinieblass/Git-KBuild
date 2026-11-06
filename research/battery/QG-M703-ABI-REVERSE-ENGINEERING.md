@@ -1337,3 +1337,27 @@ Sources:
 - https://github.com/LineageOS/android_kernel_oneplus_sm8250/blob/lineage-20/arch/arm64/boot/dts/vendor/qcom/qg-batterydata-ascent-3450mah.dtsi
 - https://github.com/LineageOS/android_kernel_oneplus_sm8250/blob/lineage-20/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-ascent-3450mah.dtsi
 - https://github.com/LineageOS/android_kernel_oneplus_sm8250/blob/lineage-20/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-goertek-6100mah.dtsi
+
+
+## Follow-up 23: thermistor coefficients and BN61 tail prediction
+
+Across the Gen4 profiles inspected in the same SM8250 source family,
+all profiles with `qcom,battery-beta = <4250>` share the exact
+`qcom,therm-coefficients` tuple
+`<0x2318 0xd0c 0xdaf7 0xc556 0x848d>`. This includes Alioth FMT/GY
+4520, Alioth Sun 5000, LMI Sun 4700, Goertek 6100 and ATL/MLP 3650.
+The Ascent 3450 profile uses beta 3435 and a different tuple.
+Since the official M703 BN61-family QG node specifies beta 4250 and
+100 kΩ thermistor, the 4250 tuple is the supported Gen4 thermistor
+candidate, subject to confirming the replacement pack's NTC.
+
+The paired-profile mapping also predicts the final 32-bit word for
+M703's Gen4 payload: FCC2 at 25 °C is 5955 mAh, so the expected tail
+field is decimal 5955 = `0x00001743`, little-endian
+`43 17 00 00`. This predicts **one field only**; it is not a complete
+profile and must not be used to construct a flashable DTBO.
+
+The Gen4 Rslow coefficients vary materially between cell models even
+when beta is 4250, so they cannot be copied from Alioth FMT/GY, Sun,
+or Goertek. They still need to be derived from the M703 impedance
+surfaces or obtained from PM855GUI.
