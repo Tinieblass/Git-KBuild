@@ -3,6 +3,7 @@
 import unittest
 
 from parse_pm855gui_provision import (
+    calculate_qcom_checksum,
     decode_profile_fields,
     parse_provision,
 )
@@ -15,12 +16,13 @@ def make_provision(normal=0x0BBAFC2D, low=0x128FCBCA, tail=0x13AD):
     lines = [
         "[BATTERY_PROFILE]",
         "GUI Version: PM855GUI - 1.0.0.14",
-        "Checksum,BE8D",
         "Nom_Batt_capacity,5000",
         f"Rslow_Normal_Coefficients, 0x{normal:08X}",
         f"Rslow_Low_Coefficients, 0x{low:08X}",
         "Address, Address2, Offset, Data",
     ]
+    checksum = calculate_qcom_checksum(bytes(data)).to_bytes(2, "big").hex().upper()
+    lines.insert(2, f"Checksum,{checksum}")
     for address in range(0x041, 0x110):
         index = (address - 0x041) * 2
         lines.append(
@@ -42,6 +44,17 @@ class ProvisionParserTests(unittest.TestCase):
         self.assertEqual(decoded["rslow_low_bytes_for_dt"], "ca cb 8f 12")
         self.assertEqual(decoded["gen4_nom_cap_profile_byte_offset"], 412)
         self.assertEqual(decoded["gen4_nom_cap_embedded_value"], 5037)
+
+    def test_checksum_is_reproduced_from_qualcomm_uefi(self):
+        metadata, profile = parse_provision(make_provision())
+        self.assertEqual(int(metadata["Checksum"], 16), calculate_qcom_checksum(profile))
+
+    def test_bad_checksum_is_rejected(self):
+        text = make_provision().replace(
+            "Checksum,", "Checksum,0", 1
+        )
+        with self.assertRaisesRegex(ValueError, "checksum mismatch"):
+            parse_provision(text)
 
     def test_incomplete_table_is_rejected(self):
         text = make_provision()
