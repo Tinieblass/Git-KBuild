@@ -4,8 +4,8 @@
 The Xiaomi provisioning files inspected for alioth contain 414 bytes at
 addresses 0x041..0x10F (two bytes per address). The Gen4 kernel expects a
 416-byte profile buffer, so this parser appends the two zero pad bytes
-verified against the matching alioth DTS. It does not infer battery data
-or calculate/validate the PM855GUI checksum.
+verified against the matching alioth DTS. It validates the Qualcomm UEFI
+profile checksum but does not infer battery data.
 """
 from __future__ import annotations
 
@@ -26,6 +26,45 @@ ROW_RE = re.compile(
 )
 DTS_RE = re.compile(r"qcom,fg-profile-data\s*=\s*\[([\s\S]*?)\]", re.I)
 
+
+
+def calculate_qcom_checksum(profile: bytes) -> int:
+    """Reproduce PmicFgSram_ValidateCheckSum from Qualcomm UEFI.
+
+    UEFI processes 207 16-bit words. For each word it iterates four byte
+    positions, but masks Data to 16 bits, so positions 2 and 3 are zero.
+    Each step is a 16-bit rotate-left-by-one followed by XOR with that byte.
+    """
+    if len(profile) < PROVISIONED_LENGTH:
+        raise ValueError(f"profile has {len(profile)} bytes; need {PROVISIONED_LENGTH}")
+    checksum = 0
+    for index in range(0, PROVISIONED_LENGTH, 2):
+        word = profile[index] | (profile[index + 1] << 8)
+        for byte_index in range(4):
+            cross = 1 if checksum >= 0x8000 else 0
+            value = (word >> (byte_index * 8)) & 0xFF
+            checksum = ((((checksum * 2) & 0xFFFF) + cross) ^ value) & 0xFFFF
+    return checksum
+
+
+def validate_qcom_checksum(metadata: dict[str, str], profile: bytes) -> int:
+    """Require and verify the PM855GUI Checksum field."""
+    checksum_text = metadata.get("Checksum", "").strip()
+    if not checksum_text:
+        raise ValueError("provision has no Checksum metadata")
+    try:
+        expected = int(checksum_text, 16)
+    except ValueError as exc:
+        raise ValueError(f"invalid Checksum value: {checksum_text!r}") from exc
+    if not 0 <= expected <= 0xFFFF:
+        raise ValueError(f"Checksum outside 16-bit range: {checksum_text!r}")
+    calculated = calculate_qcom_checksum(profile)
+    if calculated != expected:
+        raise ValueError(
+            f"Qualcomm checksum mismatch: provision=0x{expected:04X}, "
+            f"calculated=0x{calculated:04X}"
+        )
+    return calculated
 
 def parse_provision(text: str) -> tuple[dict[str, str], bytes]:
     metadata: dict[str, str] = {}
@@ -80,6 +119,7 @@ def parse_provision(text: str) -> tuple[dict[str, str], bytes]:
     profile = provisioned + b"\x00\x00"
     if len(profile) != KERNEL_PROFILE_LENGTH:
         raise ValueError("internal error: unexpected Gen4 profile length")
+    validate_qcom_checksum(metadata, profile)
     return metadata, profile
 
 
@@ -160,6 +200,7 @@ def main() -> int:
                     f"provision=0x{profile[first]:02X}, DTS=0x{reference[first]:02X}"
                 )
             print("DTS comparison PASS: all 416 bytes match", file=sys.stderr)
+        print(f"Qualcomm checksum PASS: 0x{calculate_qcom_checksum(profile):04X}", file=sys.stderr)
         if "rslow_normal_word" in decoded:
             print("Rslow normal PASS: metadata matches profile bytes 26..29", file=sys.stderr)
 
@@ -180,7 +221,9 @@ def main() -> int:
                 "kernel_profile_bytes": len(profile),
                 "profile_hex": profile.hex(),
                 "decoded_gen4_fields": decoded,
-                "checksum_validation": "not implemented",
+                "checksum_validation": "PASS",
+                "checksum_algorithm": "Qualcomm PmicFgSram_ValidateCheckSum",
+                "checksum_calculated": f"0x{calculate_qcom_checksum(profile):04X}",
             }, indent=2))
         else:
             print("qcom,fg-profile-data = [")
