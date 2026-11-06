@@ -574,3 +574,87 @@ device, while other Qualcomm device trees label the node
 
 No kernel code, DTS/DTBO, battery limits, profile payload, or installable
 artifact was changed by this follow-up.
+
+## Follow-up 8: a 5800 mAh PM855GUI reference has been located
+
+A wider search uncovered two full 5800 mAh PM855GUI Gen4 profiles used
+for the ASUS ROG Phone II family:
+
+- April 2019 profile: PM855GUI 1.0.0.13, revision 24,
+  nominal capacity 5800 mAh, battery ID 51 kOhm,
+  max voltage 4.36 V, CC/CV threshold 4.38 V,
+  checksum 0x468F.
+- January 2020 profile: PM855GUI 1.0.0.13, revision 24,
+  nominal capacity 5800 mAh, battery ID 51 kOhm,
+  max voltage 4.36 V, CC/CV threshold 4.38 V,
+  checksum 0x5F9D.
+
+Both include a complete 416-byte profile payload. Both use beta 4250,
+100 kOhm thermistor room resistance, the same five thermistor coefficients
+as alioth J3S (0x2318, 0x0D0C, 0xDAF7, 0xC556, 0x848D), center offset
+0x70, and 100 kOhm thermistor pull-up. Their Rslow coefficients differ
+from each other and from alioth J3S.
+
+A byte-level comparison was run against the published alioth J3S 5000 mAh
+payload (PM855GUI 1.0.0.14, revision 24):
+- J3S vs ROG II April 2019: 284/416 bytes differ (68.3%).
+- J3S vs ROG II January 2020: 283/416 bytes differ (68.0%).
+- ROG II April vs January: 270/416 bytes differ (64.9%).
+
+This confirms that PM855GUI can model a 5800 mAh cell using the same
+general GUI family and the same external thermistor polynomial as alioth
+J3S. It also confirms again that these are distinct calibrated payloads,
+not capacity-scaled J3S variants.
+
+The 5800 mAh reference is numerically close to the NOHON BN61 rated
+capacity of 5850 mAh, but it is not an electrically compatible substitute:
+its battery ID is 51 kOhm rather than the alioth/J3S 100 kOhm class, and
+its documented 4.36 V maximum/4.38 V CC-CV thresholds do not match the
+BN61 pack's 4.45 V ceiling. Its GUI is 1.0.0.13 rather than the J3S
+1.0.0.14 build. Therefore it is a structural and calibration reference
+only; do not transplant its payload, Rslow values, or charging thresholds
+into the Nohon BN61 profile.
+
+### Updated PM855GUI reference ladder
+
+1. Alioth J3S 5000 mAh, PM855GUI 1.0.0.14 rev24: known working
+   alioth high-capacity baseline.
+2. ROG II 5800 mAh, PM855GUI 1.0.0.13 rev24: closest capacity
+   reference found so far within PM855GUI; wrong ID and voltage class.
+3. Vayu J20S 5160 mAh, PM855GUI 1.0.0.14 rev24: closer GUI-version
+   match and 100 kOhm ID/NTC metadata, but a different battery class.
+4. PM660GUI 6100 mAh: wrong gauge GUI family; structural reference only.
+5. M703 ATL 6000 mAh: closest physical BN61-family reference, but QG
+   gauge architecture; not a PM855GUI payload.
+
+The ROG II profiles strengthen the PM855GUI comparison dataset, but do
+not remove the need to characterize the actual Nohon cell. No exact
+PM855GUI BN61 profile has been found in the public-source searches so far.
+
+## Follow-up 9: identify and eliminate a false lead in the Surya vendor image
+
+The public Surya vendor repository includes `/vendor/bin/batterysecret`
+and its init service. Its init script changes permissions for USB-PD
+authentication sysfs nodes (`usbpd_verifed`, `request_vdm_cmd`,
+`verify_process`, `pd_authentication`, and `bms/authentic`) and
+starts the service as root.
+
+The binary was inspected for printable strings. Its strings point to
+USB-PD adapter authentication, VDM commands, PD digest verification,
+USB charge type/current state, and USB-PD sysfs paths. It does not expose
+`/dev/qg_battery`, `BPIOCXVAR`, or any Z/Y table identifiers.
+
+Therefore `batterysecret` is not the missing QG profile-table consumer.
+It is a separate USB-PD authentication service. This distinction matters:
+the DS28E16 identity branch in `qpnp-qg.c` is not proven to be serviced
+by this binary, and the binary's USB-PD authentication messages must not
+be conflated with battery-pack identity/authentication.
+
+The vendor makefile also lists `mi_thermald`, `libbatterylistener`,
+and `batterysecret`, but none has yet been demonstrated to query
+`/dev/qg_battery`. The next vendor-image search should inspect those
+thermal/power components and the full proprietary image rather than
+assuming the batterysecret binary is responsible.
+
+No kernel code, DTS/DTBO, battery limits, profile payload, or installable
+artifact was changed by this follow-up.
