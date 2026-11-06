@@ -12,7 +12,13 @@ The user's previously supplied developer reference is `https://telegra.ph/KowSU-
 It identifies KowSU as a manager fork and explicitly lists the compatible built-in driver as `backslashxx/KernelSU` (with toolkit feature), or `rsuntk/KernelSU`.
 It gives manager APK v2 signing certificate size `0x375` and SHA-256 `484fcba6e6c43b1fb09700633bf2fb4758f13cb0b2f4457b80d075084b26c588`.
 
-## Common pattern across both failed ZIPs\n\nThe recovered MidoriSU record identifies `FlashKernel-FakeDreamer-v2.1-W-alioth-20261104-j3s-miui-eff-uv-MidoriSU.zip` as physically installed and bootlooping. Its build used FakeDreamer v2.1-W, MidoriSU commit `8986872e…`, NoMount 2.2.0 commit `bf1847f98fed382369c43bfd652cd93774b9b8e3`, and Linux 4.19 compatibility adaptations. It also removed backslashxx-specific configuration symbols.\n\nThe KowSU failure was built with NoMount disabled, so NoMount alone cannot explain both bootloops. The common high-risk change is replacing or heavily adapting the existing backslashxx in-tree KernelSU implementation instead of preserving it. Both experimental paths changed the kernel root driver/hook implementation and added multiple 4.19 compatibility rewrites. This is now the primary shared suspect; the exact panic still needs early boot evidence.\n\n## Confirmed mismatch in the failed KowSU kernel build
+## Common pattern across both failed ZIPs
+
+The recovered MidoriSU record identifies `FlashKernel-FakeDreamer-v2.1-W-alioth-20261104-j3s-miui-eff-uv-MidoriSU.zip` as physically installed and bootlooping. Its build used FakeDreamer v2.1-W, MidoriSU commit `8986872e…`, NoMount 2.2.0 commit `bf1847f98fed382369c43bfd652cd93774b9b8e3`, and Linux 4.19 compatibility adaptations. It also removed backslashxx-specific configuration symbols.
+
+The KowSU failure was built with NoMount disabled, so NoMount alone cannot explain both bootloops. The common high-risk change is replacing or heavily adapting the existing backslashxx in-tree KernelSU implementation instead of preserving it. Both experimental paths changed the kernel root driver/hook implementation and added multiple 4.19 compatibility rewrites. This is now the primary shared suspect; the exact panic still needs early boot evidence.
+
+## Confirmed mismatch in the failed KowSU kernel build
 
 The tested image came from artifact `13454039612`, SHA-256 `b68a5e30d828613433264becc089f827c86cb7653bcf34162652bbc010a15bf8` (18,537,807-byte gzip image).
 The build workflow cloned `https://github.com/KOWX712/KernelSU` at commit `6ecdd69224fe6769e6c8715a4ef2b91602b23362`, then deleted the source tree's existing `KernelSU` and `drivers/kernelsu` directories and replaced them with that checkout.
