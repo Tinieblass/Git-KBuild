@@ -693,3 +693,62 @@ do not provide an indexed call graph for all binaries.
 
 No kernel code, DTS/DTBO, battery limits, profile payload, or installable
 artifact was changed by this follow-up.
+
+## Follow-up 11: recovered the original Qualcomm PM855GUI provisioning source
+
+A significant new source type has been located: the original text-format
+`BATTERY.PROVISION2` file from Xiaomi UEFI firmware backups. The
+Project-Silicium Device-Binaries repository publishes it for alioth:
+
+`alioth/RawFiles/BATTERY.PROVISION2`
+
+This is not a derived DTS dump. It is the PM855GUI provisioning record,
+including GUI version, checksum, profile revision, nominal capacity,
+battery ID, thermistor beta/resistance, all five thermistor coefficients,
+center offset, pull-up, both Rslow coefficient words, and the full
+address/data write table.
+
+For the alioth J3S reference it explicitly records:
+- GUI: PM855GUI 1.0.0.14; checksum BE8D; revision 24.
+- Float voltage 4450 mV; nominal capacity 5000 mAh.
+- Battery ID 100000 ohm; beta 4250; thermistor 100000 ohm.
+- Thermistor coefficients 0x2318, 0x0D0C, 0xDAF7, 0xC556, 0x848D.
+- Center offset 0x70; pull-up 100.
+- Rslow normal word 0x0BBAFC2D; low word 0x128FCBCA.
+- Profile write table starts at address 0x041 and contains two bytes
+  per address through 0x110. That is 208 words x 2 bytes = 416 bytes,
+  exactly the Gen4 `PROFILE_LEN` accepted by the driver.
+
+The first records demonstrate the byte order and exact correspondence
+with the known alioth J3S DTS payload:
+address 0x041 offsets 0/1 = 09 00; address 0x042 = ED E2;
+address 0x043 = 50 DC; and the last address 0x110 = AD 13.
+This independently confirms that the 416-byte DTS blob is the ordered
+PM855GUI provisioning table, not an arbitrary opaque byte array.
+
+This also clarifies how to parse the profile reliably: preserve the
+provisioning address order and the per-address byte offsets; do not
+reinterpret the address column as a byte offset or reverse the two
+bytes of each word. The separate metadata fields remain separate from
+the 416-byte table.
+
+### New recovery route for the BN61 target
+
+The search can now target Xiaomi UEFI/firmware backup repositories for
+the original `BATTERY.PROVISION2` record associated with the M703
+6000 mAh pack, or another SM8250 PM855GUI profile with a documented
+4.45 V ceiling. If such a record is found, it can be parsed directly
+into the Gen4 416-byte payload and checked against its checksum and
+metadata without inventing a QG-to-Gen4 conversion.
+
+Searches for a public `BATTERY.PROVISION2` explicitly associated with
+M703 ATL 6000 / BN61 have not yet returned a matching file. The
+currently recovered alioth file is J3S 5000 mAh and remains the
+known-good reference only; it is not a BN61 profile.
+
+The two other Device-Binaries paths checked (`pipa` and the UMI UEFI
+backup) contain byte-identical J3S provisioning content, so they are
+not independent higher-capacity battery sources.
+
+No kernel code, DTS/DTBO, battery limits, profile payload, or installable
+artifact was changed by this follow-up.
