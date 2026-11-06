@@ -112,24 +112,24 @@ capacity_sync = """done:
 \t\trc = fg_sram_write(fg, NOM_CAP_WORD, NOM_CAP_OFFSET,
 \t\t\t\tnom_cap_buf, sizeof(nom_cap_buf), FG_IMA_DEFAULT);
 \t\tif (rc < 0) {
-\t\t\tpr_err("Error in writing nominal capacity %u mAh to FG SRAM, rc=%d\\\\n",
+\t\t\tpr_err("Error in writing nominal capacity %u mAh to FG SRAM, rc=%d\\n",
 \t\t\t\tfg->bp.nom_cap_uah, rc);
 \t\t\tgoto out;
 \t\t}
 \t\tnom_cap_uah = (int64_t)fg->bp.nom_cap_uah * 1000;
-\t\tpr_info("FG nominal capacity synchronized to battery profile: %u mAh\\\\n",
+\t\tpr_info("FG nominal capacity synchronized to battery profile: %u mAh\\n",
 \t\t\tfg->bp.nom_cap_uah);
 \t} else {
 \t\trc = fg_gen4_get_nominal_capacity(chip, &nom_cap_uah);
 \t\tif (rc < 0) {
-\t\t\tpr_err("Error in reading nominal capacity, rc=%d\\\\n", rc);
+\t\t\tpr_err("Error in reading nominal capacity, rc=%d\\n", rc);
 \t\t\tgoto out;
 \t\t}
 \t}
 \tif (profile_was_loaded && learned_cap_uah == 0) {
 \t\trc = fg_gen4_store_learned_capacity(chip, nom_cap_uah);
 \t\tif (rc < 0)
-\t\t\tpr_err("Error in writing learned capacity, rc=%d\\\\n", rc);
+\t\t\tpr_err("Error in writing learned capacity, rc=%d\\n", rc);
 \t}
 """
 if data.count(done_needle) != 1:
