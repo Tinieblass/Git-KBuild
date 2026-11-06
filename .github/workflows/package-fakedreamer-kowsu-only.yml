@@ -98,7 +98,7 @@ jobs:
                       if before != after:
                           raise SystemExit(f"ERROR: non-kernel payload changed: {name}")
                       a, b = base.getinfo(name), final.getinfo(name)
-                      for field in ("compress_type", "date_time", "file_size", "CRC", "external_attr", "flag_bits"):
+                      for field in ("compress_type", "date_time", "file_size", "CRC", "external_attr"):
                           if getattr(a, field) != getattr(b, field):
                               raise SystemExit(f"ERROR: original ZIP metadata changed for {name}: {field}")
               actual = sha256(final.read("Image.gz")).hexdigest()
@@ -108,10 +108,10 @@ jobs:
                   raise SystemExit("ERROR: original Image.gz provenance mismatch")
               if changed != ["Image.gz"]:
                   raise SystemExit(f"ERROR: expected only Image.gz to change; changed={changed}")
-              print("PASS: ZIP paths unchanged; every non-Image.gz payload and its metadata are byte-identical.")
+              print("PASS: ZIP paths unchanged; every non-Image.gz payload is byte-identical and stable ZIP metadata is preserved.")
               print(f"Original Image.gz SHA-256: {original_image}")
               print(f"Replacement Image.gz SHA-256: {actual}")
-              print("Changed ZIP entries: Image.gz only")
+              print("Changed payload entries: Image.gz only")
               print(f"Entry count: {len(base_names)}")
           PY
 
@@ -125,7 +125,7 @@ jobs:
             echo "Diagnostic artifact ID: $DIAGNOSTIC_ARTIFACT_ID"
             echo "Diagnostic artifact SHA-256: $DIAGNOSTIC_ARTIFACT_SHA256"
             echo "Replacement Image.gz SHA-256: $IMAGE_SHA256"
-            echo "Changed ZIP entry: Image.gz only"
+            echo "Changed payload entry: Image.gz only"\n            echo "Info-ZIP may normalize the UTF-8 general-purpose flag on entries; non-kernel payload bytes remain identical."
             echo "DTB/DTBO, AnyKernel3, installer scripts and all other archive entries: preserved and verified"
             echo "Device flashing: not performed"
           } > PACKAGE-VERIFICATION.txt
