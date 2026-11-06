@@ -893,3 +893,129 @@ only until its PM855GUI algorithm is independently identified.
 
 No kernel code, DTS/DTBO, battery limits, profile payload, or installable
 artifact was changed by this follow-up.
+
+## Follow-up 15: Gen4 SRAM address map resolves Rslow and nominal-word offsets
+
+The Qualcomm Gen4 driver source was inspected in full around its profile
+load and SRAM parameter map. This resolves two offsets that were
+previously only partially understood.
+
+### Rslow normal is the profile's bytes 26..29
+
+The driver loads the 416-byte profile at SRAM word 65
+(`PROFILE_LOAD_WORD = 65`). Its Rslow discharge coefficient word is
+SRAM word 78 (`RSLOW_COEFF_DISCHG_WORD = 78`). Therefore:
+
+`(78 - 65) * 2 = 26`
+
+The four bytes at profile offsets 26..29 are the embedded normal Rslow
+coefficients, little-endian. This was independently verified against
+four original Xiaomi PM855GUI provisioning records:
+
+| Source | Metadata Rslow normal | Profile bytes 26..29 | Match |
+|---|---:|---|---|
+| Alioth J3S 5000 | 0x0BBAFC2D | 2D FC BA 0B | Exact |
+| Alioth J11 4700 | 0x125B064B | 4B 06 5B 12 | Exact |
+| Vayu J20S NVT 5160 | 0x0B2A053C | 3C 05 2A 0B | Exact |
+| Vayu J20S Sunwoda 5160 | 0x129C0471 | 71 04 9C 12 | Exact |
+
+The separately declared `qcom,rslow-low-coeffs` are the four low-
+temperature replacement bytes. The driver writes those four bytes into
+SRAM word 78 when battery temperature is below 0°C and restores the
+normal coefficients otherwise. This is not a free-standing arbitrary
+four-byte parameter: the normal set is part of the proprietary PM855GUI
+payload, while the cold set is supplied as a separate DT property.
+
+### The 5037 word is now mapped precisely
+
+The Gen4 source defines:
+- `PROFILE_LOAD_WORD = 65`
+- `NOM_CAP_WORD = 271`
+- `NOM_CAP_OFFSET = 0`
+
+Since SRAM word addresses are 2-byte words, the nominal-capacity SRAM
+word maps to profile byte offset:
+
+`(271 - 65) * 2 = 412`
+
+Alioth J3S profile bytes 412..413 are `AD 13`, little-endian 0x13AD =
+5037. Bytes 414..415 are the two zero padding bytes already established
+by the exact UEFI-to-DTS reconstruction. Thus the 5037 value is not at
+byte offset 271; it is at SRAM word 271 / profile byte offset 412.
+The kernel reads this embedded word after profile load and copies it to
+the actual/aged battery-capacity SRAM field. It must not be confused
+with the DTS nominal capacity property (5000 mAh) or independently
+treated as a measured cell capacity.
+
+### Parser upgraded with structural electrical-field checks
+
+`research/battery/parse_pm855gui_provision.py` now:
+- decodes the PM855GUI normal Rslow word and verifies that its
+  little-endian bytes exactly equal profile bytes 26..29;
+- decodes the low-temperature Rslow word into its four DT byte values,
+  while explicitly marking it as a separate DT property;
+- reports SRAM word 271, profile byte offset 412, and the embedded
+  16-bit word without mislabelling it as mAh;
+- rejects a normal-Rslow metadata/payload mismatch.
+
+This is a genuine source-to-source consistency check. It still does not
+generate a BN61 profile, calculate PM855GUI checksum, or infer OCV,
+impedance, or temperature curves.
+
+## Follow-up 16: all-FF DS28E16 page-0 read is not proof of a missing ID
+
+The public M703 QG driver was traced through `qg_load_battery_profile()`.
+Its identity selection is conditional:
+1. it first asks the verifier for `CHIP_OK`;
+2. only if that is true does it read page 0;
+3. it expects page-0 byte 0 to be ASCII `A` or `N`;
+4. it then tests bytes 3 and 4 for ASCII `57` (5160) or `61` (6000).
+
+The DS28E16 is a secure authenticator with four user-memory pages and
+per-page read protection. The DS28E16 security guide documents that a
+read-protected page returns FF bytes rather than exposing its contents.
+Therefore an all-FF page-0 result is ambiguous: it can be a protected
+page, a failed/invalid read path, or another data-path problem. It does
+not by itself prove that the pack lacks a DS28E16 or that its underlying
+unreadable page does not contain the M703 identity.
+
+For this user's NOHON battery, the prior all-FF page-0 observation must
+therefore be recorded as **identity unavailable through that read**, not
+as a conclusive negative identification. The original M703 profile
+selection still cannot be assumed: the driver cannot see the required
+`61` bytes in the observed result. The correct next diagnostic is to
+separate ROM ID, DS status/protection flags, verifier CHIP_OK/auth result,
+page-0 transaction result/CRC, and returned page data. Do not try to
+bypass protection or write to the authenticator.
+
+Sources: Analog Devices DS28E16 datasheet and security guide; M703
+`qpnp-qg.c` identity-selection path at commit
+`07843c4a74f3fde3df48b941091ce41141fe886d`.
+
+## Follow-up 17: physical BN61 electrical characterization remains the blocker
+
+The published NOHON/iFixit BN61 replacement specifications corroborate
+5850 mAh, 22.6 Wh, and 3.87 V nominal. The M703 ATL QG source corroborates
+a 6000 mAh family profile and 4.45 V maximum. These facts establish a
+useful family-level capacity/voltage envelope, but they do not disclose
+the NOHON cell's OCV-vs-SOC curve, DC resistance vs SOC/temperature,
+thermal response, or exact NTC curve.
+
+A real Gen4 BN61 calibration therefore needs, at minimum:
+- verified pack ID resistance and NTC resistance at known temperatures;
+- a stable OCV-vs-SOC dataset after adequate rest at multiple SOC points;
+- controlled pulse-response measurements to separate ohmic and
+  polarization resistance across SOC and temperature;
+- rated/typical capacity distinction and a verified cutoff voltage;
+- a source-proven PM855GUI payload or a defensible, validated model
+  conversion into its proprietary 416-byte structure.
+
+The M703 QG OCV and Z1-Z6 tables remain useful cross-checks for the
+same 6000 mAh product class, but are not transplanted into Gen4. A
+100 kOhm ID/NTC and beta4250 from a different pack cannot be assigned
+to the NOHON merely because those values are common in Xiaomi battery
+profiles. No new charge current or voltage limit is inferred from the
+capacity rating.
+
+No kernel code, DTS/DTBO, battery limits, profile payload, or flashable
+artifact was changed by these findings.
