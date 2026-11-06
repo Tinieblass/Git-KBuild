@@ -66,6 +66,8 @@ jobs:
             surya-india-firmware-audit/other-raw/**/BATTERY-STRING-HITS.txt
             surya-india-firmware-audit/uefi-deep/DEEP-UEFI-MANIFEST.tsv
             surya-india-firmware-audit/uefi-deep/DEEP-UEFI-SEARCH.txt
+            surya-india-firmware-audit/uefi-deep/BATTERY-PROFILE-MODULES.txt
+            surya-india-firmware-audit/uefi-deep/battery-profile-modules/**
             surya-india-firmware-audit/uefi-deep/uefi-firmware-parser.log
             surya-india-firmware-audit/uefi-deep/pip-download.log
             surya-india-firmware-audit/uefi-deep/pip-install.log
