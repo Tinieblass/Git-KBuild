@@ -7,7 +7,7 @@ This note records register semantics that can be established from Qualcomm's PM8
 ## Primary source: Gen4 driver
 
 Reference driver:
-- https://github.com/LineageOS/android_kernel_xiaomi_sm8250/blob/lineage-22.2/drivers/power/supply/qcom/qpnp-fg-gen4.c
+- https://github.com/LineageOS/android_kernel_xiaomi_sm8250/blob/6b34d24765327d746074c8e53b5ad0d24a51acc7/drivers/power/supply/qcom/qpnp-fg-gen4.c
 
 The driver declares:
 - `PROFILE_LOAD_WORD = 65` (SRAM address `0x041`)
