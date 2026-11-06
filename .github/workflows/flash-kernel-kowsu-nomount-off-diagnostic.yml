@@ -1,18 +1,18 @@
-name: FakeDreamer v2.1-W - KowSU only (Linux 4.19)
+name: FakeDreamer v2.1-W - KowSU + ESP shared-frag guard (Linux 4.19)
 
-run-name: FakeDreamer v2.1-W | alioth | KowSU only | j3s-miui-eff-uv
+run-name: FakeDreamer v2.1-W | alioth | KowSU + ESP guard | j3s-miui-eff-uv
 
 on:
   push:
     branches:
-      - Flash-Kernel-KowSU-KALLSYMS-DIAG
+      - FakeDreamer-KowSU-IWLAN-ESP-Fix
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: fd21w-kowsu-kallsyms-diag-${{ github.ref }}
+  group: fd21w-kowsu-esp-guard-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -61,6 +61,43 @@ jobs:
           git -C kernel_tree checkout --detach FETCH_HEAD
           echo "Kernel source: $(git -C kernel_tree rev-parse HEAD)"
           test "$(git -C kernel_tree rev-parse HEAD)" = "${SOURCE_BASE}"
+
+      - name: Backport ESP shared-fragment safety guard
+        run: |
+          set -euo pipefail
+          cd kernel_tree
+          python3 - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              "net/ipv4/esp4.c": (
+                  "} else if (!skb_has_frag_list(skb)) {",
+                  "} else if (!skb_has_frag_list(skb) &&\n\t\t\t   !skb_has_shared_frag(skb)) {",
+              ),
+              "net/ipv6/esp6.c": (
+                  "} else if (!skb_has_frag_list(skb)) {",
+                  "} else if (!skb_has_frag_list(skb) &&\n\t\t\t   !skb_has_shared_frag(skb)) {",
+              ),
+          }
+          for name, (old, new) in replacements.items():
+              path = Path(name)
+              source = path.read_text()
+              if source.count(old) != 1:
+                  raise SystemExit(f"{name}: expected one vulnerable ESP fragment check")
+              if "skb_has_shared_frag(skb)" in source:
+                  raise SystemExit(f"{name}: guard already present; refusing duplicate patch")
+              path.write_text(source.replace(old, new, 1))
+          PY
+          grep -n -A2 -B2 'skb_has_shared_frag(skb)' net/ipv4/esp4.c net/ipv6/esp6.c
+          git diff --check
+          git diff -- net/ipv4/esp4.c net/ipv6/esp6.c > ../ESP-GUARD-PATCH.diff
+          {
+            echo "FakeDreamer source: ${SOURCE_BASE}"
+            echo "KowSU source: ${KOWSU_SHA}"
+            echo "Backport: ESP shared-fragment guard in esp4.c and esp6.c"
+            echo "No XFRM, skb core, DTB, DTBO, battery, or installer files changed by this patch."
+            sha256sum net/ipv4/esp4.c net/ipv6/esp6.c
+          } > ../ESP-GUARD-VERIFICATION.txt
 
       - name: Integrate pinned KowSU driver
         run: |
@@ -1089,9 +1126,11 @@ jobs:
       - name: Upload diagnostic kernel Image only
         uses: actions/upload-artifact@v4
         with:
-          name: FlashKernel-FakeDreamer-KowSU-NoMount-OFF-Image
+          name: FlashKernel-FakeDreamer-KowSU-ESP-guard-Image
           path: |
             Image.gz
             Image.gz.sha256
+            ESP-GUARD-PATCH.diff
+            ESP-GUARD-VERIFICATION.txt
           if-no-files-found: error
           retention-days: 14
