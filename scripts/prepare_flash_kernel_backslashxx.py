@@ -72,20 +72,38 @@ driver = root / "drivers/power/supply/qcom/qpnp-fg-gen4.c"
 if not driver.is_file():
     raise SystemExit("ERROR: missing drivers/power/supply/qcom/qpnp-fg-gen4.c")
 data = driver.read_text()
+decl_needle = "\tint64_t nom_cap_uah, learned_cap_uah = 0;"
+decl_replacement = decl_needle + "\n\tbool profile_was_loaded = false;"
+if data.count(decl_needle) != 1:
+    raise SystemExit(f"ERROR: expected one profile_load_work capacity declaration, got {data.count(decl_needle)}")
+data = data.replace(decl_needle, decl_replacement, 1)
+
 load_needle = """\trc = qpnp_fg_gen4_load_profile(chip);
 \tif (rc < 0)
 \t\tgoto out;
 """
-load_replacement = load_needle + """
-\t/* The profile parser reads qcom,nom-batt-capacity-mah directly into
-\t * the legacy nom_cap_uah field in mAh. Keep the 16-bit FG SRAM word
-\t * aligned with the selected profile before capacity-learning starts.
+load_replacement = load_needle + "\tprofile_was_loaded = true;\n"
+if data.count(load_needle) != 1:
+    raise SystemExit(f"ERROR: expected one FG profile-load insertion point, got {data.count(load_needle)}")
+data = data.replace(load_needle, load_replacement, 1)
+
+# Remove the original capacity copy from inside the reload-only branch. It is
+# reintroduced below in the common path so a retained profile is also synced.
+learned_block = re.compile(
+    r"\tif \(learned_cap_uah == 0\) \{\n"
+    r"\t\t/\*[\s\S]*?\n"
+    r"\t\}\n(?=done:)"
+)
+data, n = learned_block.subn("", data)
+if n != 1:
+    raise SystemExit(f"ERROR: expected one reload-only learned-capacity block, got {n}")
+
+done_needle = "done:\n"
+capacity_sync = """done:
+\t/* NOM_CAP_WORD is also read by charge-raw/SOC calculations. Keep it
+\t * aligned with the selected profile's declared nominal capacity on
+\t * both reload and retained-profile paths, before post-load persistence.
 \t */
-\trc = fg_gen4_bp_params_config(fg);
-\tif (rc < 0) {
-\t\tpr_err("Error in configuring battery profile params, rc:%d\\n", rc);
-\t\tgoto out;
-\t}
 \tif (fg->bp.nom_cap_uah > 0 && fg->bp.nom_cap_uah <= 0xFFFF) {
 \t\tu8 nom_cap_buf[2] = {
 \t\t\tfg->bp.nom_cap_uah & 0xFF,
@@ -94,27 +112,35 @@ load_replacement = load_needle + """
 \t\trc = fg_sram_write(fg, NOM_CAP_WORD, NOM_CAP_OFFSET,
 \t\t\t\tnom_cap_buf, sizeof(nom_cap_buf), FG_IMA_DEFAULT);
 \t\tif (rc < 0) {
-\t\t\tpr_err("Error in writing nominal capacity %u mAh to FG SRAM, rc=%d\\n",
+\t\t\tpr_err("Error in writing nominal capacity %u mAh to FG SRAM, rc=%d\\\\n",
 \t\t\t\tfg->bp.nom_cap_uah, rc);
 \t\t\tgoto out;
 \t\t}
-\t\tpr_info("FG nominal capacity synchronized to battery profile: %u mAh\\n",
+\t\tnom_cap_uah = (int64_t)fg->bp.nom_cap_uah * 1000;
+\t\tpr_info("FG nominal capacity synchronized to battery profile: %u mAh\\\\n",
 \t\t\tfg->bp.nom_cap_uah);
+\t} else {
+\t\trc = fg_gen4_get_nominal_capacity(chip, &nom_cap_uah);
+\t\tif (rc < 0) {
+\t\t\tpr_err("Error in reading nominal capacity, rc=%d\\\\n", rc);
+\t\t\tgoto out;
+\t\t}
+\t}
+\tif (profile_was_loaded && learned_cap_uah == 0) {
+\t\trc = fg_gen4_store_learned_capacity(chip, nom_cap_uah);
+\t\tif (rc < 0)
+\t\t\tpr_err("Error in writing learned capacity, rc=%d\\\\n", rc);
 \t}
 """
-if data.count(load_needle) != 1:
-    raise SystemExit(f"ERROR: expected one FG profile-load insertion point, got {data.count(load_needle)}")
-data = data.replace(load_needle, load_replacement, 1)
-late_block = """\trc = fg_gen4_bp_params_config(fg);
-\tif (rc < 0)
-\t\tpr_err("Error in configuring battery profile params, rc:%d\\n",
-\t\t\trc);
+if data.count(done_needle) != 1:
+    raise SystemExit(f"ERROR: expected one common profile-load done label, got {data.count(done_needle)}")
+data = data.replace(done_needle, capacity_sync, 1)
 
-"""
-if data.count(late_block) != 1:
-    raise SystemExit(f"ERROR: expected one late battery-profile config block, got {data.count(late_block)}")
-data = data.replace(late_block, "", 1)
+if data.count("rc = fg_gen4_bp_params_config(fg);") != 1:
+    raise SystemExit("ERROR: common FG profile parameter configuration must remain exactly once")
 if data.count("fg_sram_write(fg, NOM_CAP_WORD, NOM_CAP_OFFSET") != 1:
-    raise SystemExit("ERROR: FG SRAM nominal-capacity write was not inserted exactly once")
+    raise SystemExit("ERROR: FG SRAM nominal-capacity write must exist exactly once")
+if data.index("fg_sram_write(fg, NOM_CAP_WORD, NOM_CAP_OFFSET") > data.index("fg_gen4_post_profile_load(chip);"):
+    raise SystemExit("ERROR: nominal capacity must be synchronized before post-profile persistence")
 driver.write_text(data)
-print("PATCHED: qpnp-fg-gen4 mirrors the selected qcom,nom-batt-capacity-mah into FG SRAM NOM_CAP_WORD")
+print("PATCHED: nominal capacity sync runs on both reload and retained-profile paths; FG profile metadata setup remains unconditional.")
