@@ -189,3 +189,18 @@ Also corrected the earlier `hvdcp_opti` lead: a LineageOS issue investigation de
 Detailed record: [Step 32 — DS28E16 → Gen4 profile selection](BN61-DS28E16-GEN4-PROFILE-SELECTION-STEP32-2026-11-07.md).
 
 No device state or kernel code was changed. BN61 `-6K` remains blocked pending authentic electrical data and validation.
+
+
+## Step 34 addendum — batterysecret init and access control (2026-11-07)
+
+The user's live HyperOS `init.batterysecret.rc` confirms a vendor service declaration running as `user root`, groups `system system wakelock`, explicit SELinux label `u:r:batterysecret:s0`, and starts after `sys.boot_completed=1` and on the `charger` trigger. The RC chmods USB-PD authentication nodes and `bms`, `bms_master`, and `bms_slave` `authentic` sysfs attributes to mode 0664. This establishes a vendor authentication service path, but does not prove that the daemon reads DS28E16 page0/ROMID or supplies data to alioth Gen4.
+
+Termux (UID 10355, `untrusted_app`) can read the RC but receives Permission denied for `/vendor/bin/batterysecret` and `/sys/class/power_supply`. Its `su` wrapper does not provide a working root backend. This is an access-control limitation of the current app shell; it does not show that init's root service is unable to run.
+
+A public alioth LineageOS extraction fixup deliberately removes the exact `seclabel u:r:batterysecret:s0` line from the vendor RC: https://github.com/LineageOS/android_device_xiaomi_alioth/blob/lineage-23.2/extract-files.py (lines 385–390). The source proves the porting fixup, not its rationale or the runtime domain chosen afterward. Do not assume this LineageOS behavior matches the user's HyperOS port.
+
+The gauguin QG issue provides a related but separate example of Xiaomi batterysecret/QG telemetry and DS28E authentication behavior; it is not proof of the alioth PM855B Gen4 path: https://github.com/lineageos/issues/issues/290.
+
+Detailed record: [Step 34 — Batterysecret init and access control](BN61-BATTERYSECRET-INIT-ACCESS-CONTROL-STEP34-2026-11-07.md).
+
+Next: acquire the vendor binary and sysfs snapshots through a permitted ADB shell or existing recovery environment, read-only; hash before analysis; inspect service logs/AVCs; then correlate actual daemon I/O with the Gen4 selector cache. No writes or device changes. BN61 `-6K` remains blocked.
