@@ -57,7 +57,7 @@ The 6000 mAh POCO X3 India variant and the 5160 mAh POCO X3 NFC Global variant m
 - POCO's own community codename list identifies POCO X3 NFC as `surya` and the India-only POCO X3 as `karna`: https://c.po.co/global/post/26914
 - POCO's official X3 NFC specification is 5160 mAh: https://www.po.co/global/poco-x3-nfc/specs/
 - The India POCO X3 was announced with a 6000 mAh battery, unlike the NFC model's 5160 mAh: https://www.gsmarena.com/poco_x3_specs_india_price_sale_date-news-45408.php
-- Nohon BN61 product documentation lists 5850 mAh rated / 6000 mAh typical, 3.87 V nominal and 4.45 V charge limit: https://nohon.com.ua/ua/p2390077415-akkumulyator-dlya-telefona.html
+- The NOHON-branded BN61 listing is hosted on Prom.ua and identifies a local seller/contact. It claims 5850 mAh, 22.6 Wh, 3.87 V discharge voltage and 4.45 V charge voltage; it also says some POCO X3 variants may contain BN57 or BN61 and advises matching the old pack marking. Its “Nohon International” maker and “Original” quality fields are seller claims, not independently authenticated manufacturer evidence: https://nohon.com.ua/ua/p2390077415-akkumulyator-dlya-telefona.html. Targeted searches of official NOHON domains surfaced broad catalogs/company material but no BN61-specific technical sheet; this is a bounded search, not proof that no such document exists: https://en.nohon.cn/Company.html.
 - The India firmware is distributed as `surya_in_global` / `SURYAINGlobal`, build `V13.0.1.0.SJGINXM`; LineageOS lists this as the India variant separately from Global/EEA surya: https://lineageos.github.io/lineage_wiki/devices/surya/install/
 
 The nomenclature is inconsistent across communities and shared source trees: some device lists call the India model `karna`, while the unified kernel/firmware source uses `surya_in_global`. For firmware selection, use the exact region/build identifier `SJGINXM`, not a codename guess.
@@ -68,7 +68,7 @@ A new reproducible audit now targets the official India fastboot ROM `V13.0.1.0.
 
 ## BN61 data currently known
 
-- Battery model: Nohon BN61, labelled 5850 mAh rated / 6000 mAh typical, 3.87 V nominal, 4.45 V charge limit (vendor listing/manual data; not an electrical characterization dataset).
+- User-supplied pack label/specification: NOHON BN61, 5850 mAh rated / 6000 mAh typical, 3.87 V nominal, 4.45 V stated charge limit. The Prom.ua seller listing separately claims 5850 mAh, 3.87 V and 4.45 V. No first-party BN61 specification or independent electrical characterization has been located.
 - Prior project notes specify a nominal target of 5850 mAh and a measured/observed battery-ID resistance around 100.5 kOhm. This is not sufficient to identify the cell chemistry or reconstruct its dynamic response.
 - The M703 file supplies OCV, six impedance tables and temperature-dependent capacity data for the authenticated `61` battery identity. What remains missing is a PM855GUI/Gen4-generated payload for this same model, or the generator and documented mapping needed to produce one safely.
 

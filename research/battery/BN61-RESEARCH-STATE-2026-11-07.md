@@ -23,6 +23,7 @@ This document is a navigation and state-of-evidence record. Detailed raw capture
 - Fuel gauge / PMIC path under study: PM855B / QPNP FG Gen4.
 - User-confirmed pack: NOHON BN61 6000 mAh with its supplied BMS; the original BM4Y BMS was not transferred.
 - Pack label/documentation values supplied by the user: 3.87 V nominal, 4.45 V maximum, 5850 mAh rated / 6000 mAh typical, 22.6 / 23.2 Wh. These are declared specifications, not independent laboratory characterization.
+- Provenance audit (Step 54): the Library workbook marks the BN61 specifications as label/user-declared; a Prom.ua storefront separately repeats several nominal values, but its source is seller content. Targeted official NOHON domain searches surfaced no BN61-specific datasheet. Treat the specifications as user-label and retailer claims, not manufacturer-verified cell data.
 - Live `resistance_id=100500` is approximately 100.5 kΩ. This is consistent with a nominal 100 kΩ ID resistor but is not unique proof of cell identity or NTC curve.
 
 ## 3. Live DS28E16 evidence and profile-selection boundary
@@ -163,6 +164,7 @@ Previous audits:
 - `BN61-EXCEL-TRACKER-CROSSCHECK-STEP51-2026-11-07.md`
 - `SURYA-INDIA-FIRMWARE-AUDIT-OUTPUT-ACCOUNTING-STEP52-2026-11-07.md`
 - `QG-BPIOCXVAR-IOCTL-AND-HVDCP-CONSUMER-STEP53-2026-11-07.md`
+- `BN61-SUPPLIER-PROVENANCE-OEM-CAPACITY-CROSSCHECK-STEP54-2026-11-07.md`
 
 ## 13. Primary source references
 
@@ -185,6 +187,7 @@ Previous audits:
 - **2026-11-07 Step 51:** cross-checked the Library workbook against the research record and recomputed its QG example; no conflicts or BN61 calibration data were added.
 - **2026-11-07 Step 52:** analyzed audit Runs #23/#42, corrected the contaminated ELF/path counters and capped-pipeline diagnostics, reran the India firmware audit, and confirmed the corrected counts with a successful artifact and lint.
 - **2026-11-07 Step 53:** corrected the `BPIOCXVAR` input/output interpretation from pinned source and triaged the Surya binary string hits; `hvdcp_opti` is the leading QG/QBG candidate, while Z/Y units and exact ioctl use remain unproven.
+- **2026-11-07 Step 54:** graded the BN61 specification source as user-label/retailer evidence rather than a first-party datasheet, rechecked BM4Y and POCO X3 capacities against Xiaomi primary documents, and verified only the Wh arithmetic; no calibration fields were added.
 
 
 ## Step 32 addendum — DS28E16 / Gen4 selector (2026-11-07)
