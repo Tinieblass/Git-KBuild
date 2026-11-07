@@ -773,10 +773,11 @@ while IFS= read -r member; do
   fi
   echo | tee -a "$REPORT"
   echo "=== Additional India firmware-volume scan: $member ===" | tee -a "$REPORT"
-  set +e
-  python3 tools/extract_qualcomm_xbl_raw.py --image "$image" --out "$OUT/other-raw/$name" 2>&1 | tee -a "$REPORT"
-  scan_status=${PIPESTATUS[0]}
-  set -e
+  if python3 tools/extract_qualcomm_xbl_raw.py --image "$image" --out "$OUT/other-raw/$name" 2>&1 | tee -a "$REPORT"; then
+    scan_status=0
+  else
+    scan_status=${PIPESTATUS[0]}
+  fi
   if [[ "$scan_status" -ne 0 && "$scan_status" -ne 2 ]]; then
     echo "ERROR: parser failed for $member (exit $scan_status)." | tee -a "$REPORT"
     exit "$scan_status"
