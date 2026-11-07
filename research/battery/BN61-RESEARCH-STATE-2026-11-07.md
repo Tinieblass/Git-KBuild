@@ -204,3 +204,10 @@ The gauguin QG issue provides a related but separate example of Xiaomi batteryse
 Detailed record: [Step 34 — Batterysecret init and access control](BN61-BATTERYSECRET-INIT-ACCESS-CONTROL-STEP34-2026-11-07.md).
 
 Next: acquire the vendor binary and sysfs snapshots through a permitted ADB shell or existing recovery environment, read-only; hash before analysis; inspect service logs/AVCs; then correlate actual daemon I/O with the Gen4 selector cache. No writes or device changes. BN61 `-6K` remains blocked.
+
+
+## Step 35 addendum — live batterysecret SELinux and init (2026-11-07)
+
+The installed HyperOS vendor CIL explicitly permits `batterysecret` to read/write `vendor_sysfs_battery_supply`, `vendor_sysfs_usbpd_device` and `vendor_sysfs_usb_supply` (rules 3891–3952); it has netlink uevent and suspend access. Genfscon maps PM8150B QPNP FG BMS and USB-PD to those labels. `init.target.rc:31` imports `init.batterysecret.rc`; `init.svc.batterysecret=running`, although the untrusted Termux app cannot see its PID or read its executable/sysfs nodes. `bms_master`/`bms_slave` paths are absent in the current view. A separate `health-hal-2-1` service is running. `persist.sys.hybrid_verify.enabled=true` originates in `/product/etc/build.prop:235`, with no demonstrated connection to batterysecret or DS28E16.
+
+Crucial distinction: init chmod and SELinux authorization are **capability**, not evidence of actual BMS writes, DS28E16 ROMID/PAGE0 access, or Gen4 selector influence. Read-only evidence ledger: [Step 35 — Live batterysecret SELinux and init](BN61-BATTERYSECRET-SELINUX-LIVE-STEP35-2026-11-07.md). No device state or kernel/profile changed; -6K remains blocked.
