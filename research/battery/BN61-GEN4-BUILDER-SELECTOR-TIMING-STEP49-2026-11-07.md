@@ -10,6 +10,7 @@ Research-only audit of the kernel source pinned by the Flash-Kernel workflow. No
 - Pinned `ds28e16.c` Git blob: `a4de60611b97d315614729b49b8abc2ee43486ad`.
 
 Primary source links:
+- [Candidate Butterflies source branch with the identical Gen4 driver blob](https://github.com/starscroch/kernel_xiaomi_sm8250/blob/f9263ab88f1b328fab2b34d159a87c63cd45ae56/drivers/power/supply/qcom/qpnp-fg-gen4.c)
 - [Gen4 selector and probe](https://github.com/Sayemx18/kernel_xiaomi_sm8250/blob/4d8105023e3d1474323f4118abc3b4ce6485070d/drivers/power/supply/qcom/qpnp-fg-gen4.c#L2097-L2179)
 - [DS28E16 work scheduling and property cache](https://github.com/Sayemx18/kernel_xiaomi_sm8250/blob/4d8105023e3d1474323f4118abc3b4ce6485070d/drivers/power/supply/qcom/qpnp-fg-gen4.c#L4480-L4630)
 - [FG getter copies ROMID and page0](https://github.com/Sayemx18/kernel_xiaomi_sm8250/blob/4d8105023e3d1474323f4118abc3b4ce6485070d/drivers/power/supply/qcom/qpnp-fg-gen4.c#L5131-L5169)
@@ -26,7 +27,7 @@ Primary source links:
 6. The two zero-delay queues plus 500 ms profile retries create a startup timing window: if authentication is delayed, selection can reach its flag-based fallback before page0 is retrieved. This is a possible ordering issue in the pinned build source, not proof of the running phone's selection. In the user's observed all-`ff` page0 case, even a completed read remains an unrecognized code and does not identify BN61.
 
 ## Runtime-source boundary
-The live device record reports kernel release `4.19.325-butterflies-g2a6da414aeff` (Step 40). The current public candidate repository `starscroch/kernel_xiaomi_sm8250` exposes branch `lineage` at `f9263ab88f1b328fab2b34d159a87c63cd45ae56`; repository commit lookup for the release suffix without its `g` prefix (`2a6da414aeff`) and commit search did not find a matching revision. Treat that repository as an unconfirmed candidate, not the running source. Thus the exact pinned builder semantics above cannot be asserted for the user's currently running Butterflies kernel.
+The live device record reports kernel release `4.19.325-butterflies-g2a6da414aeff` (Step 40). The current public candidate repository `starscroch/kernel_xiaomi_sm8250` exposes branch `lineage` at `f9263ab88f1b328fab2b34d159a87c63cd45ae56`. Its `qpnp-fg-gen4.c` Git blob is also `ba1af3dac45de5c1c3a25e066ed07c512d96c3ae`, byte-identical to the builder-pinned selector file. This corroborates that selector implementation in the candidate source tree, but does not prove which commit or exact binary produced the phone's running kernel. Repository commit lookup for the release suffix without its `g` prefix (`2a6da414aeff`) and commit search did not find a matching revision. Treat the candidate repository as corroborating source-file evidence, not proof of the running source. Thus the exact full kernel, configuration and runtime DT for the user's Butterflies build remain unverified.
 
 ## Outcome and next step
 - No BN61 Gen4 payload, OCV, resistance, NTC, thermal curve or charging limit was inferred.
