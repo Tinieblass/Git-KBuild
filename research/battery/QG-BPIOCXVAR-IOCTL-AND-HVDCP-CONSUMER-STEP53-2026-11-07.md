@@ -23,9 +23,9 @@ Run #42's job log has a per-binary section for `vendor/bin/bin/hvdcp_opti`. Its 
 - `qg_battery` and QG/QBG device-open / ioctl diagnostics;
 - QG total-impedance, ESR and battery-SOC diagnostics.
 
-Its filtered dynamic-symbol output includes an unresolved `ioctl@LIBC` symbol. Together with the coherent QG/QBG string cluster, this makes `hvdcp_opti` the strongest candidate for a QG/QBG consumer or implementation in the four-file keyword screen. The repository's earlier extraction record identifies the same binary as a stripped AArch64 ELF, 311,304 bytes, SHA-256 `6372b250ca1f698c08fc8e40f477d52f619cf36ba31f5759763f42934686feb6`, build ID `56957a3666ce91272b6b8467f85b4f30`.
+Its filtered dynamic-symbol output includes an undefined dynamic import `ioctl@LIBC` symbol. Together with the coherent QG/QBG string cluster, this makes `hvdcp_opti` the strongest candidate for a QG/QBG consumer or implementation in the four-file keyword screen. The repository's earlier extraction record identifies the same binary as a stripped AArch64 ELF, 311,304 bytes, SHA-256 `6372b250ca1f698c08fc8e40f477d52f619cf36ba31f5759763f42934686feb6`, build ID `56957a3666ce91272b6b8467f85b4f30`.
 
-The other three keyword matches are weak: the two `libpdfium.so` variants show only `DOG%D%DQG-D-DRGzDzD`, and `npu_launcher` shows only `|\\gqG-dv`; their log sections show no matching QG-specific symbol names. These are string-screen false positives, not three additional gauge clients.
+The other three keyword matches are weak: the two `libpdfium.so` variants show only `DOG%D%DQG-D-DRGzDzD`, and `npu_launcher` shows only `|\\gqG-dv`; their log sections show no matching QG-specific symbol names. These appear to be string-screen false positives; the logs provide no evidence that they are three additional gauge clients.
 
 This is evidence of a likely QG/QBG-bearing binary, not proof that it issues `BPIOCXVAR`, which table indices it requests, or what scale it applies. The `rconn` and impedance log labels make a relationship to a connection-resistance path plausible, but do not establish that any Z/Y table is resistance, which table feeds that path, or its units. The generic `ioctl` import alone does not identify the ioctl number.
 
