@@ -34,10 +34,13 @@ Files and blob IDs:
 `qg-battery-profile.c` maps the twelve DT properties to `TABLE_Z1..Z6`
 and `TABLE_Y1..Y6`, then exports them through `BPIOCXVAR`.
 
-The UAPI header explicitly describes `var` as an `'X' axis param for
-interpolation` and labels `BPIOCXVAR` as `All-other`. The returned value is
-clamped to the generic range 0..65535. No unit or physical quantity is
-declared for any Z or Y table in this interface.
+The UAPI header labels `BPIOCXVAR` as `All-other` and comments the
+`var` struct field as an `'X' axis param for interpolation`. Source-level
+recheck narrows that wording: in the actual `BPIOCXVAR` handler, the query
+coordinates are `bp.batt_temp` and `bp.soc`; the handler writes the
+interpolated result to `bp.var`. For this ioctl, `var` is the output, not a
+query coordinate. The result is clamped to 0..65535. No unit or physical
+quantity is declared for any Z or Y table in this interface.
 
 The interpolation function consumes:
 - battery temperature in deci-degrees C (converted against the LUT's
