@@ -172,3 +172,20 @@ Previous audits:
 ## Change log
 
 - **2026-11-07:** consolidated the current BN61 state and linked the detailed Steps 28–31. Explicitly corrected KI truncation/denominator and `capacity_raw` interpretation; recorded DS28E16 page0 FF result, Gen4 payload/side-property separation, cross-profile Rslow negative result, and safety boundary. No kernel code, DT, DTBO, SRAM, charge policy or device state changed.
+
+
+## Step 32 addendum — DS28E16 / Gen4 selector (2026-11-07)
+
+A pinned alioth-family source audit (`LineageOS/android_kernel_xiaomi_sm8250`, commit `6b34d24765327d746074c8e53b5ad0d24a51acc7`) found a **Gen4-specific vendor-letter selector** in `fg_gen4_get_batt_profile()`. It validates the DS28E16 ROMID signature and then maps page0[0] letters C/V, N/A, S/X, U to GY, NVT, SUN and FMT profiles respectively. Unknown page0[0] increments a retry counter; after five retries it uses a DT-flag-dependent fallback (normally `j2gybm4n_4780mah`, with SUN/K11A alternatives).
+
+This is **not** Surya QG's separate page0[3:4] ASCII `57`/`61` selector. The two selectors belong to different driver paths and must not be mixed.
+
+The same Gen4 driver has a subtle ordering dependency: delayed diagnostic workers fetch ROMID/status/page0 into local `pval` and log them, but the chip's cached `ds_romid`, `ds_status`, `ds_page0` arrays are populated by the FG power-supply property getter when those properties are queried. Authentication success alone does not prove that the selector cache contains vendor data before profile selection.
+
+The user's observed ROMID matches the structural signature in this source, but page0[0]=`0xff` is not a recognized vendor code. If those bytes are the selector cache contents at lookup time, the code retries and eventually falls back; it does not select a Nohon-specific or 6000 mAh profile. The proprietary `vendor/bin/batterysecret` listed in the alioth device manifest is now a concrete read-only reverse-engineering target for establishing init/property-query ordering.
+
+Also corrected the earlier `hvdcp_opti` lead: a LineageOS issue investigation describes it as Quick Charge adapter-voltage/thermal handling, distinct from `batterysecret` and QG telemetry. This is evidence from a gauguin QG implementation, not proof of identical behaviour on alioth's current ROM.
+
+Detailed record: [Step 32 — DS28E16 → Gen4 profile selection](BN61-DS28E16-GEN4-PROFILE-SELECTION-STEP32-2026-11-07.md).
+
+No device state or kernel code was changed. BN61 `-6K` remains blocked pending authentic electrical data and validation.
