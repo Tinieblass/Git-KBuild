@@ -159,6 +159,7 @@ Previous audits:
 - `QG-SIX-CHANNEL-RC-REVERSE-ENGINEERING-2026-11-06.md`
 - `PM855GUI-QUALCOMM-CHECKSUM-REVERSE-ENGINEERING-2026-11-06.md`
 - `SURYA-XBL-RAW-AUDIT-2026-11-02.md`
+- `SURYA-INDIA-FASTBOOT-AUDIT-STEP50-2026-11-07.md`
 - `BN61-GEN4-BUILDER-SELECTOR-TIMING-STEP49-2026-11-07.md`
 
 ## 13. Primary source references
@@ -166,6 +167,7 @@ Previous audits:
 - Flash-Kernel builder-pinned Gen4 driver (exact builder pin): https://github.com/Sayemx18/kernel_xiaomi_sm8250/blob/4d8105023e3d1474323f4118abc3b4ce6485070d/drivers/power/supply/qcom/qpnp-fg-gen4.c
 - Flash-Kernel builder-pinned alioth DT source: https://github.com/Sayemx18/kernel_xiaomi_sm8250/blob/4d8105023e3d1474323f4118abc3b4ce6485070d/arch/arm64/boot/dts/vendor/qcom/alioth-sm8250.dtsi
 - Flash-Kernel builder-pinned Maxim DS28E16 driver: https://github.com/Sayemx18/kernel_xiaomi_sm8250/blob/4d8105023e3d1474323f4118abc3b4ce6485070d/drivers/power/supply/maxim/ds28e16.c
+- Official India POCO X3 firmware audit script: https://github.com/Tinieblass/Git-KBuild/blob/70def7bb989466029f0b5681b6cda1a307cf5be1/tools/audit_surya_india_fastboot.sh
 - Qualcomm QG profile source: https://android.googlesource.com/kernel/msm/%2B/refs/heads/android-msm-orbital-4.9-pie-wear-drivers/power/supply/qcom/qg-battery-profile.c
 - Qualcomm batterydata binding (Rslow/thermistor properties): https://android.googlesource.com/kernel/msm/%2B/13781d611bd0d713da1c3b17de8a82a1f38a674c/Documentation/devicetree/bindings/batterydata/batterydata.txt
 - Qualcomm Gen4 driver Rslow implementation: https://android.googlesource.com/kernel/msm/%2B/cac892741c52c1875d40f642559e4e7026602da6/drivers/power/supply/qcom/qpnp-fg-gen4.c
@@ -177,6 +179,7 @@ Previous audits:
 
 - **2026-11-07:** consolidated the current BN61 state and linked the detailed Steps 28–31. Explicitly corrected KI truncation/denominator and `capacity_raw` interpretation; recorded DS28E16 page0 FF result, Gen4 payload/side-property separation, cross-profile Rslow negative result, and safety boundary. No kernel code, DT, DTBO, SRAM, charge policy or device state changed.
 - **2026-11-07 Step 49:** pinned the exact Flash-Kernel build-source Gen4 selector, startup retry order, and DT fallback; separated it from the unverified running Butterflies kernel. No calibration or kernel/DT change.
+- **2026-11-07 Step 50:** corrected expected no-UEFI scan logging, reran the official POCO X3 India firmware audit, verified ROM MD5/SHA-256 and recorded the Actions artifact digest. The 22 M703 profile occurrences remain QG data for Surya, not a BN61 alioth Gen4 calibration.
 
 
 ## Step 32 addendum — DS28E16 / Gen4 selector (2026-11-07)
