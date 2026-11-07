@@ -480,7 +480,7 @@ GO
 
     strings -a -n 8 "$partition_image" \
       | grep -Ei '(^|[^[:alnum:]])(BN61|M703)([^[:alnum:]]|$)|BATTERY[.]PROVISION|PM855GUI|qcom,fg-profile-data|qcom,nom-batt-capacity-mah|qcom,pc-temp-|batterydata-M703|qg-battery-profile|qpnp-qg|qpnp-fg-gen4|thermistor|QG-D|QBG-D' \
-      | head -n 250 \
+      | sed -n '1,250p' \
       | sed "s#^#[$partition_name raw] #" >> "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" || true
   done
 
@@ -488,13 +488,16 @@ GO
     | grep -Ei 'battery|fuel.?gauge|qg|fg.?profile|pmic|charger|thermistor|provision|bn61|m703' \
     > "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt" || true
   grep -RInaI -E '(^|[^[:alnum:]])(BN61|M703)([^[:alnum:]]|$)|BATTERY[.]PROVISION|PM855GUI|qcom,fg-profile-data|qcom,nom-batt-capacity-mah|qcom,pc-temp-|batterydata-M703|qg-battery-profile|qpnp-qg|qpnp-fg-gen4|thermistor|QG-D|QBG-D' \
-    "$SUPER_FILES" 2>/dev/null | head -n 500 >> "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" || true
+    "$SUPER_FILES" 2>/dev/null | sed -n '1,500p' >> "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" || true
 
   # Reverse-engineer the actual QG/QBG userspace consumers. The previous
   # pass only searched raw partition strings and /etc,/firmware; it did not
   # extract the ELF trees where ioctl callers and fixed-point scales live.
-  ELF_MANIFEST="$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt"
-  QG_BINARY_HITS="$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt"
+  # Keep ELF outputs separate so battery path/content counts remain scoped.
+  ELF_MANIFEST="$SUPER_AUDIT/SUPER-ELF-MANIFEST.tsv"
+  QG_BINARY_HITS="$SUPER_AUDIT/SUPER-QG-BINARY-HITS.txt"
+  : > "$ELF_MANIFEST"
+  : > "$QG_BINARY_HITS"
   QG_PATTERN='BPIOCXVAR|BPIOCXSOC|BPIOCXOCV|BPIOCXFCC|BPIOCXSLOPE|/dev/qg_battery|qg_battery|QG-D|QBG-D|Lookup VAR|Lookup ESR|Lookup SLOPE|profile-param|m703-atl-6000mah|DS28E16|BATT_ID|battery_profile'
   printf '\n=== Extracted ELF inventory (paths, sizes, hashes) ===\n' >> "$ELF_MANIFEST"
   printf 'relative_path\tbytes\tsha256\tfile_type\n' >> "$ELF_MANIFEST"
@@ -529,7 +532,8 @@ GO
     echo "Extraction diagnostics: $SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
     echo "ELF files inventoried from extracted bin/lib trees: $ELF_COUNT"
     echo "ELF files containing QG/QBG consumer strings: $QG_ELF_COUNT"
-    echo "ELF manifest and binary-level QG hits are appended to the existing battery path/content reports."
+    echo "ELF manifest: $ELF_MANIFEST"
+    echo "Binary-level QG/QBG hits: $QG_BINARY_HITS"
   } | tee -a "$REPORT"
 
   PARTITION_COUNT=$(($(wc -l < "$SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv") - 1))
@@ -538,7 +542,7 @@ GO
     echo "Dynamic partitions: $PARTITION_COUNT vendor/odm/product/system_ext/system partition image(s) extracted and hashed."
     echo "Partition manifest: $SUPER_AUDIT/SUPER-PARTITION-MANIFEST.tsv"
     echo "Battery-related file paths: $(wc -l < "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt" | tr -d '[:space:]')"
-    echo "Battery-related file/string hits: $(wc -l < "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" | tr -d '[:space:]')"
+    echo "Battery-related content hit lines (capped): $(wc -l < "$SUPER_AUDIT/SUPER-BATTERY-CONTENT-HITS.txt" | tr -d '[:space:]')"
     echo "Filesystem extraction log: $SUPER_AUDIT/SUPER-FILESYSTEM-EXTRACTION.log"
   } | tee -a "$REPORT"
   sed -n '1,250p' "$SUPER_AUDIT/SUPER-BATTERY-PATH-HITS.txt" | tee -a "$REPORT"
@@ -800,7 +804,7 @@ fi
 echo | tee -a "$REPORT"
 echo "=== India XBL battery / fuel-gauge strings ===" | tee -a "$REPORT"
 strings -a "$XBL" | grep -Ei 'battery|fuel.?gauge|pm855|qpnp|qg|provision|thermistor|m703|bn61|bn57|atl|DS28E16' \
-  | head -n 500 | tee "$OUT/xbl-string-hits.txt" | tee -a "$REPORT" || true
+  | sed -n '1,500p' | tee "$OUT/xbl-string-hits.txt" | tee -a "$REPORT" || true
 
 echo | tee -a "$REPORT"
 echo "=== India XBL extracted RAW inventory ===" | tee -a "$REPORT"

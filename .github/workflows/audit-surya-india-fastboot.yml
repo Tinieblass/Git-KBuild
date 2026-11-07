@@ -76,6 +76,8 @@ jobs:
             surya-india-firmware-audit/super-audit/SUPER-PARTITION-MANIFEST.tsv
             surya-india-firmware-audit/super-audit/SUPER-BATTERY-PATH-HITS.txt
             surya-india-firmware-audit/super-audit/SUPER-BATTERY-CONTENT-HITS.txt
+            surya-india-firmware-audit/super-audit/SUPER-ELF-MANIFEST.tsv
+            surya-india-firmware-audit/super-audit/SUPER-QG-BINARY-HITS.txt
             surya-india-firmware-audit/super-audit/SUPER-FILESYSTEM-EXTRACTION.log
             surya-india-firmware-audit/super-audit/SUPER-ROOT-DIR-LISTINGS.txt
             surya-india-firmware-audit/super-audit/files/**/rdump-*.log
