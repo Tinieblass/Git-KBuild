@@ -136,14 +136,13 @@ Previous audits:
 
 ## 11. Next research targets
 
-1. Read and analyze the Run #23 product/system_ext audit before any repeated firmware scan.
-2. Inspect Surya vendor `/lib`, `/lib64`, `/bin` consumers for QG/QBG channel order, scales and units; current prior audit focused on vendor `/etc` and `/firmware`.
-3. Trace Z/Y through `BPIOCXVAR` to every kernel/userspace consumer and prove units, channel mapping and transforms.
-4. Identify PM855GUI project/export format or obtain a genuine BN61 Gen4 provision.
-5. Obtain paired QG + Gen4 profiles for the same battery, or controlled pulse/relaxation measurements plus the exact Gen4 fitting procedure, before attempting Rslow reconstruction.
-6. Characterize NTC R/T curve, OCV after rest at multiple SOC/temperatures, FCC, DCIR/transient response and thermal behaviour with appropriate lab instrumentation.
-7. Match the live kernel release `4.19.325-butterflies-g2a6da414aeff` to its exact source; Step 49 audits only the Flash-Kernel build pin, not the running image.
-8. Only then build a candidate, marking every field measured, source-derived, inferred or unknown, and validate outside the phone before installation.
+1. Inspect Run #43's separated ELF manifest and QG/QBG binary-hit artifact; distinguish real consumers from the four keyword-matched ELF candidates, starting with `hvdcp_opti`.
+2. Trace Z/Y through `BPIOCXVAR` to every kernel/userspace consumer and prove units, channel mapping and transforms.
+3. Identify PM855GUI project/export format or obtain a genuine BN61 Gen4 provision.
+4. Obtain paired QG + Gen4 profiles for the same battery, or controlled pulse/relaxation measurements plus the exact Gen4 fitting procedure, before attempting Rslow reconstruction.
+5. Characterize NTC R/T curve, OCV after rest at multiple SOC/temperatures, FCC, DCIR/transient response and thermal behaviour with appropriate lab instrumentation.
+6. Match the live kernel release `4.19.325-butterflies-g2a6da414aeff` to its exact source; Step 49 audits only the Flash-Kernel build pin, not the running image.
+7. Only then build a candidate, marking every field measured, source-derived, inferred or unknown, and validate outside the phone before installation.
 
 
 ## 12. Detailed evidence notes in this repository
@@ -162,6 +161,7 @@ Previous audits:
 - `BN61-GEN4-BUILDER-SELECTOR-TIMING-STEP49-2026-11-07.md`
 - `SURYA-INDIA-FASTBOOT-AUDIT-STEP50-2026-11-07.md`
 - `BN61-EXCEL-TRACKER-CROSSCHECK-STEP51-2026-11-07.md`
+- `SURYA-INDIA-FIRMWARE-AUDIT-OUTPUT-ACCOUNTING-STEP52-2026-11-07.md`
 
 ## 13. Primary source references
 
@@ -182,6 +182,7 @@ Previous audits:
 - **2026-11-07 Step 49:** pinned the exact Flash-Kernel build-source Gen4 selector, startup retry order, and DT fallback; separated it from the unverified running Butterflies kernel. No calibration or kernel/DT change.
 - **2026-11-07 Step 50:** corrected expected no-UEFI scan logging, reran the official POCO X3 India firmware audit, verified ROM MD5/SHA-256 and recorded the Actions artifact digest. The 22 M703 profile occurrences remain QG data for Surya, not a BN61 alioth Gen4 calibration.
 - **2026-11-07 Step 51:** cross-checked the Library workbook against the research record and recomputed its QG example; no conflicts or BN61 calibration data were added.
+- **2026-11-07 Step 52:** analyzed audit Runs #23/#42, corrected the contaminated ELF/path counters and capped-pipeline diagnostics, reran the India firmware audit, and confirmed the corrected counts with a successful artifact and lint.
 
 
 ## Step 32 addendum — DS28E16 / Gen4 selector (2026-11-07)
