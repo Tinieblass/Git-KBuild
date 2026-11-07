@@ -144,7 +144,7 @@ Previous audits:
 6. Characterize NTC R/T curve, OCV after rest at multiple SOC/temperatures, FCC, DCIR/transient response and thermal behaviour with appropriate lab instrumentation.
 7. Match the live kernel release `4.19.325-butterflies-g2a6da414aeff` to its exact source; Step 49 audits only the Flash-Kernel build pin, not the running image.
 8. Only then build a candidate, marking every field measured, source-derived, inferred or unknown, and validate outside the phone before installation.
-9. Cross-check the registered Excel tracker cell-by-cell against the evidence notes when its workbook content is available; the saved filename/hash alone cannot establish worksheet contents.
+
 
 ## 12. Detailed evidence notes in this repository
 
@@ -159,8 +159,9 @@ Previous audits:
 - `QG-SIX-CHANNEL-RC-REVERSE-ENGINEERING-2026-11-06.md`
 - `PM855GUI-QUALCOMM-CHECKSUM-REVERSE-ENGINEERING-2026-11-06.md`
 - `SURYA-XBL-RAW-AUDIT-2026-11-02.md`
-- `SURYA-INDIA-FASTBOOT-AUDIT-STEP50-2026-11-07.md`
 - `BN61-GEN4-BUILDER-SELECTOR-TIMING-STEP49-2026-11-07.md`
+- `SURYA-INDIA-FASTBOOT-AUDIT-STEP50-2026-11-07.md`
+- `BN61-EXCEL-TRACKER-CROSSCHECK-STEP51-2026-11-07.md`
 
 ## 13. Primary source references
 
@@ -180,6 +181,7 @@ Previous audits:
 - **2026-11-07:** consolidated the current BN61 state and linked the detailed Steps 28–31. Explicitly corrected KI truncation/denominator and `capacity_raw` interpretation; recorded DS28E16 page0 FF result, Gen4 payload/side-property separation, cross-profile Rslow negative result, and safety boundary. No kernel code, DT, DTBO, SRAM, charge policy or device state changed.
 - **2026-11-07 Step 49:** pinned the exact Flash-Kernel build-source Gen4 selector, startup retry order, and DT fallback; separated it from the unverified running Butterflies kernel. No calibration or kernel/DT change.
 - **2026-11-07 Step 50:** corrected expected no-UEFI scan logging, reran the official POCO X3 India firmware audit, verified ROM MD5/SHA-256 and recorded the Actions artifact digest. The 22 M703 profile occurrences remain QG data for Surya, not a BN61 alioth Gen4 calibration.
+- **2026-11-07 Step 51:** cross-checked the Library workbook against the research record and recomputed its QG example; no conflicts or BN61 calibration data were added.
 
 
 ## Step 32 addendum — DS28E16 / Gen4 selector (2026-11-07)
