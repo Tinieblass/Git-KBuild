@@ -50,19 +50,18 @@ The M703 source was parsed and all **16 LUTs / 4323 scalar entries** passed row/
 | `pc-temp-y5-lut` | 56 | 6 | 336 |
 | `pc-temp-y6-lut` | 56 | 6 | 336 |
 
-## Critical device-variant distinction: BN61 / karna versus BN57 / surya
+## Critical device-variant distinction: POCO X3 India (SJGINXM) versus POCO X3 NFC Global
 
 The 6000 mAh POCO X3 India variant and the 5160 mAh POCO X3 NFC Global variant must not be conflated:
 
 - POCO's own community codename list identifies POCO X3 NFC as `surya` and the India-only POCO X3 as `karna`: https://c.po.co/global/post/26914
-- POCO's official X3 NFC specification is 5160 mAh: https://www.po.co/global/poco-x3-nfc/specs/
-- The India POCO X3 was announced with a 6000 mAh battery, unlike the NFC model's 5160 mAh: https://www.gsmarena.com/poco_x3_specs_india_price_sale_date-news-45408.php
+- Xiaomi's official POCO X3 NFC specification gives 5160 mAh typical, while its Bangladesh product page identifies a separate “POCO X3 6000mAh Edition”: https://www.mi.com/es/poco-x3-nfc/specs/, https://www.mi.com/bd/poco-x3/. The model pages support separating the product families; the official India `SJGINXM` firmware audit in this repository independently identifies the 6000 mAh M703 ATL QG dataset. Neither fact establishes the battery part in every handset or maps it to BN61.
 - The NOHON-branded BN61 listing is hosted on Prom.ua and identifies a local seller/contact. It claims 5850 mAh, 22.6 Wh, 3.87 V discharge voltage and 4.45 V charge voltage; it also says some POCO X3 variants may contain BN57 or BN61 and advises matching the old pack marking. Its “Nohon International” maker and “Original” quality fields are seller claims, not independently authenticated manufacturer evidence: https://nohon.com.ua/ua/p2390077415-akkumulyator-dlya-telefona.html. Targeted searches of official NOHON domains surfaced broad catalogs/company material but no BN61-specific technical sheet; this is a bounded search, not proof that no such document exists: https://en.nohon.cn/Company.html.
 - The India firmware is distributed as `surya_in_global` / `SURYAINGlobal`, build `V13.0.1.0.SJGINXM`; LineageOS lists this as the India variant separately from Global/EEA surya: https://lineageos.github.io/lineage_wiki/devices/surya/install/
 
 The nomenclature is inconsistent across communities and shared source trees: some device lists call the India model `karna`, while the unified kernel/firmware source uses `surya_in_global`. For firmware selection, use the exact region/build identifier `SJGINXM`, not a codename guess.
 
-The previously audited XBL package `V12.5.8.0.RJGMIXM` was the Global NFC firmware, not the India 6000 mAh build. Its negative result (no `BATTERY.PROVISION` among the extracted RAW sections) must not be generalized to the India firmware. The M703 ATL 6000 mAh QG profile is a much stronger lead for the BN61/6000 mAh variant, but its DS28E16 identifier `61` and QG data still do not constitute a PM855B Gen4 payload.
+The previously audited XBL package `V12.5.8.0.RJGMIXM` was the Global NFC firmware, not the India 6000 mAh build. Its negative result (no `BATTERY.PROVISION` among the extracted RAW sections) must not be generalized to the India firmware. The M703 ATL 6000 mAh QG profile is verified as a reference in the official India 6000 mAh firmware and remains a research lead for the user's similarly rated BN61 replacement. Its DS28E16 selector token `61` and capacity do not establish that this aftermarket cell is electrically identical, or that a handset model/codename determines whether its installed pack is BN61.
 
 A new reproducible audit now targets the official India fastboot ROM `V13.0.1.0.SJGINXM`, expected MD5 `15727cb7de21880a9f0ff788f1e4a035`. It extracts only boot-chain images from the verified archive and inspects XBL/UEFI RAW records without publishing proprietary binaries. Workflow: `.github/workflows/audit-surya-india-fastboot.yml`.
 

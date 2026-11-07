@@ -187,7 +187,7 @@ Previous audits:
 - **2026-11-07 Step 51:** cross-checked the Library workbook against the research record and recomputed its QG example; no conflicts or BN61 calibration data were added.
 - **2026-11-07 Step 52:** analyzed audit Runs #23/#42, corrected the contaminated ELF/path counters and capped-pipeline diagnostics, reran the India firmware audit, and confirmed the corrected counts with a successful artifact and lint.
 - **2026-11-07 Step 53:** corrected the `BPIOCXVAR` input/output interpretation from pinned source and triaged the Surya binary string hits; `hvdcp_opti` is the leading QG/QBG candidate, while Z/Y units and exact ioctl use remain unproven.
-- **2026-11-07 Step 54:** graded the BN61 specification source as user-label/retailer evidence rather than a first-party datasheet, rechecked BM4Y and POCO X3 capacities against Xiaomi primary documents, and verified only the Wh arithmetic; no calibration fields were added.
+- **2026-11-07 Step 54:** graded BN61 specifications as user-label/retailer evidence, corrected a one-to-one POCO X3 codename-to-pack implication, distinguished Xiaomi's 5160 mAh X3 NFC from its separately named 6000 mAh X3 edition and India firmware data, and checked Wh arithmetic; no calibration fields were added.
 
 
 ## Step 32 addendum — DS28E16 / Gen4 selector (2026-11-07)
