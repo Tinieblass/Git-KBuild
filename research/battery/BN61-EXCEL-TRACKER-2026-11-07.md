@@ -1,15 +1,18 @@
 # BN61 QG→Gen4 research workbook — canonical tracker
 
-Updated: 2026-11-08 (Third QG↔Gen4 FCC2 anchor and real 5K profile rejection, R2)
+Updated: 2026-11-08 (six-source Gen4 alias control + exact alioth FG phandle and FFC limits)
 
-## Current master workbook (version 14)
+## Current master workbook (version 15)
 - Filename: `BN61_Investigacion_QG_Gen4.xlsx`
 - Saved to user's ChatGPT Library: `/Investigacion BN61/BN61_Investigacion_QG_Gen4.xlsx`
-- Verified SHA-256: `63bcbdae49643ffb62a2b3b96b8534f85f26f98e7a9dd81a39017e60d2b72f1c`
-- Size: 93,891 bytes. Valid XLSX ZIP container, no missing compressed entries.
-- **21 sheets:** prior 19 plus `Tres pares FCC2` (source-backed Alium/MLP/Ascent 3-of-3 identity with formula and bytes-difference checks) and `Filtro BN61 6K` (5 actual J3S 5K rejection gates and missing genuine-cell requirements).
-- 122 findings, 44 research/progress items, 61 source records. New third pinned named-family FCC2=Gen4 nominal capacity match; source checksum/Rslow verified, and J3S from user's actual Butterflies 5K rejected offline on five independent safety/identity grounds.
+- Verified SHA-256: `43b75b8e64ef144636329ce17e05521df3b98203f0888adb38e46626a7e2dc8d`
+- Size: 101,588 bytes. Valid XLSX ZIP container, no missing compressed entries.
+- **23 sheets:** previous 21 plus `Alias 6x Gen4` (six distinct OEM labels, byte-identical provision payload, computed label differences) and `FFC alioth 5K` (FG phandle/selected-node proof, normal/FFC/PD/QC3 settings and formula-driven 4.45V deltas).
+- 129 findings, 47 research/progress items, 66 source records. New exact 6-file 416B OEM alias (payload SHA 06a76fff...91b8a), phandle-resolved actual alioth FG selection and source-supported possible FFC 4.45→4.46V ceiling; now rejects 5 known non-NOHON donors by payload hash.
 - Workbook source is kept in ChatGPT Library, not as a GitHub binary. GitHub is used for the audit notes and checksum provenance; **do not claim XLSX bytes are in this repo**.
+
+## Previous v14 master audit state
+- v14 SHA-256 `63bcbdae49643ffb62a2b3b96b8534f85f26f98e7a9dd81a39017e60d2b72f1c`, 93,891 bytes, 21 sheets; canonical Library version overwritten by v15.
 
 ## Previous v13 master audit state
 - v13 SHA-256 `ddc3a0a6f609dd7ec35a0b20469ffe56e9a71ae4f33879ddcec4fcdb7f1b1e7a`, 86,252 bytes, 19 sheets; canonical Library version now v14.
@@ -89,6 +92,8 @@ Updated: 2026-11-08 (Third QG↔Gen4 FCC2 anchor and real 5K profile rejection, 
 - **Ascent is third named-family QG/Gen4 capacity anchor:** QG FCC1(25°C)=3481mAh, FCC2(25°C)=**3492mAh**; Gen4 word271=**3492mAh**, exactly 416 bytes, checksum independently `0xC0ED`, Rslow normal offsets26–29 verified and cold external vector present. Third Gen4 payload is NOT byte-identical to the first two: pairwise differing bytes 292, 285 and 283. Crucial caveat: QG source dates Feb 2018 versus Gen4 Feb 2019, so *same laboratory specimen not proven*. Source: [third-pair audit](BN61-THIRD-QG-GEN4-MATCH-AND-REAL-ZIP-REJECTION-2026-11-08.md) and [machine-readable triplet](models/THREE-QG-GEN4-FCC2-25C-ANCHORS-NOT-BN61.json).
 - **Real device ZIP controls:** J3S 416-byte SHA `433cf6279d867be89b08ddb10a7fff0460c42c944cd253f702733033eef603dd` occurs in 5K DTBO **both alioth overlay #3 and apollo #4**. The fail-closed [candidate validator](../../tools/validate_nohon_bn61_gen4_candidate.py) on the actual 416 bytes rejects J3S as BN61 on **five** gates (donor identity, max4.48V, JEITA4.48V, FFC threshold4.49V, J3S label), despite a valid OEM checksum BE8D. No flashing or cellphone modification.
 - **R2 user model manifest:** [NOHON_BN61_RECONSTRUCTION_R2_NOT_FLASHABLE.json](models/NOHON_BN61_RECONSTRUCTION_R2_NOT_FLASHABLE.json) preserves genuine unknowns and limits. NOHON manual still states max4.45V and 5850 rated/6000 typical; public reports of other packs' 5350–5800 estimates are anecdotal, NOT measurement of this cell. The exact cell OCV/FCC/Rslow/NTC and full 416B NOHON Gen4 profile remain absent.
+
+- **Step59 correction/safety:** This alioth FDT contains **two distinct battery-data nodes**: FG `qcom,battery-data=<0x07>` selects the Xiaomi-specific node at fragment127 (5K only J3S), whereas generic Alium/Ascent live under fragment77 phandle `0x12B` and are not selected by this FG reference. FDT __local_fixups__ must be excluded from runtime property scans. Selected charger `mi,support-ffc` has a 4450mV non-FFC and 4460mV HW FV ceiling; PD 4450/4460mV, QC3 4420mV. Pinned Qualcomm source removes NON_FFC_VFLOAT_VOTER on FFC enable. **Not proof of live terminal voltage or actual FFC state.** Exact forensic note [Step59](BN61-BUTTERFLIES-A17-FG-PHANDLE-FFC-AND-SIX-ALIASES-STEP59-2026-11-08.md), reproducible [FDT auditor](../../tools/audit_butterflies_alioth_charge_policy.py).
 
 ## Continuous updating
 Add new evidence to the canonical XLSX using unique IDs, date, provenance, exact kernel/source version, and confidence/limitations. Update this SHA-256 and GitHub note after each verified workbook save. Do not duplicate previous interpolations, Z/Y mappings, RC pairings, checksum research, or profile-to-SRAM addressing results without an explicit new question.
