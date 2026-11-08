@@ -1,0 +1,134 @@
+{
+  "artifact_kind": "EVIDENCE_GATED_PARTIAL_RECONSTRUCTION_ONLY__NOT_FLASHABLE",
+  "revision": "2026-11-08/R2",
+  "physical_target": {
+    "device": "POCO F3 5G / alioth",
+    "pmic": "Qualcomm PM8150B FG Gen4",
+    "android": "Android 17 HyperOS port",
+    "active_kernel_version": "4.19.325-butterflies-g2a6da414aeff",
+    "installed_pack_label": "NOHON BN61",
+    "capacity_rated_mAh_declaration": 5850,
+    "capacity_typical_mAh_declaration": 6000,
+    "nominal_voltage_V_declaration": 3.87,
+    "max_cell_charge_voltage_V_declaration": 4.45,
+    "batt_id_ohms_user_observation": 100500,
+    "batt_id_unique_identity_verified": false,
+    "authentic_model_proven": false
+  },
+  "reference_input": {
+    "name": "M703 ATL 6000mAh OEM QG (not proven same cell)",
+    "reconstructed_source_lut_count": 16,
+    "reconstructed_source_value_count": 4323,
+    "filename": "M703-ATL-6000mAh-QG-16-LUT-REFERENCE-NOT-BN61.json",
+    "source_url": "https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/21aca2e848f6697311ad801176e4c4aa4ddc52c7/arch/arm64/boot/dts/qcom/batterydata-M703-ATL-6000mah.dtsi",
+    "reference_FCC2_at_25C_mAh": 5955,
+    "reference_FCC2_is_NOHON_nominal_capacity": false,
+    "reference_charge_ffc_limit_4_48V_is_transferable": false
+  },
+  "verified_format_constraints": {
+    "gen4_profile_length_bytes": 416,
+    "profile_start_sram_word": 65,
+    "profile_comparison_length_bytes_in_pinned_driver": 24,
+    "internal_capacity_word": 271,
+    "internal_capacity_byte_offset": 412,
+    "rslow_runtime_word": 78,
+    "rslow_runtime_byte_offsets": [
+      26,
+      27,
+      28,
+      29
+    ],
+    "checksum_algorithm_known_from_prior_PM855GUI_analysis": true,
+    "format_is_reconstructible_without_pack_specific_calibration": false
+  },
+  "nohon_unresolved_electrical_parameters": {
+    "authentic_PM855GUI_416_byte_profile": null,
+    "authentic_gen4_internal_capacity_mAh": null,
+    "authentic_OCV_charge_surface": null,
+    "authentic_OCV_discharge_surface": null,
+    "authentic_FCC_vs_temperature": null,
+    "authentic_Z1_Z6": null,
+    "authentic_Y1_Y6": null,
+    "authentic_rslow_normal_4byte_vector": null,
+    "authentic_rslow_cold_4byte_vector": null,
+    "authentic_pack_NTC_R_T_or_Gen4_coeffs": null,
+    "authentic_dynamic_impedance_profile": null,
+    "measured_pack_charge_voltage": null,
+    "installer_slot_DTBO_hash_at_runtime": null
+  },
+  "unsafe_transfers_rejected": {
+    "copy_J3S_5000mAh_electrical_profile": true,
+    "replace_just_capacity_in_416_bytes": true,
+    "transplant_M703_ATL_QG_as_NOHON_Gen4": true,
+    "copy_J3S_4_48V_4_49V_charging_thresholds": true,
+    "assume_BMS_charge_full_5037mAh_is_physically_measured": true
+  },
+  "stage_gates": {
+    "source_QG_ATL_normalized": "PASS_FOR_REFERENCE_ONLY",
+    "Gen4_structure_and_checksum_from_other_OEMs": "PASS_FOR_FORMAT_ONLY",
+    "same_cell_QG_Gen4_transform": "NOT_VALIDATED",
+    "NOHON_cell_data_and_normal_cold_Rslow": "MISSING",
+    "NOHON_NTC_and_charger_policy": "MISSING",
+    "4_45V_charge_limit_actually_enforced": "NOT_VERIFIED",
+    "candidate_6K_DTBO": "BLOCKED",
+    "flashable_6K_build": "BLOCKED",
+    "third_cross_format_family_Ascent": "PASS_FCC2_TO_NOM_CAP_SCALAR_ONLY",
+    "actual_5K_zip_passes_NOHON_checks": "FAIL_5_J3S_INCOMPATIBILITIES",
+    "actual_NOHON_416B_genuine": "MISSING",
+    "source_and_live_charger_4_45V_agreement": "NOT_VERIFIED"
+  },
+  "safe_to_flash": false,
+  "user_device_modified": false,
+  "provenance": "User-provided pack specifications and kernel diagnostics; pinned OEM/Qualcomm sources; see BN61 research notes and user Butterflies 5K ZIP forensic audit. No runtime writes, no active experiments.",
+  "cross_format_provision_capacity_evidence": {
+    "status": "THREE_NAMED_FAMILY_MATCHES__NOT_SAME_SPECIMEN_PROVEN",
+    "candidate_rule": "QG FCC2 at 25 degrees Celsius == Gen4 internal little endian uint16 at payload offset 412 / SRAM word271",
+    "family_anchors_mAh": {
+      "Alium": 3588,
+      "MLP466076": 3314,
+      "Ascent": 3492
+    },
+    "ascent_verified_checksum": "C0ED",
+    "identical_payload_between_three_families": false,
+    "gen4_changed_bytes": {
+      "Alium_vs_MLP466076": 292,
+      "Alium_vs_Ascent": 285,
+      "MLP466076_vs_Ascent": 283
+    },
+    "shared_identical_bytes_across_three": 99,
+    "qg_gen4_same_sample_and_date_proven": false,
+    "nohon_FCC2_at_25C_measured": null,
+    "nohon_word271_authentic": null,
+    "effect_on_416_byte_reconstruction": "insufficient; only scalar candidate with three named-family validations",
+    "reference_dataset": "research/battery/models/THREE-QG-GEN4-FCC2-25C-ANCHORS-NOT-BN61.json"
+  },
+  "real_butterflies_zip_negative_controls": {
+    "actual_zip_file": "butterflies-orchid_MIUI-HOS_01-11-5k.zip",
+    "zip_sha256": "17d0d5c37e2007e5b33b57b174c2b7eb87b01a0f5bd1fb514ac63830d702a434",
+    "j3s_payload_sha256": "433cf6279d867be89b08ddb10a7fff0460c42c944cd253f702733033eef603dd",
+    "same_416b_payload_in_dtbo_entries": {
+      "alioth": 3,
+      "apollo": 4
+    },
+    "j3s_internal_capacity_mAh": 5037,
+    "j3s_checksum": "BE8D",
+    "non_nohon_candidate_rejection_count": 5,
+    "rejection_reasons": [
+      "J3S 416-byte donor identity",
+      "J3S 4.48V max >NOHON 4.45V",
+      "JEITA 4.48V >NOHON 4.45V",
+      "FFC CC/CV threshold 4.49V >NOHON 4.45V",
+      "J3S battery-type not NOHON"
+    ],
+    "validator": "tools/validate_nohon_bn61_gen4_candidate.py",
+    "candidate_to_flash": false
+  },
+  "new_manufacturer_public_sources": {
+    "bn61_specific_manual": "https://manuals.plus/ae/1005005950829288",
+    "official_contact": "https://www.nohon.cn/lianxi.html",
+    "official_feedback": "https://www.nohon.cn/fankui.html",
+    "authenticated_NOHON_electrical_dataset_acquired": false,
+    "stated_charge_voltage_ceiling_V": 4.45,
+    "public_forum_capacity_estimates_cannot_authenticate_this_pack": true
+  }
+}
