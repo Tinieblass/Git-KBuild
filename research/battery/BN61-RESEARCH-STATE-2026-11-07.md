@@ -263,3 +263,13 @@ The user provided **live Android17** `uname -a` and `cat /proc/version`:
 - The prior open task “get A17 uname” is **closed**. Remaining specific uncertainty is matching the running build to an exact public/private source tree and obtaining NOHON BN61 cell-specific Gen4 electrical profile and calibrated side properties. No charge/voltage edits, live SRAM writes, or forced -6K build.
 
 Source: [Live Android17 runtime identity note](BN61-A17-RUNNING-BUTTERFLIES-IDENTITY-2026-11-08.md). Workbook v8 and SHA are documented in `BN61-EXCEL-TRACKER-2026-11-07.md`.
+
+
+## 2026-11-08 — Verified user Butterflies Orchid 5K ZIP (actual binary inputs)
+
+- The user uploaded `butterflies-orchid_MIUI-HOS_01-11-5k.zip` (SHA-256 `17d0d5c37e2007e5b33b57b174c2b7eb87b01a0f5bd1fb514ac63830d702a434`). Its `anykernel.sh` chooses `5k/dtb` and `5k/dtbo.img` if the basename contains `5k`; selection depends on the filename at flashing time.
+- **Exact package `Image` string equals live Android17 `/proc/version`**, `4.19.325-butterflies-g2a6da414aeff` (Eva GCC17, Nov 1 18:15:07 WIB). This strongly links the build/package and improves the prior source-ID evidence. It does **not** prove installed boot/DTBO binary hashes, active FG SRAM content, or identify the public commit SHA.
+- Parsed both Android DTBO tables (12 overlays each), distinguishing alioth via **root model Xiaomi alioth / board-id `0x2c`** from apollo. Normal alioth is overlay **10** with FMT 4520/GY4520/J3S5000; `5k/dtbo.img` alioth is overlay **3** with **J3S5000 only**, without the K11A FG flag. Both declare `qcom,fg-force-load-profile`. Thus 5K variant changes actual battery-profile set, not just the UI's capacity string.
+- The J3S Gen4 416B SHA-256 `433cf6279d867be89b08ddb10a7fff0460c42c944cd253f702733033eef603dd` and nominal 5037mAh internal word271 are exactly the previous pinned reference. No NOHON BN61 profile exists in examined alioth DTBO.
+- The 5K alioth J3S FG node declares max4.48V, FFC threshold4.49V, 4.48V JEITA float within nominal 15.1–48°C band; the **separate charger node** declares FV max4.46V and non-FCC FV max4.45V. These are configuration values **not actual measured cell terminal voltage**, and are not proof the user's NOHON max4.45V is respected. Safety review is required before any 6K integration; **no policies were modified**.
+- Full method, input hashes, model/board distinction and limitations: [actual ZIP forensic audit](BN61-BUTTERFLIES-ZIP-5K-ALIOTH-DTBO-2026-11-08.md). Workbook v9 and hash recorded in [tracker](BN61-EXCEL-TRACKER-2026-11-07.md). The SELinux issue is deliberately handled in another thread.
