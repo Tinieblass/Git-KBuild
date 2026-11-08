@@ -61,7 +61,7 @@ The supplied diagnostic values were not synchronized: uevent and individual sysf
 - The Gen4 payload length is exactly 416 bytes. The driver requires that length and copies the payload as an opaque block to SRAM beginning at word 65 (208 words).
 - Nominal capacity is also read from payload word 271 (word 65 + 206), consistent with byte offset 412; it is profile capacity metadata, not proof of usable pack capacity.
 - Thermistor coefficients, thermistor center offset, pull-up, Rslow normal/low arrays and voltage/charge side properties are separately parsed from the profile node.
-- Rslow arrays are configured at SRAM word 78, outside the 416-byte payload.
+- Rslow arrays originate from separate Device Tree properties outside the 416-byte source property, but the driver writes four Rslow bytes at SRAM word 78, which occupies **byte offsets 26–29 inside the 416-byte loaded profile SRAM region**. The source-property boundary and runtime SRAM-address boundary must not be conflated (corrected by Step 52, 2026-11-08).
 - KI controls occupy SRAM words 21–32, before the payload region, and are controller-node configuration.
 - The examined Gen4 data block is 416 bytes; previous nine-profile checksum validation remains recorded in the detailed Gen4 notes. Do not treat that validation as proof of a BN61 blob.
 
@@ -227,3 +227,11 @@ Next: acquire the vendor binary and sysfs snapshots through a permitted ADB shel
 The installed HyperOS vendor CIL explicitly permits `batterysecret` to read/write `vendor_sysfs_battery_supply`, `vendor_sysfs_usbpd_device` and `vendor_sysfs_usb_supply` (rules 3891–3952); it has netlink uevent and suspend access. Genfscon maps PM8150B QPNP FG BMS and USB-PD to those labels. `init.target.rc:31` imports `init.batterysecret.rc`; `init.svc.batterysecret=running`, although the untrusted Termux app cannot see its PID or read its executable/sysfs nodes. `bms_master`/`bms_slave` paths are absent in the current view. A separate `health-hal-2-1` service is running. `persist.sys.hybrid_verify.enabled=true` originates in `/product/etc/build.prop:235`, with no demonstrated connection to batterysecret or DS28E16.
 
 Crucial distinction: init chmod and SELinux authorization are **capability**, not evidence of actual BMS writes, DS28E16 ROMID/PAGE0 access, or Gen4 selector influence. Read-only evidence ledger: [Step 35 — Live batterysecret SELinux and init](BN61-BATTERYSECRET-SELINUX-LIVE-STEP35-2026-11-07.md). No device state or kernel/profile changed; -6K remains blocked.
+
+
+## 2026-11-08 runtime/source updates — Steps 49–52
+
+- **Debugfs definitively unavailable** in the currently running Butterflies build: the user's read-only `/proc/config.gz` probe printed `# CONFIG_DEBUG_FS is not set`; also no `debugfs` in `/proc/filesystems` or `/proc/mounts`. Stop repeating these diagnostics. See Step 51.
+- **Critical source vs SRAM distinction (Step 52):** `qcom,rslow-normal-coeffs`/`qcom,rslow-low-coeffs` are sourced outside the 416-byte `qcom,fg-profile-data` DT property, **but overwrite bytes 26–29 of the loaded SRAM profile region** when temperature-dependent Rslow selection changes. The conditional RSLOW_CONFIG workaround at SRAM word241 also falls within the profile region. Thus a full live SRAM-to-DT comparison cannot simply assume immutable 416 bytes.
+- **Historical Qualcomm co-change:** the commit/diff adding dynamic temperature-switched Rslow updates simultaneously changes `PROFILE_COMP_LEN` from 208 to 24, excluding offsets 26–29. A possible rationale is avoiding false re-load mismatches; this is an inference, not a documented Qualcomm explanation.
+- These findings do **not** authenticate a NOHON BN61 Gen4 model or establish whether the exact Butterflies driver follows the pinned reference revision. See `BN61-GEN4-RSLOW-INSIDE-PAYLOAD-STEP52-2026-11-08.md`.
