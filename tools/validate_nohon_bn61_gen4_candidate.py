@@ -13,8 +13,16 @@ import re
 from pathlib import Path
 
 MAX_NOHON_VOLTAGE_UV = 4_450_000
+# SHA-256 of the complete 416-byte Gen4 payload, NOT DTSI text.
+# Extracted from the user's Butterflies alioth DTBO and cross-checked against
+# independently pinned OEM source files. This is an incomplete donor registry,
+# and lack of a match is NEVER proof of a NOHON calibration.
 KNOWN_DONORS = {
-    "433cf6279d867be89b08ddb10a7fff0460c42c944cd253f702733033eef603dd": "Alioth J3S Sun 5000mAh (NOT NOHON)",
+    "433cf6279d867be89b08ddb10a7fff0460c42c944cd253f702733033eef603dd": "Xiaomi J3S Sun 5000mAh (NOT NOHON)",
+    "3a07b1cda44bdcaa3970d1ae3d8ff3ddc15aab9ed13e8b17fccbbeda6ae2d543": "Xiaomi K11A FMT 4520mAh (NOT NOHON)",
+    "3e9f93ea6a0166282f14d2fb14b2c143cd73dd7928083084cbb2f3271bbc153a": "Xiaomi K11A GY 4520mAh (NOT NOHON)",
+    "06a76fffa9b71e9fea3a5d7f9762e586dd565159163c5134b6fbeb1430091b8a": "Qualcomm Alium 3600mAh / OnePlus 3700, 3800, 4000, 4085, 4300mAh same Gen4 payload (NOT NOHON)",
+    "3229e498e41775a010758b7f17b787be6d9d425d19345b3e330f1eafcc60ac4d": "Qualcomm Ascent 3450mAh (NOT NOHON)",
 }
 
 
