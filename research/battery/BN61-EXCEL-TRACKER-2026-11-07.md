@@ -1,15 +1,18 @@
 # BN61 QG→Gen4 research workbook — canonical tracker
 
-Updated: 2026-11-08 (full 5K DTBO and 3-base-DTB differential audit)
+Updated: 2026-11-08 (QG OCV/hysteresis 25°C matched-family audit)
 
-## Current master workbook (version 10)
+## Current master workbook (version 11)
 - Filename: `BN61_Investigacion_QG_Gen4.xlsx`
 - Saved to user's ChatGPT Library: `/Investigacion BN61/BN61_Investigacion_QG_Gen4.xlsx`
-- Verified SHA-256: `ed52a03d88d7196e14a9d8844e44a3f5bac072a0c17e65ffa6911dfdc69b0a12`
-- Size: 56,069 bytes. Valid XLSX ZIP container, no missing compressed entries.
-- **15 sheets:** previous 14 plus `Delta DTB` (all 12 models, formulas for 55 alioth-removed properties and 3 Qualcomm Kona base-FDT DCC comparisons).
-- 96 findings, 32 research/progress items, 45 source records. Includes full keyed 12-overlay comparison, the exact 55 removed properties from alioth and the non-battery DCC changes in all three 5K Kona base DTBs.
+- Verified SHA-256: `f3d63a3996c497c3e37e055ccea377d903d757577995f2434e1141216e9a17ce`
+- Size: 67,039 bytes. Valid XLSX ZIP container, no missing compressed entries.
+- **16 sheets:** previous 15 plus `OCV pares 25C` (complete 56-point SOC × two Qualcomm QG families, four full 25°C charge/discharge curves, formula-driven hysteresis and chart).
+- 100 findings, 34 research/progress items, 46 source records. New primary-source 25°C QG charge/discharge hysteresis cross-check (55 nonterminal SOC points), with source-provenance and all previous profile-selection evidence retained.
 - Workbook source is kept in ChatGPT Library, not as a GitHub binary. GitHub is used for the audit notes and checksum provenance; **do not claim XLSX bytes are in this repo**.
+
+## Previous v10 master audit state
+- v10 SHA-256 `ed52a03d88d7196e14a9d8844e44a3f5bac072a0c17e65ffa6911dfdc69b0a12`, size 56,069 bytes, 15 sheets; canonical Library path overwritten by v11.
 
 ## Previous v9 master audit state
 - v9 SHA-256 `24461bfc8c8a6bb2433512b87d8963e69effba76d0334ce27774a3d479012113`, size 51,497 bytes, 14 sheets; canonical Library file now overwritten by v10.
@@ -46,6 +49,8 @@ Updated: 2026-11-08 (full 5K DTBO and 3-base-DTB differential audit)
 - `BN61-A17-RUNNING-BUTTERFLIES-IDENTITY-2026-11-08.md` (**live A17 runtime confirmed**)
 - `BN61-BUTTERFLIES-ZIP-5K-ALIOTH-DTBO-2026-11-08.md` (**exact user ZIP / actual alioth 5K DTBO forensic audit**)
 
+- `BN61-QG-MATCHED-OCV-HYSTERESIS-25C-2026-11-08.md` (56 SOC points per family, 25°C V1/V2)
+
 ## Sources and claims boundary
 - **Live A17 runtime confirmed** by `uname -a` and `cat /proc/version`: `4.19.325-butterflies-g2a6da414aeff` built 2026-11-01 18:15:07 WIB with Eva GCC17.0.0 / Binutils 2.47.50. This is the same release string documented previously under A16, **not proof of the same binary/DTBO**. Public SHA `2a6da414aeff` not found in four inspected GitHub repositories. The exact driver/source tree remains **unmatched**. E404 is a reference kernel, not the active one.
 - Qualcomm legacy `PROFILE_COMP_LEN=208`; later upstream and pinned alioth comparator `PROFILE_COMP_LEN=24`; full profile remains 416 bytes.
@@ -57,7 +62,7 @@ Updated: 2026-11-08 (full 5K DTBO and 3-base-DTB differential audit)
 - **Actual ZIP audit:** The supplied `butterflies-orchid_MIUI-HOS_01-11-5k.zip` (SHA-256 `17d0d5c37e2007e5b33b57b174c2b7eb87b01a0f5bd1fb514ac63830d702a434`) selects `5k/dtb` and `5k/dtbo.img` by filename. For board-id `0x2c` **alioth**, normal DTBO overlay #10 contains FMT4520, GY4520 and J3S5000, while 5K DTBO overlay #3 contains **only J3S5000**, Gen4 hash `433cf6279d867be89b08ddb10a7fff0460c42c944cd253f702733033eef603dd`. Image embedded build string **exactly matches** user's live A17 `/proc/version` text, linking the package much more strongly to the kernel; still **not** byte-for-byte proof of installed boot or DTBO.
 - **Full 5K differential (new):** 11 other DTBO boards have identical raw overlay SHA-256 hashes. The normal alioth overlay has exactly **55** additional properties: 27 FMT, 27 GY and one K11A selection flag; all other alioth properties have identical bytes. The 5K **base DTBs also add a Qualcomm DCC v2 debug capture node** (15 properties in each of three SoC variants) and only renumber shared `phandle` references (625/625/624). The internal AnyKernel `write_boot()` explicitly calls `flash_generic dtbo` with a single-write sentinel, so the chosen DTBO is intended to be written to partition, though installed-partition hashes remain unverified. Source: augmented [forensic note](BN61-BUTTERFLIES-ZIP-5K-ALIOTH-DTBO-2026-11-08.md).
 - **Voltage caution:** Alioth charger in both ZIP variants declares `qcom,fv-max-uv` 4.46V and non-FCC maximum 4.45V; J3S declares max4.48V and FFC threshold4.49V. Actual cell voltage not inferred; user BN61 is declared max4.45V. The ZIP contains **no BN61 electrical profile**.
-- No evidence has authenticated a 416-byte NOHON BN61 Gen4 electrical calibration. The `-6K` battery profile and DTBO remain non-flashable.
+- **New OCV matched-family audit:** exact QG charging/discharging surfaces for Alium and MLP466076 disagree: at 25°C/50% SOC their V1–V2 deltas are 19.4mV and 25.2mV; over 55 nonterminal SOC grid points the unweighted means are 22.747 and 27.195mV. Both still have `FCC2(25°C)=Gen4 word271`. This confirms that the capacity match does not determine charge/discharge OCV or a conversion for 414 remaining bytes. The QG surface is source calibration, not independent cell measurements. No evidence has authenticated a 416-byte NOHON BN61 Gen4 electrical calibration. The `-6K` battery profile and DTBO remain non-flashable.
 
 ## Continuous updating
 Add new evidence to the canonical XLSX using unique IDs, date, provenance, exact kernel/source version, and confidence/limitations. Update this SHA-256 and GitHub note after each verified workbook save. Do not duplicate previous interpolations, Z/Y mappings, RC pairings, checksum research, or profile-to-SRAM addressing results without an explicit new question.
