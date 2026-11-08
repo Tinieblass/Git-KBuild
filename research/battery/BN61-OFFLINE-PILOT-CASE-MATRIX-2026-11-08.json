@@ -205,7 +205,7 @@
         "checksum_verified": true,
         "physical_cell_voltage_lab_confirmed": false
       },
-      "expected": "OFFLINE_REVIEW_ONLY_LAB_BLOCKED"
+      "expected": "OFFLINE_REVIEW_ONLY_CHARGE_GATE_BLOCKED"
     },
     {
       "id": "C12_COMPLETE_OFFLINE_EVIDENCE",

@@ -1,10 +1,7 @@
 import json
-import sys
 import unittest
 from copy import deepcopy
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from bn61_offline_pilot import encode_word23, evaluate_case, evaluate_plan
 
@@ -92,9 +89,9 @@ class OfflinePilotTests(unittest.TestCase):
         report = evaluate_plan(self.plan)
         self.assertFalse(report["charging_test_authorized"])
 
-    def test_candidate_without_physical_gate_remains_blocked(self):
+    def test_candidate_without_physical_gate_keeps_charge_gate_blocked(self):
         case = next(c for c in self.plan["test_cases"] if c["id"] == "C11_BN61_EXPORT_WITHOUT_LAB")
-        self.assertEqual(evaluate_case(case)["status"], "OFFLINE_REVIEW_ONLY_LAB_BLOCKED")
+        self.assertEqual(evaluate_case(case)["status"], "OFFLINE_REVIEW_ONLY_CHARGE_GATE_BLOCKED")
 
     def test_complete_gates_still_do_not_authorize_charge(self):
         complete = deepcopy(self.plan)

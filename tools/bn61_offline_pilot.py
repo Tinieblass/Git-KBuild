@@ -53,7 +53,7 @@ def evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
         elif not data.get("checksum_verified"):
             status = "BLOCKED_CHECKSUM_PROVENANCE"
         elif not data.get("physical_cell_voltage_lab_confirmed"):
-            status = "OFFLINE_REVIEW_ONLY_LAB_BLOCKED"
+            status = "OFFLINE_REVIEW_ONLY_CHARGE_GATE_BLOCKED"
         else:
             status = "OFFLINE_REVIEW_ONLY_NOT_FLASHABLE"
         return {"status": status}

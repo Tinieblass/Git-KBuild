@@ -59,7 +59,7 @@ The machine-readable cases are in [BN61-OFFLINE-PILOT-CASE-MATRIX-2026-11-08.jso
 | C08 | Gen4 word-23 4.44/4.49 V arithmetic | Source/math match only; not charger FV or BN61 data |
 | C09 | Swap-like sysfs readbacks and fcc typo | Mapping unresolved; no write |
 | C10 | Positive current_now with Discharging status | ABI/driver mapping unresolved |
-| C11 | Hypothetical sourced BN61 416-byte export without lab gate | Offline review only; never flashable |
+| C11 | Hypothetical sourced BN61 416-byte export without lab gate | Offline review only; charge gate blocked; never flashable |
 | C12 | Hypothetical sourced export with all review inputs | Still offline review only; no charge authorization |
 
 Run from the repository root:
