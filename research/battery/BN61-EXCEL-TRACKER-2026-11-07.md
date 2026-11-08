@@ -1,15 +1,18 @@
 # BN61 QG→Gen4 research workbook — canonical tracker
 
-Updated: 2026-11-08 (decoded Gen4 word23 VBATT_FULL, 4440/4490mV, and separation from charger FV)
+Updated: 2026-11-08 (actual 4.498523V warning, unplugged 4.228993V and real FG word23 FFC→normal confirmation)
 
-## Current master workbook (version 19)
+## Current master workbook (version 20)
 - Filename: `BN61_Investigacion_QG_Gen4.xlsx`
 - Saved to user's ChatGPT Library: `/Investigacion BN61/BN61_Investigacion_QG_Gen4.xlsx`
-- Verified SHA-256: `24061c6f557762098eadb37b39e9755ead0aecd0b25447d21d54e8bf88db9a68`
-- Size: 117,819 bytes. Valid XLSX ZIP container, no missing compressed entries.
-- **26 sheets:** previous 25 plus `FG word23 SRAM` (formula-derived raw Gen4 VBATT_FULL, normal/FFC LE byte pairs and BMS model-vs-charger distinction).
-- 148 findings, 56 research/progress items, 81 source records. Source-pinned static map proves Gen4 FG SRAM word23 VBATT_FULL (4440mV→0x470A, 4490mV→0x47D7) and BMS model variable may change 4450→4500mV; **not** an actual charger 4500mV setpoint or NOHON 416B calibration.
+- Verified SHA-256: `8ecf62d3e8f04e80693efe772ec63f3de3b3e2779dfe54f3469af2cdf5a767d7`
+- Size: 122,876 bytes. Valid XLSX ZIP container, no missing compressed entries.
+- **27 sheets:** previous 26 plus `BN61 Carga 1911-1916` (actual connected/unplugged high-voltage samples, formula-driven 269.530mV drop, FG 50.049mV threshold change and explicit safety warning).
+- 154 findings, 59 research/progress items, 85 source records. 19:11:45 physical FG voltage reading 4.498523V (+48.523mV above declared NOHON 4.45V); at 19:16:14 unplugged status Discharging/USB online0 and FG 4.228993V. FG VBATT_FULL readback exactly changed from encoded J3S FFC 4489997uV to normal 4439948uV. **Charging stopped: do not reconnect to test; professional review recommended**.
 - Workbook source is kept in ChatGPT Library, not as a GitHub binary. GitHub is used for the audit notes and checksum provenance; **do not claim XLSX bytes are in this repo**.
+
+## Previous v19 master audit state
+- v19 SHA-256 `24061c6f557762098eadb37b39e9755ead0aecd0b25447d21d54e8bf88db9a68`, size 117,819 bytes, 26 sheets; overwritten in canonical Library by v20.
 
 ## Previous v18 master audit state
 - v18 SHA-256 `009f9e8a5d6ccccbf25d10a291dc8fc6a08eae5d4ac0c64d3191e3fc18ccdade`, 112,916 bytes, 25 sheets; canonical Library location now overwritten by v19.
@@ -115,6 +118,8 @@ Updated: 2026-11-08 (decoded Gen4 word23 VBATT_FULL, 4440/4490mV, and separation
 - **Step60 voltage-vote model:** pinned [source audit](BN61-A17-PPS-FFC-VOTEMIN-TRUTH-TABLE-2026-11-08.md) establishes `FV` is `VOTE_MIN` in Xiaomi SM8250 reference, NON_FFC4450 if FFC=0, HW_LIMIT4460, and profile J3S JEITA4480 at 38°C if SW JEITA active. Assuming no lower active voters, model result 4450mV FFC0 versus 4460mV FFC1; real Butterflies effective FV and live BMS FFC state **unverified**. Explicit read-only observation plan checks `usb/pd_authentication`, `usb/fastcharge_mode`, `bms/fastcharge_mode`; no deliberate FFC enable or charging stress.
 
 - **Step61 FG register separate from charger FV:** Source-pinned Xiaomi SM8250 Gen4 `fg_gen4_set_vbatt_full_vol` passes normal **4440mV** or FFC **4490mV** to `fg_set_constant_chg_voltage`, which encodes `FG_SRAM_VBATT_FULL` at PM8150B **SRAM word23 byte0** (2 LE bytes, ratio 1000/244141). Calculated **0A 47** normal and **D7 47** FFC are offline references, NOT observed live SRAM and NOT the distinct 416-byte block loaded from word65. `fg->bp.float_volt_uv` internal model becomes 4450/4500mV and can appear in BMS `voltage_max_design` — not physical NOHON cell ceiling or SMB5 hardware FV. No FFC changes made. See [Step61 proof](BN61-FG-GEN4-WORD23-VBATT-FULL-NORMAL-FFC-2026-11-08.md) and [offline decoder](../../tools/fg_gen4_vbatt_full_word23_reference_only.py).
+
+- **PRIORITY LIVE SAFETY UPDATE:** 19:11:45 +0100 `battery/voltage_now=4498523uV`, above BN61 stated 4.45V ceiling; second unplugged 19:16:14 +0100 `battery/voltage_now=4228993uV`, `usb/online=0`, `status=Discharging` (269.530mV drop in 269s). BMS `constant_charge_voltage` changed from 4.489997V to 4.439948V, **exactly** corresponding to J3S word23 FFC→normal 4490→4440mV coding; dynamic `voltage_max_design` simultaneously 4.5→4.45V. The actual high connected voltage remains a **risk flag**, not confirmed by independent DMM; no return to charging to reproduce. See [full high-voltage and unplugged readback record](BN61-A17-HIGH-VOLTAGE-FG-FFC-READBACK-2026-11-08.md).
 
 ## Continuous updating
 Add new evidence to the canonical XLSX using unique IDs, date, provenance, exact kernel/source version, and confidence/limitations. Update this SHA-256 and GitHub note after each verified workbook save. Do not duplicate previous interpolations, Z/Y mappings, RC pairings, checksum research, or profile-to-SRAM addressing results without an explicit new question.
