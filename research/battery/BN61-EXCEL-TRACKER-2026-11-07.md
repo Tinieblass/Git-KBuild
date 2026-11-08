@@ -1,15 +1,18 @@
 # BN61 QG→Gen4 research workbook — canonical tracker
 
-Updated: 2026-11-08 (six-source Gen4 alias control + exact alioth FG phandle and FFC limits)
+Updated: 2026-11-08 (first A17 NOHON real USB-PD charging snapshot: 4.085927V, 38°C)
 
-## Current master workbook (version 15)
+## Current master workbook (version 16)
 - Filename: `BN61_Investigacion_QG_Gen4.xlsx`
 - Saved to user's ChatGPT Library: `/Investigacion BN61/BN61_Investigacion_QG_Gen4.xlsx`
-- Verified SHA-256: `43b75b8e64ef144636329ce17e05521df3b98203f0888adb38e46626a7e2dc8d`
-- Size: 101,588 bytes. Valid XLSX ZIP container, no missing compressed entries.
-- **23 sheets:** previous 21 plus `Alias 6x Gen4` (six distinct OEM labels, byte-identical provision payload, computed label differences) and `FFC alioth 5K` (FG phandle/selected-node proof, normal/FFC/PD/QC3 settings and formula-driven 4.45V deltas).
-- 129 findings, 47 research/progress items, 66 source records. New exact 6-file 416B OEM alias (payload SHA 06a76fff...91b8a), phandle-resolved actual alioth FG selection and source-supported possible FFC 4.45→4.46V ceiling; now rejects 5 known non-NOHON donors by payload hash.
+- Verified SHA-256: `7db2e68d2c1ad814ba0fdb140799e52c6b5851f88bfdcaa3c70767a60f2f340b`
+- Size: 105,192 bytes. Valid XLSX ZIP container, no missing compressed entries.
+- **24 sheets:** previous 23 plus `BN61 PD vivo` (first actual live A17 voltage/current/temperature/USB-PD readings, source values, unit-conversion formulas, reported 4.45V delta, explicit FFC uncertainty).
+- 132 findings, 49 research/progress items, 68 source records. First user-confirmed live A17 NOHON BN61 USB-PD charging snapshot: 4.085927V, -1.987303A, 38.0°C; 0.364073V below declared 4.45V in this instant only. Does NOT establish FFC setting or charger maximum.
 - Workbook source is kept in ChatGPT Library, not as a GitHub binary. GitHub is used for the audit notes and checksum provenance; **do not claim XLSX bytes are in this repo**.
+
+## Previous v15 master audit state
+- v15 SHA-256 `43b75b8e64ef144636329ce17e05521df3b98203f0888adb38e46626a7e2dc8d`, 101,588 bytes, 23 sheets; canonical Library file overwritten by v16.
 
 ## Previous v14 master audit state
 - v14 SHA-256 `63bcbdae49643ffb62a2b3b96b8534f85f26f98e7a9dd81a39017e60d2b72f1c`, 93,891 bytes, 21 sheets; canonical Library version overwritten by v15.
@@ -94,6 +97,8 @@ Updated: 2026-11-08 (six-source Gen4 alias control + exact alioth FG phandle and
 - **R2 user model manifest:** [NOHON_BN61_RECONSTRUCTION_R2_NOT_FLASHABLE.json](models/NOHON_BN61_RECONSTRUCTION_R2_NOT_FLASHABLE.json) preserves genuine unknowns and limits. NOHON manual still states max4.45V and 5850 rated/6000 typical; public reports of other packs' 5350–5800 estimates are anecdotal, NOT measurement of this cell. The exact cell OCV/FCC/Rslow/NTC and full 416B NOHON Gen4 profile remain absent.
 
 - **Step59 correction/safety:** This alioth FDT contains **two distinct battery-data nodes**: FG `qcom,battery-data=<0x07>` selects the Xiaomi-specific node at fragment127 (5K only J3S), whereas generic Alium/Ascent live under fragment77 phandle `0x12B` and are not selected by this FG reference. FDT __local_fixups__ must be excluded from runtime property scans. Selected charger `mi,support-ffc` has a 4450mV non-FFC and 4460mV HW FV ceiling; PD 4450/4460mV, QC3 4420mV. Pinned Qualcomm source removes NON_FFC_VFLOAT_VOTER on FFC enable. **Not proof of live terminal voltage or actual FFC state.** Exact forensic note [Step59](BN61-BUTTERFLIES-A17-FG-PHANDLE-FFC-AND-SIX-ALIASES-STEP59-2026-11-08.md), reproducible [FDT auditor](../../tools/audit_butterflies_alioth_charge_policy.py).
+
+- **Actual user read-only A17 sample:** [USB-PD live charging snapshot](BN61-A17-USB-PD-LIVE-CHARGING-SNAPSHOT-2026-11-08.md) reports `Charging`, `voltage_now=4085927µV`, `current_now=-1987303µA`, `temp=380` tenths°C, `usb/real_type=USB_PD`. At 4.085927V this is 364073µV below the user-declared 4.45V NOHON limit, but does **not** distinguish FFC active vs inactive or future ceiling 4.45 vs 4.46V. The `fastcharge_mode` file emitted nothing so it is not evidence of disabled fast charging. No change to device, battery or charger.
 
 ## Continuous updating
 Add new evidence to the canonical XLSX using unique IDs, date, provenance, exact kernel/source version, and confidence/limitations. Update this SHA-256 and GitHub note after each verified workbook save. Do not duplicate previous interpolations, Z/Y mappings, RC pairings, checksum research, or profile-to-SRAM addressing results without an explicit new question.
