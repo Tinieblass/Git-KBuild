@@ -115,3 +115,10 @@ Thus the 5K filename variant **is intended to write the selected DTBO to disk**,
 ### Evidence/source quality
 
 Numbers above were computed from the **user-uploaded ZIP** by offline FDT header / token parsing, with full `size_dt_struct`, using raw bytes keyed by root board identity. They are **binary properties**, not assumptions imported from a similarly named GitHub branch. Earlier exploratory parsing that inadvertently used `size_dt_strings` for the structure length was **discarded and corrected** before obtaining these figures. No device action was performed.
+
+
+## Correction 2026-11-08 (Step59): selected alioth FG node vs other embedded battery data
+
+The shortened phrase “5K alioth has **only J3S**” means the **FG-selected node**, not every Gen4 profile in the entire overlay. In both normal/5K alioth overlays, generic Qualcomm Alium3600/Ascent3450 profiles also appear in `/fragment@77/__overlay__/qcom,battery-data` with `phandle=0x12B`. The alioth FG `/fragment@7/__overlay__/qcom,pm8150b@2/qpnp,fg` explicitly has `qcom,battery-data=<0x07>`, referring instead to `/fragment@127/__overlay__/qcom,battery-data` (`phandle=0x07`). There, normal has FMT/GY/J3S and 5K has only J3S. The 55-property difference (27 FMT+27 GY+1 K11A flag) remains valid. Beware `/__local_fixups__` metadata which duplicates property names but is not a charger/battery runtime node. See [Step59 detailed evidence](BN61-BUTTERFLIES-A17-FG-PHANDLE-FFC-AND-SIX-ALIASES-STEP59-2026-11-08.md).
+
+Additionally, the selected alioth charger has `mi,support-ffc` and sets `qcom,fv-max-uv=4460000`, `qcom,non-fcc-fv-max-uv=4450000`, PD general4460/non-FFC4450mV. A pinned comparator driver shows how FFC can remove the lower voltage votable, although live FFC state and real battery terminal voltage have not been measured. No actual overcharge conclusion is justified.
