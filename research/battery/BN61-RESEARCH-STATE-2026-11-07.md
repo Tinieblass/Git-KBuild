@@ -252,3 +252,14 @@ Crucial distinction: init chmod and SELinux authorization are **capability**, no
 - **User's new kernel lead:** Project113 discussion group `https://t.me/Projkt113Disc` links to RE404/E404. The [E404 GitHub a17 branch](https://github.com/kvsnr113/xiaomi_sm8250_kernel_e404/tree/a17) contains alioth FMT/GY/J3S profiles (Gen4 416B) and an explicit boot-time `e404_args=batt_5k` selector, read-only `/sys/kernel/e404/prop/batt_profile` and `qcom,fg-force-load-profile` DT setting. No NOHON/BN61 model in the examined source files. Public R15 announcement advertises A11–A16 QPR2; a GitHub a17 branch alone does not prove an A17 release or installed-binary identity. See [Project113 source audit](BN61-PROJECT113-E404-A17-SOURCE-AUDIT-2026-11-08.md).
 - **Model identification correction:** Project113's documented `RE404-VAYU` X3 kernel is for **POCO X3 Pro Vayu**, not the **POCO X3 India Karna** whose original BN61/M703 battery uses Qualcomm QG. They are not the same cell/pack. No transfer to alioth Gen4 is validated.
 - **Safe integration only as architecture:** a future manual `batt_6k` selector is a design precedent, not implemented. Requires authentic Nohon 416-byte profile, normal/cold Rslow, NTC, voltage ceiling ≤4.45V, and exact installed A17 build source; no fake blob, DTBO or flashable package created.
+
+
+## 2026-11-08 — Android17 live Butterflies kernel source-ID resolution
+
+The user provided **live Android17** `uname -a` and `cat /proc/version`:
+- `4.19.325-butterflies-g2a6da414aeff` (aarch64), built Nov 1 2026 18:15:07 WIB, Eva GCC 17.0.0 and Eva Binutils 2.47.50. This is the same **kernel release string** noted in earlier A16 research, **not proof of identical binary, active DTBO or SRAM contents**.
+- Public source exact SHA `2a6da414aeff` **not matched** in `starscroch/kernel_xiaomi_sm8250`, `Sayemx18/kernel_xiaomi_sm8250`, `LineageOS/android_kernel_xiaomi_sm8250`, or `Tinieblass/Git-KBuild`, nor by global commit-text search. Negative search is limited, not evidence the source does not exist.
+- The Project113 E404 a17 branch is **not** the reported running kernel; use it as a selector design example only. Butterflies candidate sources contain FMT/GY/J3S but are unproven byte-for-byte identical to this build. Do not assume an A17 J3S BMS label proves active SRAM.
+- The prior open task “get A17 uname” is **closed**. Remaining specific uncertainty is matching the running build to an exact public/private source tree and obtaining NOHON BN61 cell-specific Gen4 electrical profile and calibrated side properties. No charge/voltage edits, live SRAM writes, or forced -6K build.
+
+Source: [Live Android17 runtime identity note](BN61-A17-RUNNING-BUTTERFLIES-IDENTITY-2026-11-08.md). Workbook v8 and SHA are documented in `BN61-EXCEL-TRACKER-2026-11-07.md`.
