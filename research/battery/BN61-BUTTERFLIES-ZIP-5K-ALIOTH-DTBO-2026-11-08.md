@@ -67,3 +67,51 @@ This is decisive **for the archived ZIP's alioth DTBO**: `5k` changes the active
 ## Reproducibility requirements
 
 For any future audit record archive SHA, exact filename used at flashing, extracted 5K/normal DTB and DTBO SHA, Android DTBO root model/board ID, exact 416B SHA, and a timestamped live boot/DTBO verification if accessible. **Do not assume the default DTBO contents were flashed when the installer specifically selects `5k/`**.
+
+
+## Extended independent FDT property-map audit (2026-11-08)
+
+A second pass parsed **every** complete flattened DTBO overlay, not just the 416-byte batteries and root identity. Each overlay is keyed by the **root model string** and `qcom,board-id`; index numbers are **not** stable between the two DTBO packages.
+
+### Whole DTBO comparison by matching board IDs
+
+- Both DTBO containers have **12 overlays**.
+- The other **11 boards (apollo, cas, cmi, dagu, elish, enuma, lmi, munch, psyche, thyme, umi)** have **identical raw overlay SHA-256 hashes** between `dtbo.img` and `5k/dtbo.img`; only order within the container is rearranged.
+- **Alioth** normal overlay: **11,843 named property records**, 457,082 bytes; SHA `f87286d8d57046883d91c839046a6818afd16bada5487e2cc97f79756d9d6de8`.
+- **Alioth** 5K overlay: **11,788 named property records**, 454,811 bytes; SHA `ac575dbdd6d005abff267dcb2642573b0b99b174496fd963eed8f7c630740868`.
+- Exactly **55 properties** occur in alioth normal overlay but not 5K:
+  - **27** attributes of the entire FMT4520 battery child node;
+  - **27** attributes of the entire GY4520 battery child node;
+  - **1** empty boolean `qcom,k11a-batt-profile` in `/fragment@7/__overlay__/qcom,pm8150b@2/qpnp,fg`.
+- There are **zero newly added alioth properties and zero changed values in properties shared by the two alioth overlays**.
+- J3S normal/cold Rslow bytes, the complete 416-byte J3S property, JEITA temperature/voltage tables, maximum-voltage metadata, FG force-load boolean and charger properties are literally unchanged between these two alioth overlays.
+
+This materially strengthens the earlier, less exhaustive statement. Within **alioth DTBO** the 5K selection is precisely removal of the two K11A OEM profile nodes and their selector flag, **not an electrical retuning of J3S**. Removing an empty boolean property is semantically meaningful to the driver.
+
+### The two base DTB sets ALSO differ independently
+
+The normal `dtb` and selected `5k/dtb` each comprise **three concatenated Qualcomm Kona SoC FDTs**, for v2.1, v2, and v1. For each matching FDT revision, 5K contains:
+- **15 added property records** making up one Qualcomm **`/soc/dcc_v2@1023000` Data Capture and Compare** node, its three link lists, and a `/__symbols__/dcc` reference.
+- **625 changes to existing `phandle` property values** in the v2.1 and v2 FDTs, **624** in v1, consistent with the extra node shifting internal phandle allocation. **No other shared property values changed**; these phandle differences are not independent evidence of changed battery configuration.
+- FDT size, in order v2.1/v2/v1: normal **463271/463267/456273** versus 5K **478632/478628/471634** bytes; difference **15,361 bytes per FDT**.
+- The new `compatible="qcom,dcc-v2"` component is, per Qualcomm's own DT binding documentation, a **Data Capture and Compare** debugging DMA engine that collects configuration/memory snapshots on trigger or catastrophic failure. It is **not** an FG Gen4 battery model, not an ESR measurement, and not a PMIC SRAM dump interface.
+- Important scope: this identifies a distinct *non-battery* DTB change; it **does not prove** that DCC actively runs at boot, consumes power, causes issues or is enabled in the actual installed system. No such conclusions are warranted from the node alone.
+
+Qualcomm primary documentation:
+https://android.googlesource.com/kernel/msm/+/cc4f613cfcde9e379c409d43ffd7fc9e64427363/Documentation/devicetree/bindings/soc/qcom/dcc.txt
+
+### AnyKernel flash path independently verified
+
+In the **bundled** `tools/ak3-core.sh`, `write_boot()` runs `flash_generic dtbo` after the kernel/vendor-related write routines, and the function locates a `dtbo` or `dtbo$slot` block device and writes the selected `dtbo.img`. It creates a `dtbo_flashed` sentinel to prevent repeated writes when the surrounding `anykernel.sh` later invokes `write_boot()` for the `vendor_boot` path.
+
+Thus the 5K filename variant **is intended to write the selected DTBO to disk**, not only to change the DTB in memory. This is a verified interpretation of the installer control flow; execution outcome and live partition content still require separate on-device evidence.
+
+### Practical BN61 integration constraints from exact diff
+
+- An eventual BN61 patch must account for the **correct alioth overlay** (board-id 0x2c, not DTBO index or filename), a **new independently authenticated 416-byte Gen4 payload**, correct normal/cold Rslow and thermistor properties, and a deterministic manual selector; must not collide with the existing stock/J3S 100kΩ battery-ID choice.
+- **Do not use the whole 5K DTB as a claim of battery-only changes**, because it adds a DCC hardware node. Conversely, removing the FMT/GY profiles makes the alioth DTBO 5K mode a particularly clear reference for identifying the intended selector surface.
+- The current ZIP is a **forensic source**, not a ready 6K starting calibration. No flashable derivative or unsafe voltage policy should be generated.
+
+### Evidence/source quality
+
+Numbers above were computed from the **user-uploaded ZIP** by offline FDT header / token parsing, with full `size_dt_struct`, using raw bytes keyed by root board identity. They are **binary properties**, not assumptions imported from a similarly named GitHub branch. Earlier exploratory parsing that inadvertently used `size_dt_strings` for the structure length was **discarded and corrected** before obtaining these figures. No device action was performed.
