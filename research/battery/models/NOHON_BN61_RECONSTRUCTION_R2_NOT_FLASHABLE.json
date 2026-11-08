@@ -155,5 +155,10 @@
     "scope": "Official device variant specifications only; not BN61 replacement-pack characterization",
     "qualcomm_pm855b_gen4_characterization_commit": "https://android.googlesource.com/kernel/msm/%2B/d0d496335e272f63b939d6f238640b7d4798d3e9",
     "interpretation": "The cited PM855B Gen4 profile was described as based on characterization; no BN61 profile or capacity-only conversion is provided"
+  },
+  "project_target_context": {
+    "requested_target": "Flash Kernel v1.7 for POCO F3 5G / alioth, HyperOS 3 / Android 16",
+    "observed_runtime": "Android 17 HyperOS Butterflies kernel 4.19.325-butterflies-g2a6da414aeff",
+    "separation_note": "The observed Android 17 runtime is evidence about the current test environment; it is not the requested Android 16 build target. Its exact running source revision remains unverified."
   }
 }
