@@ -272,8 +272,12 @@ def main():
             a.output.write_text(payload)
             print(f"Wrote OFFLINE report: {a.output}")
         else:print(payload)
-        print(f"HARNESS PASS {len(result['harness_tests'])}/{len(result['harness_tests'])}; "
-              f"SAFETY GATES FAILED {result['rejection_count']}; NOT FLASHABLE",file=sys.stderr)
+        passed = sum(bool(test["pass"]) for test in result["harness_tests"])
+        total = len(result["harness_tests"])
+        print(f"HARNESS {passed}/{total} PASS; "
+              f"SAFETY GATES FAILED {result['rejection_count']}; NOT FLASHABLE", file=sys.stderr)
+        if passed != total:
+            sys.exit(2)  # fail closed if the validation harness itself regresses
     except Exception as e:
         print(json.dumps({"error":str(e),"flashable":False,"pilot_result":"FAIL_CLOSED"}),file=sys.stderr)
         sys.exit(1)
