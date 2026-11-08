@@ -29,7 +29,7 @@ DONOR_SHA = {
   "3a07b1cda44bdcaa3970d1ae3d8ff3ddc15aab9ed13e8b17fccbbeda6ae2d543": "Xiaomi FMT 4520",
   "3e9f93ea6a0166282f14d2fb14b2c143cd73dd7928083084cbb2f3271bbc153a": "Xiaomi GY 4520",
   "06a76fffa9b71e9fea3a5d7f9762e586dd565159163c5134b6fbeb1430091b8a": "Alium/OP OEM aliases",
-  "3229e498e41775a010758b7f17b787be6d9d425d19345ba6fa8d60ac4d": "Ascent OEM 3450",
+  "3229e498e41775a010758b7f17b787be6d9d425d19345b3e330f1eafcc60ac4d": "Ascent OEM 3450",
 }
 
 

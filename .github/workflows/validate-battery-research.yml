@@ -17,6 +17,12 @@ on:
       - "tools/compare_alioth_gen4_profiles.py"
       - "tools/validate_battery_research.py"
       - "tools/compare_gen4_profiles_extended.py"
+      - "tools/pilot_bn61_offline.py"
+      - "tools/test_pilot_bn61_offline.py"
+      - "tools/validate_nohon_bn61_gen4_candidate.py"
+      - "tools/audit_butterflies_alioth_charge_policy.py"
+      - "tools/bn61_offline_pilot.py"
+      - "tools/test_bn61_offline_pilot.py"
       - ".github/workflows/validate-battery-research.yml"
   workflow_dispatch:
 
@@ -103,6 +109,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s research/battery -p 'test_parse_pm855gui_provision.py' -v
+
+      - name: Unit-test fail-closed BN61 offline pilots
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools -p 'test_bn61_offline_pilot.py' -v
+          python3 -m unittest discover -s tools -p 'test_pilot_bn61_offline.py' -v
       - name: Verify Qualcomm PM855GUI checksum algorithm on all reference pairs
         run: |
           set -euo pipefail

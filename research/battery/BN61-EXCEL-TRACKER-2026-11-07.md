@@ -160,3 +160,9 @@ Add new evidence to the canonical XLSX using unique IDs, date, provenance, exact
 - [Installability and target audit](BN61-INSTALLABILITY-READINESS-AND-TARGET-AUDIT-2026-11-08.md): the current BN61 script is a read-only rejection gate, not a profile builder or packager; it always returns `NOT_FLASHABLE_IN_ALL_CASES__SOURCE_CHECK_ONLY`. It cannot authenticate a pack or audit the charger DTBO by itself.
 - Explicitly separated the requested Flash Kernel v1.7 / HyperOS 3 / Android 16 target from the live Android 17 Butterflies evidence. Do not treat an A17 live kernel identity or a build against an unmatched source revision as A16 target validation.
 - The audited 5K AnyKernel ZIP selects its 5K DTBO from the filename and carries the J3S 416-byte payload; five NOHON checks fail. No 6K variant or installable profile exists. Calibration, source identity, target DT mapping and charger-policy gates remain open.
+
+
+## 2026-11-08 donor-registry correction and CI coverage
+- Audited the executed ZIP pilot against the independent candidate validator and found the Ascent donor SHA-256 entry truncated to 58 hex characters. Corrected it to the verified 64-character hash already pinned by the validator; no calibration bytes or safety settings changed.
+- Added regression checks for donor-registry parity, the real J3S source hash/checksum, 5850-only capacity-clone detection through the 412-byte prefix, filename-based installer selection, unknown-installer fail-closed behavior, and the validator's non-flashable result.
+- Wired both offline pilot suites into the research validation workflow and its path filters. The package-specific end-to-end pilot still requires the user ZIP as input; CI exercises tracked sources and fail-closed regression cases without creating a ZIP or profile.
