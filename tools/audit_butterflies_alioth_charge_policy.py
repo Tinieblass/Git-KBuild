@@ -141,11 +141,21 @@ def audit_overlay(index,dtbo,file_name):
         if path.startswith('/__'):
             continue  # FDT __local_fixups__, __fixups__, __symbols__: NOT runtime nodes
         if path.endswith('/qcom,qpnp-smb5'):
+            st=number_list(props,'mi,six-pin-step-chg-params')
+            if st is not None and len(st)%2:
+                raise ValueError('Malformed six-pin steps: odd u32 count')
             charge_nodes['smb5']={
                 'path':path,
                 'fv_max_uv':integer_property(props,'qcom,fv-max-uv'),
                 'non_ffc_fv_max_uv':integer_property(props,'qcom,non-fcc-fv-max-uv'),
                 'support_ffc_enabled':'mi,support-ffc' in props,
+                'six_pin_step_chg_enabled_in_dtbo':'mi,six-pin-step-chg' in props,
+                'six_pin_soc_th':integer_property(props,'mi,six-pin-soc-th'),
+                'six_pin_step_chg_params':[
+                    {'vfloat_step_uv':st[i], 'fcc_step_ua':st[i+1]}
+                    for i in range(0,len(st),2)
+                ] if st is not None else None,
+                'six_pin_safety_note':'DTBO settings, not proven charging phase or physical cell voltage'
             }
         elif path.endswith('/usbpd_pm'):
             charge_nodes['usbpd_pm']={
@@ -164,7 +174,8 @@ def audit_overlay(index,dtbo,file_name):
                     'sha256':hashlib.sha256(profile_bytes).hexdigest(),
                     'max_voltage_uv':integer_property(props,'qcom,max-voltage-uv'),
                     'ffc_cc_cv_mv':integer_property(props,'qcom,fg-ffc-cc-cv-threshold-mv'),
-                    'jeita_float_uv':jeita[2::3] if jeita else None}
+                    'jeita_float_uv':jeita[2::3] if jeita else None,
+                    'mi_six_pin_battery_flag':'mi,six-pin-battery' in props}
             if path.startswith(active_battery_node+'/'):
                 prof.append(record)
             else:
