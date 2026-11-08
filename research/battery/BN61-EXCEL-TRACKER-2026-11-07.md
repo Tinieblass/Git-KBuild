@@ -2,13 +2,13 @@
 
 Updated: 2026-11-08 (Steps 53–54, separate A16/A17 contexts)
 
-## Current master workbook (version 7)
+## Current master workbook (version 8)
 - Filename: `BN61_Investigacion_QG_Gen4.xlsx`
 - Saved to user's ChatGPT Library: `/Investigacion BN61/BN61_Investigacion_QG_Gen4.xlsx`
-- Verified SHA-256: `ccf69915fa0f9e840a9c5eb64468c03b8620bbc58eff5613b282e38fa0bbfb74`
-- Size: 45,021 bytes. Valid XLSX ZIP container, no missing compressed entries.
+- Verified SHA-256: `5f130a164d7e6569fb7f7f0d0ef0423d6695d483c9a70c61f6f310695ee3ee1e`
+- Size: 46,546 bytes. Valid XLSX ZIP container, no missing compressed entries.
 - **13 sheets:** original 11 plus `Pares QG-Gen4` (two distinct FCC2/Gen4-capacity matches, formula driven) and `Kernels A17` (Butterflies versus E404 a17, X3 Pro Vayu versus X3 India Karna).
-- 79 findings, 27 research/progress items, 38 source records; includes the two-family QG↔Gen4 FCC2 comparison and Project113/E404 A17 source selection audit, in addition to prior 48–54 corrections.
+- 83 findings, 28 research/progress items, 40 source records; includes exact live Android17 Butterflies uname + /proc/version from 2026-11-08, bounded negative public-commit search and correct A17 task state; in addition to prior audit history.
 - Workbook source is kept in ChatGPT Library, not as a GitHub binary. GitHub is used for the audit notes and checksum provenance; **do not claim XLSX bytes are in this repo**.
 
 ## Earlier tracked master and original snapshot
@@ -16,6 +16,9 @@ Updated: 2026-11-08 (Steps 53–54, separate A16/A17 contexts)
 
 ## Version 6 previous tracked state
 - Previous v6 SHA-256 `669e0741e37ddf42570b45e6ab52a5851a9588d535a29860a7c25dae03f9539d`, 37,756 bytes, 11 sheets (canonical Library path updated in place).
+
+## Previous v7 master audit state
+- v7 SHA-256 `ccf69915fa0f9e840a9c5eb64468c03b8620bbc58eff5613b282e38fa0bbfb74`, size 45,021 bytes, 13 sheets (prior version persisted in manifest; current Library path overwritten in place).
 
 ## Prior version retained as history
 - `BN61_Investigacion_QG_Gen4_2026-11-07.xlsx` in `/Investigacion BN61/`.
@@ -34,9 +37,10 @@ Updated: 2026-11-08 (Steps 53–54, separate A16/A17 contexts)
 - `BN61-QG-GEN4-TWO-FAMILY-FCC2-PAIR-2026-11-08.md`
 - `BN61-BUTTERFLIES-A17-INTEGRATION-BOUNDARY-2026-11-08.md`
 - `BN61-PROJECT113-E404-A17-SOURCE-AUDIT-2026-11-08.md`
+- `BN61-A17-RUNNING-BUTTERFLIES-IDENTITY-2026-11-08.md` (**live A17 runtime confirmed**)
 
 ## Sources and claims boundary
-- The running 4.19.325-butterflies Gen4 source is **not independently identified**.
+- **Live A17 runtime confirmed** by `uname -a` and `cat /proc/version`: `4.19.325-butterflies-g2a6da414aeff` built 2026-11-01 18:15:07 WIB with Eva GCC17.0.0 / Binutils 2.47.50. This is the same release string documented previously under A16, **not proof of the same binary/DTBO**. Public SHA `2a6da414aeff` not found in four inspected GitHub repositories. The exact driver/source tree remains **unmatched**. E404 is a reference kernel, not the active one.
 - Qualcomm legacy `PROFILE_COMP_LEN=208`; later upstream and pinned alioth comparator `PROFILE_COMP_LEN=24`; full profile remains 416 bytes.
 - Live Step 51 final check: `/proc/config.gz` explicitly reports `# CONFIG_DEBUG_FS is not set`; the debugfs readout path is closed in the running Butterflies kernel. No further diagnostics needed for this.
 - Step 52 source correction: Rslow comes from separate DT properties but occupies live SRAM offsets 26–29 *within* the 416-byte loaded profile interval. The 24-byte comparator excludes these dynamic offsets; Qualcomm's 2018 diff introduced both elements. The interpretation of the motivation remains a hypothesis. The new `Mapa SRAM` worksheet calculates these offsets.
