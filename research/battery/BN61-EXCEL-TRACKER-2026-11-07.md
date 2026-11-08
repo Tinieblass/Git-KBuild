@@ -1,15 +1,18 @@
 # BN61 QG→Gen4 research workbook — canonical tracker
 
-Updated: 2026-11-08 (SM8250 VOTE_MIN, FFC auth/SOC/temperature gates, conditional FV truth table)
+Updated: 2026-11-08 (decoded Gen4 word23 VBATT_FULL, 4440/4490mV, and separation from charger FV)
 
-## Current master workbook (version 18)
+## Current master workbook (version 19)
 - Filename: `BN61_Investigacion_QG_Gen4.xlsx`
 - Saved to user's ChatGPT Library: `/Investigacion BN61/BN61_Investigacion_QG_Gen4.xlsx`
-- Verified SHA-256: `009f9e8a5d6ccccbf25d10a291dc8fc6a08eae5d4ac0c64d3191e3fc18ccdade`
-- Size: 112,916 bytes. Valid XLSX ZIP container, no missing compressed entries.
-- **25 sheets:** previous 24 plus `FV votos FFC` (formula-calculated FV VOTE_MIN under two conditional FFC states, live-vs-reference evidence labels, and source-pinned JEITA/PD-auth/BMS guard route).
-- 142 findings, 53 research/progress items, 76 source records. New Qualcomm source-confirmed FV VOTE_MIN, conditional NON_FFC/HW_LIMIT/JEITA interplay at reported 38°C (4450mV if FFC0 vs 4460mV if FFC1 assuming no other lower votes), and distinct PD-auth/BMS fastcharge paths. Runtime FFC and actual effective FV unknown.
+- Verified SHA-256: `24061c6f557762098eadb37b39e9755ead0aecd0b25447d21d54e8bf88db9a68`
+- Size: 117,819 bytes. Valid XLSX ZIP container, no missing compressed entries.
+- **26 sheets:** previous 25 plus `FG word23 SRAM` (formula-derived raw Gen4 VBATT_FULL, normal/FFC LE byte pairs and BMS model-vs-charger distinction).
+- 148 findings, 56 research/progress items, 81 source records. Source-pinned static map proves Gen4 FG SRAM word23 VBATT_FULL (4440mV→0x470A, 4490mV→0x47D7) and BMS model variable may change 4450→4500mV; **not** an actual charger 4500mV setpoint or NOHON 416B calibration.
 - Workbook source is kept in ChatGPT Library, not as a GitHub binary. GitHub is used for the audit notes and checksum provenance; **do not claim XLSX bytes are in this repo**.
+
+## Previous v18 master audit state
+- v18 SHA-256 `009f9e8a5d6ccccbf25d10a291dc8fc6a08eae5d4ac0c64d3191e3fc18ccdade`, 112,916 bytes, 25 sheets; canonical Library location now overwritten by v19.
 
 ## Previous v17 master audit state
 - v17 SHA-256 `a634a3f685ad48ba5eb5100897fa80ece91eaeea97b1803d41f37968a1632e18`, 108,530 bytes, 24 sheets; canonical Library file now overwritten by v18.
@@ -110,6 +113,8 @@ Updated: 2026-11-08 (SM8250 VOTE_MIN, FFC auth/SOC/temperature gates, conditiona
 - **Second live A17/PPS snapshot:** `battery/charge_type=Fast` is the charger phase, **not** necessarily FFC. `usb/pd_active=2` is `POWER_SUPPLY_PD_PPS_ACTIVE`. `battery/voltage_max=4480000` is a **QNOVO/BATT_PROFILE vote** (profile metadata, not actual voltage), `main/voltage_max=4250000` reads the **main FV charger register**, and `usb/voltage_max=9186000` is **PD USB voltage**, not cell voltage. These snapshots are sequential rather than simultaneous. The source-backed appropriate FFC read-only paths are `usb/fastcharge_mode` and `bms/fastcharge_mode`, not `battery/fastcharge_mode`. See [amended live evidence](BN61-A17-USB-PD-LIVE-CHARGING-SNAPSHOT-2026-11-08.md). NOHON declared max 4.45V: profile vote4.48V is +30mV **configuration discrepancy**, not an observed overcharge.
 
 - **Step60 voltage-vote model:** pinned [source audit](BN61-A17-PPS-FFC-VOTEMIN-TRUTH-TABLE-2026-11-08.md) establishes `FV` is `VOTE_MIN` in Xiaomi SM8250 reference, NON_FFC4450 if FFC=0, HW_LIMIT4460, and profile J3S JEITA4480 at 38°C if SW JEITA active. Assuming no lower active voters, model result 4450mV FFC0 versus 4460mV FFC1; real Butterflies effective FV and live BMS FFC state **unverified**. Explicit read-only observation plan checks `usb/pd_authentication`, `usb/fastcharge_mode`, `bms/fastcharge_mode`; no deliberate FFC enable or charging stress.
+
+- **Step61 FG register separate from charger FV:** Source-pinned Xiaomi SM8250 Gen4 `fg_gen4_set_vbatt_full_vol` passes normal **4440mV** or FFC **4490mV** to `fg_set_constant_chg_voltage`, which encodes `FG_SRAM_VBATT_FULL` at PM8150B **SRAM word23 byte0** (2 LE bytes, ratio 1000/244141). Calculated **0A 47** normal and **D7 47** FFC are offline references, NOT observed live SRAM and NOT the distinct 416-byte block loaded from word65. `fg->bp.float_volt_uv` internal model becomes 4450/4500mV and can appear in BMS `voltage_max_design` — not physical NOHON cell ceiling or SMB5 hardware FV. No FFC changes made. See [Step61 proof](BN61-FG-GEN4-WORD23-VBATT-FULL-NORMAL-FFC-2026-11-08.md) and [offline decoder](../../tools/fg_gen4_vbatt_full_word23_reference_only.py).
 
 ## Continuous updating
 Add new evidence to the canonical XLSX using unique IDs, date, provenance, exact kernel/source version, and confidence/limitations. Update this SHA-256 and GitHub note after each verified workbook save. Do not duplicate previous interpolations, Z/Y mappings, RC pairings, checksum research, or profile-to-SRAM addressing results without an explicit new question.
