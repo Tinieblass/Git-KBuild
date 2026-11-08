@@ -41,3 +41,9 @@ Additional conditional J3S simulations:
 ## Audit status
 
 Reproducible calculations in offline scripting; original file hashes and exact source revisions above. This step is new numeric cross-validation, distinct from Step 31 (Rslow non-identifiability) and Step 52 (SRAM address overlap).
+
+## Reproducibility tool
+
+Read-only Python standard-library checker committed to [`tools/audit_gen4_rslow_overlay.py`](../../tools/audit_gen4_rslow_overlay.py), commit `0fbfb3c9ef20c47710bba2705f1dd4f43e88cdfe`. Example from a local copy of the pinned J3S DTSI: `python3 tools/audit_gen4_rslow_overlay.py research/battery/alioth-J3S-Sun-5000mah.dtsi`. In the research environment a fixture containing the 416 exact J3S bytes reproduced blob SHA-256 `433cf6279d867be89b08ddb10a7fff0460c42c944cd253f702733033eef603dd` and all J3S checksums above. The fixture file layout was reconstructed for this validation; the original pinned source hash is separately documented.
+
+The script is intended for a computer or GitHub environment with Python; **do not ask the user to install Python on the phone merely for this research**.
