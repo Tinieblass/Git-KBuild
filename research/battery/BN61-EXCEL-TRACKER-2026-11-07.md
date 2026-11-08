@@ -1,15 +1,18 @@
 # BN61 QG→Gen4 research workbook — canonical tracker
 
-Updated: 2026-11-08 (Actual Butterflies 5K ZIP/alioth DTBO forensic audit)
+Updated: 2026-11-08 (full 5K DTBO and 3-base-DTB differential audit)
 
-## Current master workbook (version 9)
+## Current master workbook (version 10)
 - Filename: `BN61_Investigacion_QG_Gen4.xlsx`
 - Saved to user's ChatGPT Library: `/Investigacion BN61/BN61_Investigacion_QG_Gen4.xlsx`
-- Verified SHA-256: `24461bfc8c8a6bb2433512b87d8963e69effba76d0334ce27774a3d479012113`
-- Size: 51,497 bytes. Valid XLSX ZIP container, no missing compressed entries.
-- **14 sheets:** previous 13 plus `ZIP Butterflies` (audited two alioth DTBO variants, source file hashes, J3S fields, formula-derived voltage difference).
-- 90 findings, 30 research/progress items, 43 source records; includes actual user-supplied Butterfly Orchid 5K AnyKernel inspection, exact Image build-string correspondence with live Android17, root-model/board-id matching and real alioth DTBO profile difference.
+- Verified SHA-256: `ed52a03d88d7196e14a9d8844e44a3f5bac072a0c17e65ffa6911dfdc69b0a12`
+- Size: 56,069 bytes. Valid XLSX ZIP container, no missing compressed entries.
+- **15 sheets:** previous 14 plus `Delta DTB` (all 12 models, formulas for 55 alioth-removed properties and 3 Qualcomm Kona base-FDT DCC comparisons).
+- 96 findings, 32 research/progress items, 45 source records. Includes full keyed 12-overlay comparison, the exact 55 removed properties from alioth and the non-battery DCC changes in all three 5K Kona base DTBs.
 - Workbook source is kept in ChatGPT Library, not as a GitHub binary. GitHub is used for the audit notes and checksum provenance; **do not claim XLSX bytes are in this repo**.
+
+## Previous v9 master audit state
+- v9 SHA-256 `24461bfc8c8a6bb2433512b87d8963e69effba76d0334ce27774a3d479012113`, size 51,497 bytes, 14 sheets; canonical Library file now overwritten by v10.
 
 ## Previous v8 master audit state
 - v8 SHA-256 `5f130a164d7e6569fb7f7f0d0ef0423d6695d483c9a70c61f6f310695ee3ee1e`, size 46,546 bytes, 13 sheets (current Library path overwritten in place).
@@ -52,6 +55,7 @@ Updated: 2026-11-08 (Actual Butterflies 5K ZIP/alioth DTBO forensic audit)
 - Step 54 proves a possible capacity initialization path from nominal internal Gen4 bytes to `charge_full` and documents different Android16 and Android17 BMS labels with the same reported 5037mAh. No valid SOH inference from comparing this number with UI/design metadata.
 - QG/Gen4 pairs Alium and MLP466076 share exact QG FCC2 at 25°C and Gen4 internal word271 (3588 and 3314 mAh), **not** full transfer or authentication of the NOHON. E404 a17 has `e404_args=batt_5k` and stock/J3S 416B variants; **not** a real BN61 profile. X3 Pro Vayu source must never be conflated with X3 India Karna QG M703.
 - **Actual ZIP audit:** The supplied `butterflies-orchid_MIUI-HOS_01-11-5k.zip` (SHA-256 `17d0d5c37e2007e5b33b57b174c2b7eb87b01a0f5bd1fb514ac63830d702a434`) selects `5k/dtb` and `5k/dtbo.img` by filename. For board-id `0x2c` **alioth**, normal DTBO overlay #10 contains FMT4520, GY4520 and J3S5000, while 5K DTBO overlay #3 contains **only J3S5000**, Gen4 hash `433cf6279d867be89b08ddb10a7fff0460c42c944cd253f702733033eef603dd`. Image embedded build string **exactly matches** user's live A17 `/proc/version` text, linking the package much more strongly to the kernel; still **not** byte-for-byte proof of installed boot or DTBO.
+- **Full 5K differential (new):** 11 other DTBO boards have identical raw overlay SHA-256 hashes. The normal alioth overlay has exactly **55** additional properties: 27 FMT, 27 GY and one K11A selection flag; all other alioth properties have identical bytes. The 5K **base DTBs also add a Qualcomm DCC v2 debug capture node** (15 properties in each of three SoC variants) and only renumber shared `phandle` references (625/625/624). The internal AnyKernel `write_boot()` explicitly calls `flash_generic dtbo` with a single-write sentinel, so the chosen DTBO is intended to be written to partition, though installed-partition hashes remain unverified. Source: augmented [forensic note](BN61-BUTTERFLIES-ZIP-5K-ALIOTH-DTBO-2026-11-08.md).
 - **Voltage caution:** Alioth charger in both ZIP variants declares `qcom,fv-max-uv` 4.46V and non-FCC maximum 4.45V; J3S declares max4.48V and FFC threshold4.49V. Actual cell voltage not inferred; user BN61 is declared max4.45V. The ZIP contains **no BN61 electrical profile**.
 - No evidence has authenticated a 416-byte NOHON BN61 Gen4 electrical calibration. The `-6K` battery profile and DTBO remain non-flashable.
 
