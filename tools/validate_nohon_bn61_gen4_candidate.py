@@ -26,6 +26,19 @@ KNOWN_DONORS = {
 }
 
 
+# SHA256 over only offsets 0:412, excluding capacity at offsets 412-413 and
+# two 0x00 padding bytes. These 412 bytes come from the *original real DTBO*
+# (alioth selected and generic OEM nodes), not from guessed BN61 curves.
+# Any cloned J3S payload with only edited capacity/checksum is rejected.
+KNOWN_DONOR_ELECTRICAL_412 = {
+    "e0b53ce9d04e669e3c0ac1557d0cc2b91785da9835c1d71238e44dabf766022b": "Alium/OnePlus alias copied electrical payload",
+    "d7a1d73f13e2d082d6045b2c07fc62ce59df74ad966b215f207b19a09b031d06": "Qualcomm Ascent copied electrical payload",
+    "43c8d0a20f13ed43b550b8927dca63d31b0013a5ecaaff37af961780735d37b5": "Xiaomi FMT4520 copied electrical payload",
+    "2c1fa38d8e84bdf0b3bc2aa248f1b50b5b7391370f64138b10d28172e0653f90": "Xiaomi GY4520 copied electrical payload",
+    "6abd76b33465b4cfb7ca52b640602d2261df4ad53e372f9ff8c9a85fb533da6a": "Xiaomi J3S5000 copied electrical payload",
+}
+
+
 def clean(s):
     return re.sub(r"/\*.*?\*/|//[^\n]*", "", s, flags=re.S)
 
@@ -79,8 +92,14 @@ def audit(filename):
 
     digest = hashlib.sha256(b).hexdigest() if b else None
     donor = KNOWN_DONORS.get(digest)
+    # The legacy 416B hash alone misses nominal word271-only edits.
+    # Preserve the exact donor block separately from the first 412 bytes.
+    prefix_digest = hashlib.sha256(b[:412]).hexdigest() if len(b) == 416 else None
+    prefix_donor = KNOWN_DONOR_ELECTRICAL_412.get(prefix_digest)
     check("known_non_nohon_copy", b != b"" and donor is None,
-          donor or "not identical to the known J3S source blob (cannot prove NOHON identity)", "provenance")
+          donor or "No exact 416B donor match; this does not prove NOHON", "provenance")
+    check("known_non_nohon_electrical_412_copy", len(b) == 416 and prefix_donor is None,
+          prefix_donor or "No exact 412B donor match; this does not prove NOHON", "provenance")
 
     expected = scalar(s, "checksum")
     actual = qcom_checksum(b) if len(b) == 416 else None
@@ -120,6 +139,7 @@ def audit(filename):
         "input": str(filename),
         "input_sha256": hashlib.sha256(src).hexdigest(),
         "gen4_profile_sha256": digest,
+        "electrical_profile_prefix_412_sha256": prefix_digest,
         "comparison_profile_length_bytes": len(b),
         "declared_profile_capacity_mAh": scalar(s, "nom-batt-capacity-mah"),
         "internal_nominal_capacity_mAh": nominal,
