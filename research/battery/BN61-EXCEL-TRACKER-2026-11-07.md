@@ -1,15 +1,18 @@
 # BN61 QG→Gen4 research workbook — canonical tracker
 
-Updated: 2026-11-08 (QG OCV/hysteresis 25°C matched-family audit)
+Updated: 2026-11-08 (BN61 Reconstruction R1: complete external M703 16-LUT benchmark)
 
-## Current master workbook (version 11)
+## Current master workbook (version 12)
 - Filename: `BN61_Investigacion_QG_Gen4.xlsx`
 - Saved to user's ChatGPT Library: `/Investigacion BN61/BN61_Investigacion_QG_Gen4.xlsx`
-- Verified SHA-256: `f3d63a3996c497c3e37e055ccea377d903d757577995f2434e1141216e9a17ce`
-- Size: 67,039 bytes. Valid XLSX ZIP container, no missing compressed entries.
-- **16 sheets:** previous 15 plus `OCV pares 25C` (complete 56-point SOC × two Qualcomm QG families, four full 25°C charge/discharge curves, formula-driven hysteresis and chart).
-- 100 findings, 34 research/progress items, 46 source records. New primary-source 25°C QG charge/discharge hysteresis cross-check (55 nonterminal SOC points), with source-provenance and all previous profile-selection evidence retained.
+- Verified SHA-256: `a3d6068ff56ff07db887aab9c80f64d3d493f17034f8f31a18f9244a108e5137`
+- Size: 80,688 bytes. Valid XLSX ZIP container, no missing compressed entries.
+- **18 sheets:** previous 16 plus `M703 OCV 25C` (56 source points, formulas and chart) and `BN61 Recon R1` (16-tabular source dataset inventory, verified 4,323 values and 12 explicitly unknown NOHON calibration fields).
+- 107 findings, 37 research/progress items, 50 source records. Exact 16 OEM QG LUTs have been normalized to JSON with 4,323 source entries; NOHON manifest blocks any 416B/Gen4 extrapolation or flash.
 - Workbook source is kept in ChatGPT Library, not as a GitHub binary. GitHub is used for the audit notes and checksum provenance; **do not claim XLSX bytes are in this repo**.
+
+## Previous v11 master audit state
+- v11 SHA-256 `f3d63a3996c497c3e37e055ccea377d903d757577995f2434e1141216e9a17ce`, size 67,039 bytes, 16 sheets, canonical Library file overwritten by v12.
 
 ## Previous v10 master audit state
 - v10 SHA-256 `ed52a03d88d7196e14a9d8844e44a3f5bac072a0c17e65ffa6911dfdc69b0a12`, size 56,069 bytes, 15 sheets; canonical Library path overwritten by v11.
@@ -51,6 +54,12 @@ Updated: 2026-11-08 (QG OCV/hysteresis 25°C matched-family audit)
 
 - `BN61-QG-MATCHED-OCV-HYSTERESIS-25C-2026-11-08.md` (56 SOC points per family, 25°C V1/V2)
 
+
+- [BN61-R1 reconstructed 16-table QG benchmark and safe limits](BN61-RECONSTRUCTION-R1-QG-16-LUT-2026-11-08.md).
+- [Source-exact normalized M703 ATL QG: 16 LUTs / 4323 original integer entries](models/M703-ATL-6000mAh-QG-16-LUT-REFERENCE-NOT-BN61.json).
+- [Separate NOHON BN61 evidence manifest, no guessed 416-byte blob](models/NOHON_BN61_RECONSTRUCTION_STATUS_NON_FLASHABLE.json).
+- [Read-only Python 3 reference QG LUT validator/interpolator](../../tools/reconstruct_qg_reference.py).
+
 ## Sources and claims boundary
 - **Live A17 runtime confirmed** by `uname -a` and `cat /proc/version`: `4.19.325-butterflies-g2a6da414aeff` built 2026-11-01 18:15:07 WIB with Eva GCC17.0.0 / Binutils 2.47.50. This is the same release string documented previously under A16, **not proof of the same binary/DTBO**. Public SHA `2a6da414aeff` not found in four inspected GitHub repositories. The exact driver/source tree remains **unmatched**. E404 is a reference kernel, not the active one.
 - Qualcomm legacy `PROFILE_COMP_LEN=208`; later upstream and pinned alioth comparator `PROFILE_COMP_LEN=24`; full profile remains 416 bytes.
@@ -63,6 +72,8 @@ Updated: 2026-11-08 (QG OCV/hysteresis 25°C matched-family audit)
 - **Full 5K differential (new):** 11 other DTBO boards have identical raw overlay SHA-256 hashes. The normal alioth overlay has exactly **55** additional properties: 27 FMT, 27 GY and one K11A selection flag; all other alioth properties have identical bytes. The 5K **base DTBs also add a Qualcomm DCC v2 debug capture node** (15 properties in each of three SoC variants) and only renumber shared `phandle` references (625/625/624). The internal AnyKernel `write_boot()` explicitly calls `flash_generic dtbo` with a single-write sentinel, so the chosen DTBO is intended to be written to partition, though installed-partition hashes remain unverified. Source: augmented [forensic note](BN61-BUTTERFLIES-ZIP-5K-ALIOTH-DTBO-2026-11-08.md).
 - **Voltage caution:** Alioth charger in both ZIP variants declares `qcom,fv-max-uv` 4.46V and non-FCC maximum 4.45V; J3S declares max4.48V and FFC threshold4.49V. Actual cell voltage not inferred; user BN61 is declared max4.45V. The ZIP contains **no BN61 electrical profile**.
 - **New OCV matched-family audit:** exact QG charging/discharging surfaces for Alium and MLP466076 disagree: at 25°C/50% SOC their V1–V2 deltas are 19.4mV and 25.2mV; over 55 nonterminal SOC grid points the unweighted means are 22.747 and 27.195mV. Both still have `FCC2(25°C)=Gen4 word271`. This confirms that the capacity match does not determine charge/discharge OCV or a conversion for 414 remaining bytes. The QG surface is source calibration, not independent cell measurements. No evidence has authenticated a 416-byte NOHON BN61 Gen4 electrical calibration. The `-6K` battery profile and DTBO remain non-flashable.
+
+- **R1 reconstruction evidence limit:** the 4,323 recovered source values are **OEM M703-ATL QG**, not NOHON BN61 calibration. At 50%/25°C they encode charging/discharging OCV 3897.1/3875.4 mV. The QG data are not directly serializable into PM855B Gen4's 416-byte opaque payload, nor are M703's 4.48V FFC metadata transferable. The NOHON target retains 12 missing gates and remains NOT FLASHABLE.
 
 ## Continuous updating
 Add new evidence to the canonical XLSX using unique IDs, date, provenance, exact kernel/source version, and confidence/limitations. Update this SHA-256 and GitHub note after each verified workbook save. Do not duplicate previous interpolations, Z/Y mappings, RC pairings, checksum research, or profile-to-SRAM addressing results without an explicit new question.
