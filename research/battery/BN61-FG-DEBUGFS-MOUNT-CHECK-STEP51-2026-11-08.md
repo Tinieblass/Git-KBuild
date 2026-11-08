@@ -136,3 +136,23 @@ else:
 `/proc/config.gz` exposes the configuration of the running Linux kernel if `CONFIG_IKCONFIG_PROC` is available; see https://man7.org/linux/man-pages/man5/proc_config.gz.5.html.
 
 **Already-done-check guard:** do not rerun `ls /sys/kernel/debug/fg/sram`, `grep debugfs /proc/filesystems` or mount listings unless a new kernel is installed. Existing results are sufficient. This is a narrowing of Step 51, not a new step or a new calibration result.
+
+
+## Final live kernel-config confirmation (2026-11-08)
+
+The user ran, without installing packages or changing the device:
+```sh
+su -c '
+/system/bin/toybox zcat /proc/config.gz 2>&1 |
+grep -E "CONFIG_DEBUG_FS|zcat|gzip|error|Unknown" ||
+echo "Non foi posible obter o valor"
+'
+```
+The exact relevant output was:
+```text
+# CONFIG_DEBUG_FS is not set
+```
+
+**Confirmed**: the running kernel's exposed build configuration has `CONFIG_DEBUG_FS` explicitly disabled. Together with the absence from `/proc/filesystems`, the missing mountpoint and absent `/sys/kernel/debug`, this closes the **debugfs-based FG SRAM inspection route on this running kernel** without needing further checks.
+
+Scope: this result excludes `debugfs` on the **current kernel build**, but does not prove anything about a different kernel or non-debugfs methods of reading Gen4 SRAM; nor does it identify the loaded battery profile. Do not keep asking for the same commands. No mount, sysfs switch or SRAM access performed.
