@@ -65,6 +65,7 @@ Updated: 2026-11-08 (actual 5K six-pin three-step FV/FCC data, Image ABI typo an
 - Keep prior snapshot as evidence; use the undated filename for ongoing updates.
 
 ## Newly synchronized notes
+- `BN61-SOURCE-PROVENANCE-AND-WORKBOOK-AUDIT-2026-11-08.md` (third-party source classification, official variant/characterization cross-check and dated workbook-preview reconciliation).
 - `BN61-GEN4-IDENTIFIABILITY-CROSSCHECK-STEP48-2026-11-07.md`
 - `BN61-GEN4-PARTIAL-PROFILE-COMPARE-STEP49-2026-11-08.md` (**corrected in-place**)
 - `BN61-FG-DEBUGFS-SRAM-ROUTE-STEP50-2026-11-08.md`
@@ -86,6 +87,17 @@ Updated: 2026-11-08 (actual 5K six-pin three-step FV/FCC data, Image ABI typo an
 - [Source-exact normalized M703 ATL QG: 16 LUTs / 4323 original integer entries](models/M703-ATL-6000mAh-QG-16-LUT-REFERENCE-NOT-BN61.json).
 - [Separate NOHON BN61 evidence manifest, no guessed 416-byte blob](models/NOHON_BN61_RECONSTRUCTION_STATUS_NON_FLASHABLE.json).
 - [Read-only Python 3 reference QG LUT validator/interpolator](../../tools/reconstruct_qg_reference.py).
+
+## 2026-11-08 source-provenance and workbook-preview audit
+
+- The user-provided dated workbook preview is the archived seven-sheet snapshot already recorded above: 21,367 bytes, SHA-256 `2bfe593ecfd2715dda3dfa80932de18d1df4c00aed7b557000154aa5c34db83b`. It is not the tracker’s canonical 28-sheet v21 master (129,286 bytes, SHA-256 `e78b90dc1b3046606ac1d8fbd524f8a9e88e5b41b45ceb9cbec4c38859b38976`). No connected Excel session is available, so v21 was not read or edited; an audit copy of the archived snapshot is not a new master version.
+- The BN61-specific Manuals.plus page is a third-party manual mirror, not a first-party NOHON specification. Its 6000 mAh typical / 5850 mAh rated / 3.87 V / 4.45 V entries remain secondary claims without pack-lot traceability or characterization data. A bounded search of the official NOHON site for BN61/BN-61 and POCO X3 material found no public BN61 electrical profile; this does not establish that private or unpublished data do not exist.
+- NOHON’s official site links an anti-counterfeit lookup, which may help with product identity; no code was entered and no authenticity result was obtained. The mirror’s claimed manufacturer, Shenzhen Xinghuang Communication Equipment Co., Ltd., has a company website describing general battery/OEM operations, but the public material reviewed does not establish a NOHON–Xinghuang relationship for this BN61 model or the installed unit’s lot.
+- Official Xiaomi pages distinguish POCO X3 6000mAh Edition from POCO X3 NFC 5160mAh. This is device-variant evidence only and does not characterize a NOHON replacement pack. Qualcomm’s public PM855B Gen4 commit describes the Alium profile as based on characterization; it supplies no BN61 profile or capacity-based conversion.
+- Fresh source run on the unchanged Flash-Kernel HEAD `12952d8fda65c8496bd9a31a8b90abfe221801fc`: research validation and CI lint both pass. The research workflow ran five PM855GUI parser tests and uploaded a 61,204-byte reference artifact (ZIP SHA-256 `82602d47d4d909a5628f1a9fbc8528546f46f30b31cc486216a8e58edc11630d`). These are source/tool checks, not cell validation. No kernel build was warranted because this audit changes no kernel code.
+- **Profile decision remains BLOCKED:** no exact-pack PM855GUI 416-byte export tied to an authenticated BN61 lot, OCV charge/discharge surfaces, FCC-vs-temperature, Z/Y, normal/cold Rslow, NTC/R-T data, dynamic impedance, pack-specific charge limits or calibrated terminal-voltage evidence. The 4.498523 V value remains a reported fuel-gauge/sysfs reading, not a calibrated cell-terminal measurement. No candidate payload, DTBO or ZIP was generated; `safe_to_flash=false` remains unchanged.
+
+Source links: [NOHON official site](https://www.nohon.cn/), [NOHON anti-counterfeit route](https://fwm.nohon.cn/), [NOHON contact page](https://www.nohon.cn/lianxi.html), [third-party BN61 manual](https://manuals.plus/ae/1005005950829288), [Xinghuang company profile](https://www.xinghuangbattery.cn/?page_id=8893), [POCO X3 6000mAh Edition](https://www.mi.com/bd/poco-x3/), [POCO X3 NFC specs](https://www.mi.com/lk/poco-x3-nfc/specs/), [Qualcomm PM855B Gen4 characterization commit](https://android.googlesource.com/kernel/msm/%2B/d0d496335e272f63b939d6f238640b7d4798d3e9).
 
 ## Sources and claims boundary
 - **Live A17 runtime confirmed** by `uname -a` and `cat /proc/version`: `4.19.325-butterflies-g2a6da414aeff` built 2026-11-01 18:15:07 WIB with Eva GCC17.0.0 / Binutils 2.47.50. This is the same release string documented previously under A16, **not proof of the same binary/DTBO**. Public SHA `2a6da414aeff` not found in four inspected GitHub repositories. The exact driver/source tree remains **unmatched**. E404 is a reference kernel, not the active one.

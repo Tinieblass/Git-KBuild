@@ -129,6 +129,31 @@
     "official_feedback": "https://www.nohon.cn/fankui.html",
     "authenticated_NOHON_electrical_dataset_acquired": false,
     "stated_charge_voltage_ceiling_V": 4.45,
-    "public_forum_capacity_estimates_cannot_authenticate_this_pack": true
+    "public_forum_capacity_estimates_cannot_authenticate_this_pack": true,
+    "bn61_specific_manual_source_classification": "third_party_manual_mirror_not_first_party_NOHON",
+    "bn61_manual_claims_unverified": true,
+    "bn61_manual_contains_authentic_PM855GUI_or_cell_characterization": false,
+    "official_NOHON_sources_checked": [
+      "https://www.nohon.cn/",
+      "https://www.nohon.cn/products/2.html",
+      "https://www.nohon.cn/lianxi.html",
+      "https://fwm.nohon.cn/"
+    ],
+    "official_NOHON_site_search_date": "2026-11-08",
+    "official_NOHON_BN61_public_profile_found": false,
+    "official_search_scope": "Bounded public site/query review; not proof that unpublished/private data do not exist",
+    "official_anti_counterfeit_route": "https://fwm.nohon.cn/",
+    "anti_counterfeit_result_obtained": false,
+    "manual_claimed_manufacturer": "SHENZHEN XINGHUANG COMMUNICATION EQUIPMENT CO.,LTD.",
+    "manual_manufacturer_claim_independently_linked_to_NOHON_BN61_lot": false,
+    "manufacturer_public_site": "https://www.xinghuangbattery.cn/?page_id=8893",
+    "stated_charge_voltage_source_classification": "user label and third-party manual claim; no first-party lot-specific technical sheet acquired"
+  },
+  "primary_source_crosschecks_2026_11_08": {
+    "poco_x3_6000mAh_edition": "https://www.mi.com/bd/poco-x3/",
+    "poco_x3_nfc_5160mAh_specs": "https://www.mi.com/lk/poco-x3-nfc/specs/",
+    "scope": "Official device variant specifications only; not BN61 replacement-pack characterization",
+    "qualcomm_pm855b_gen4_characterization_commit": "https://android.googlesource.com/kernel/msm/%2B/d0d496335e272f63b939d6f238640b7d4798d3e9",
+    "interpretation": "The cited PM855B Gen4 profile was described as based on characterization; no BN61 profile or capacity-only conversion is provided"
   }
 }
