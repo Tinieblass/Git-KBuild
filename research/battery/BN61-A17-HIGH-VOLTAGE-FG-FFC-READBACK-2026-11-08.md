@@ -51,3 +51,30 @@ The user reported earlier sequential measurement 4.085927V and later 4.48V *prof
 **Safety first, not more charging tests.** Unplug now, keep phone in a safe location and avoid further charging. If cool and normal, read-only unplugged `battery/status`, `battery/voltage_now`, `battery/current_now`, `battery/temp`, `usb/online`; do not provoke charge or use heavy workloads. If still near 4.5V unplugged, discontinue use and obtain qualified hardware/NOHON assessment. This report is not an emergency diagnosis or a substitute for physical cell-voltage metrology.
 
 No NOHON 416-byte authentic electrochemical profile has been recovered. Do not create a 6K flashable patch while the as-used pack voltage reading exceeds its declared maximum.
+
+
+## Second observation AFTER UNPLUGGING — 2026-11-08 19:16:14 CET (+0100)
+
+User disconnected the charger and provided a new read-only power_supply snapshot at **19:16:14 CET**, **4 minutes 29 seconds** after the 19:11:45 +0100 snapshot:
+
+```text
+Sun Nov 8 19:16:14 CET 2026
+/sys/class/power_supply/battery/status = Discharging
+/sys/class/power_supply/battery/voltage_now = 4228993
+/sys/class/power_supply/battery/current_now = 353027
+/sys/class/power_supply/battery/temp = 367
+/sys/class/power_supply/usb/online = 0
+/sys/class/power_supply/bms/constant_charge_voltage = 4439948
+/sys/class/power_supply/bms/voltage_max_design = 4450000
+```
+
+- Battery gauge **4.228993 V**, now **221,007 uV (221.007mV) below** the pack's declared 4.45V upper charge limit. UI reports **Discharging** and `usb/online=0`, confirming unplugged state. Battery current now **+0.353027 A** (discharge sign convention), battery temperature **36.7°C** versus prior 38.0°C.
+- From earlier **4.498523V** to this **4.228993V**, difference **269,530uV (269.530mV) within 269 seconds**. This is too much change to explain as **simple cell discharge quantity alone**, but the earlier *charging current was not captured in the same snapshot*. Plausible contributions include transient relaxation of terminal voltage after charging, changing PD-PPS/charge-pump conditions, voltage sensing/FG calibration, or reference-profile mismatch. **Do not infer which contribution dominates or claim proven damage/safety from these two data points.** No true resting OCV or direct DMM measurement obtained.
+- `bms/constant_charge_voltage` changed **4,489,997uV → 4,439,948uV** = **-50,049uV**. Both are **exactly the expected PM8150B FG word23 encoded/decoded FFC J3S 4490mV** and **normal J3S 4440mV** values from the pinned Qualcomm `fg-util.c` formula. This is strong independent **running-device confirmation of the mathematical Gen4 dynamic VBATT_FULL switching**. It is NOT a reading of the electrochemical NOHON 416B data; nor does it prove what charger FH voltage actually reached the cell.
+- `bms/voltage_max_design` simultaneously changed **4,500,000uV → 4,450,000uV**, consistent with the pinned Gen4 model `fg->bp.float_volt_uv=(VBATT_FULL_mV+10)*1000` switching back from FFC to normal on disconnect. This is **model configuration**, not independent evidence of certified NOHON limits or automatic safe charging in all modes.
+- Prior `main/voltage_max=4,460,000uV` was collected while the charger was attached; the second snapshot did not re-read `main/voltage_max`. Therefore no assertion of its disconnected value.
+- Prior `bms/fastcharge_mode=4440` and `bms/vbatt_full_vol=1` are inconsistent with the reference property getter names. The exact Butterflies binary/source mapping remains unverified, and the reference sysfs code includes a misspelled `fcc_vbatt_full_vol` filename. Do NOT draw FFC boolean conclusions from those swapped values or write to these attributes.
+
+**Updated safety interpretation:** the reported high voltage is no longer present **unplugged**, but it remains a significant *charge-connected* reading over the declared NOHON limit. The safer next action is **do not reconnect/recharge for diagnostics**; keep the pack unplugged, avoid heat/loading, seek device/battery service and independently verify effective charging regulation and battery terminal voltage before resuming charging. Do not force it back to 100% or write new FG/DTBO voltage values. If the pack is swollen, noticeably hot, smells abnormal or voltage rises unusually when unplugged, power off and arrange prompt expert inspection.
+
+This follow-up establishes a useful new validated link between **reference word23 dynamic FG encoding** and **actual live sysfs readbacks**, but **does not create an authenticated NOHON 416-byte profile or make -6K flashable**.
