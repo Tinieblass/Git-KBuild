@@ -2,13 +2,13 @@
 
 Updated: 2026-11-08 (Step 51 runtime observation)
 
-## Current master workbook (version 4)
+## Current master workbook (version 5)
 - Filename: `BN61_Investigacion_QG_Gen4.xlsx`
 - Saved to user's ChatGPT Library: `/Investigacion BN61/BN61_Investigacion_QG_Gen4.xlsx`
-- Verified SHA-256: `6ea8901b1b144acfafa9be6877d43e81ee3bbd1bfaace077f739b6e596655acb`
-- Size: 26,441 bytes. Valid XLSX ZIP container, no missing compressed entries.
-- **8 sheets:** original 7 plus `Estado` dashboard.
-- 54 findings, 20 research/progress items, 24 sources; includes source-traceable updates for Steps 48–51, the specific 208→24 byte correction in Step 49, the two live debugfs-negative tests, and the correction to the CONFIG_DEBUG_FS parsing filter.
+- Verified SHA-256: `5c49140f894ea4380bda8eb782034b819cae7c859df988572074983dc47a7159`
+- Size: 30,328 bytes. Valid XLSX ZIP container, no missing compressed entries.
+- **9 sheets:** original 7 plus `Estado` dashboard and the formula-driven `Mapa SRAM` (Gen4 source-to-SRAM offsets and 24-byte comparison range).
+- 59 findings, 21 research/progress items, 25 sources; includes source-traceable updates for Steps 48–52, the definitive live `CONFIG_DEBUG_FS` disablement in Step 51, and the in-profile Rslow SRAM byte-offset correction in Step 52.
 - Workbook source is kept in ChatGPT Library, not as a GitHub binary. GitHub is used for the audit notes and checksum provenance; **do not claim XLSX bytes are in this repo**.
 
 ## Prior version retained as history
@@ -21,11 +21,13 @@ Updated: 2026-11-08 (Step 51 runtime observation)
 - `BN61-GEN4-PARTIAL-PROFILE-COMPARE-STEP49-2026-11-08.md` (**corrected in-place**)
 - `BN61-FG-DEBUGFS-SRAM-ROUTE-STEP50-2026-11-08.md`
 - `BN61-FG-DEBUGFS-MOUNT-CHECK-STEP51-2026-11-08.md`
+- `BN61-GEN4-RSLOW-INSIDE-PAYLOAD-STEP52-2026-11-08.md`
 
 ## Sources and claims boundary
 - The running 4.19.325-butterflies Gen4 source is **not independently identified**.
 - Qualcomm legacy `PROFILE_COMP_LEN=208`; later upstream and pinned alioth comparator `PROFILE_COMP_LEN=24`; full profile remains 416 bytes.
-- Live Step 51 follow-up: `/sys/kernel/debug/fg/sram` is absent; `/proc/filesystems` does not list `debugfs`, no `debugfs` mounts are visible, and `/sys/kernel/debug` is missing. This strongly suggests debugfs is unavailable, but the kernel config itself is unproven; the prior grep `^CONFIG_DEBUG_FS=` misses `# CONFIG_DEBUG_FS is not set`. Next read-only check: decompress `/proc/config.gz` with Python to see the exact config line. No mount/write is authorized.
+- Live Step 51 final check: `/proc/config.gz` explicitly reports `# CONFIG_DEBUG_FS is not set`; the debugfs readout path is closed in the running Butterflies kernel. No further diagnostics needed for this.
+- Step 52 source correction: Rslow comes from separate DT properties but occupies live SRAM offsets 26–29 *within* the 416-byte loaded profile interval. The 24-byte comparator excludes these dynamic offsets; Qualcomm's 2018 diff introduced both elements. The interpretation of the motivation remains a hypothesis. The new `Mapa SRAM` worksheet calculates these offsets.
 - No evidence has authenticated a 416-byte NOHON BN61 Gen4 electrical calibration. The `-6K` battery profile and DTBO remain non-flashable.
 
 ## Continuous updating
