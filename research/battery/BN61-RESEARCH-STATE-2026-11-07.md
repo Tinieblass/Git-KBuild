@@ -48,7 +48,7 @@ Driver semantics established by the audit:
 - `BATTERY_TYPE`: active DT `qcom,battery-type` label; not independently read pack model.
 - `VOLTAGE_MAX_DESIGN`: DT `qcom,max-voltage-uv`; profile metadata, not a cell voltage measurement.
 - `CHARGE_FULL_DESIGN`: DT `qcom,nom-batt-capacity-mah`; configured design capacity.
-- `CHARGE_FULL`: learned gauge capacity.
+- `CHARGE_FULL`: gauge-reported learned capacity **which may have been initialized from the profile nominal capacity on profile load**, not necessarily independently measured physical capacity. See 2026-11-08 Step 54.
 - With `qcom,soc-hi-res`, `CAPACITY_RAW` is centi-percent SOC. The observed 5998 is about 59.98% SOC, not 5998 mAh.
 - `RESISTANCE`: `ESR (µΩ) + Rslow (µΩ)` gauge estimate. Samples 96679 and 113769 correspond to 96.679 and 113.769 mΩ at different states; not laboratory DCIR or a full impedance surface.
 - `CONSTANT_CHARGE_VOLTAGE`: current FG SRAM `FG_SRAM_VBATT_FULL` value.
@@ -235,3 +235,12 @@ Crucial distinction: init chmod and SELinux authorization are **capability**, no
 - **Critical source vs SRAM distinction (Step 52):** `qcom,rslow-normal-coeffs`/`qcom,rslow-low-coeffs` are sourced outside the 416-byte `qcom,fg-profile-data` DT property, **but overwrite bytes 26–29 of the loaded SRAM profile region** when temperature-dependent Rslow selection changes. The conditional RSLOW_CONFIG workaround at SRAM word241 also falls within the profile region. Thus a full live SRAM-to-DT comparison cannot simply assume immutable 416 bytes.
 - **Historical Qualcomm co-change:** the commit/diff adding dynamic temperature-switched Rslow updates simultaneously changes `PROFILE_COMP_LEN` from 208 to 24, excluding offsets 26–29. A possible rationale is avoiding false re-load mismatches; this is an inference, not a documented Qualcomm explanation.
 - These findings do **not** authenticate a NOHON BN61 Gen4 model or establish whether the exact Butterflies driver follows the pinned reference revision. See `BN61-GEN4-RSLOW-INSIDE-PAYLOAD-STEP52-2026-11-08.md`.
+
+
+## 2026-11-08 cross-profile checksum/capacity correction — Steps 53–54
+
+1. **Three pinned Gen4 OEM profiles, independently computed:** J3S Sun (5000mAh), K11A FMT (4520mAh), K11A GY (4520mAh) each have their external normal Rslow vector duplicated byte-for-byte at payload offsets 26–29. The cold vector is separate. Qualcomm PM855GUI original/checksum-after-cold simulations: J3S `BE8D→C101`, FMT `7EF5→7DAD`, GY `6477→2B17`. This is an **offline checksum thought experiment** on publicly sourced DTSI bytes, not a live PMIC result and **not** evidence of a runtime hardware checksum failure. See `BN61-GEN4-THREE-OEM-RSLOW-CHECKSUM-STEP53-2026-11-08.md`; checker `tools/audit_gen4_rslow_overlay.py`.
+2. **J3S nominal capacity is 5037 mAh in the source blob** (bytes 412–413 `AD 13`); comparator `profile_load_work` may copy that nominal capacity into the learned-capacity storage on first profile load when the previously retained learning value is zero. A reported `charge_full=5037000` uAh can therefore be an initialization seed, not an independent health measurement. See `BN61-GEN4-CHARGE-FULL-SEEDING-CROSS-ROM-STEP54-2026-11-08.md`.
+3. **Separate ROM contexts must never be joined as simultaneous observations:** previous A16/Butterflies diagnostics report BMS `Nohon_BN61_6000mAh` and configured design 5850mAh, while user's separate A17 HyperOS4 diagnostics report BMS `j3ssun_5000mah` with design 5000mAh. Both reported `charge_full=5037mAh`. A framework/Device Info overlay may independently display 6000mAh while Xiaomi Settings caches 4520mAh. These are metadata pathways, not NOHON calibration. Ratios ~86.1% and ~100.7% have **no proven state-of-health meaning** in this situation.
+4. **Further source-derived internal capacities** FMT: 4513mAh (bytes `A1 11`), GY: 4559mAh (bytes `CF 11`), despite both nominal 4520mAh in their DT metadata; this reaffirms non-identifiability from capacity alone.
+5. The physical NOHON BN61 remains **not characterized for Gen4**, so no `-6K` battery DTBO, FG calibration, SRAM writes, or charge-limit changes.
