@@ -1,0 +1,4 @@
+583461ecebdbc496f3ecf5c12aebc757ad01c21f6a9a3f3caa44d7cda8c73e41  research/battery/BN61-OFFLINE-PILOT-2026-11-08.md
+c92bd584869796a9923ac2ea09918fc43f0ca4c38472e11d67655faba8118c45  research/battery/BN61-OFFLINE-PILOT-CASE-MATRIX-2026-11-08.json
+c092c7557cade2b266d6de643498ad9300446f90e13808478279bfe77e9fb975  tools/bn61_offline_pilot.py
+97dc32c22a8bb0d2f2cd99b541edc99d623d4ccd0a96d9d609c483e2a259a4a3  tools/test_bn61_offline_pilot.py

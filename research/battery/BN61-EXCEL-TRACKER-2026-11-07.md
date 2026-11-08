@@ -129,3 +129,10 @@ Updated: 2026-11-08 (actual 5K six-pin three-step FV/FCC data, Image ABI typo an
 
 ## Continuous updating
 Add new evidence to the canonical XLSX using unique IDs, date, provenance, exact kernel/source version, and confidence/limitations. Update this SHA-256 and GitHub note after each verified workbook save. Do not duplicate previous interpolations, Z/Y mappings, RC pairings, checksum research, or profile-to-SRAM addressing results without an explicit new question.
+
+
+## 2026-11-08 offline profile/safety pilot
+
+- Added the host-only pilot plan, 12-case JSON matrix, read-only evaluator, unit checks, and SHA-256 manifest to the Flash-Kernel branch. Local run: 14 unit tests passed; all 12 case outcomes matched. Decision remains **STOP_NO_PROFILE_NO_CHARGE**; this validates the harness only, not the battery, the raw package, or a charging configuration.
+- Corrected the A17 readback wording: the 4.498523V sysfs value is 48.523mV above a secondary-source 4.45V claim, not a calibrated physical cell-voltage measurement. The current/status pair has an ABI/driver sign conflict. Word-23 values are numerical corroboration, not proof of active FFC or exact running getter mapping.
+- Master workbook is still recorded as v21 at SHA-256 `e78b90dc1b3046606ac1d8fbd524f8a9e88e5b41b45ceb9cbec4c38859b38976`. It was not re-hashed or updated in this turn: no connected Excel session or accessible Library workbook file was available. Do not claim a v22 workbook or that v21 contains this pilot. Update remains pending access to that exact Library item.

@@ -1,0 +1,224 @@
+{
+  "schema_version": 1,
+  "scope": {
+    "mode": "offline_only",
+    "device_access": false,
+    "charging_test_authorized": false,
+    "profile_generation_allowed": false,
+    "dtbo_or_zip_generation_allowed": false,
+    "flashable_output_created": false
+  },
+  "provenance": {
+    "repository": "Tinieblass/Git-KBuild",
+    "branch": "Flash-Kernel",
+    "baseline_commit": "c1bb2da9ce59375122a5e12ed5d5163242fb7d47",
+    "user_supplied_5k_zip_sha256_recorded": "17d0d5c37e2007e5b33b57b174c2b7eb87b01a0f5bd1fb514ac63830d702a434",
+    "user_supplied_image_sha256_recorded": "afaf89070a8d57f7057e09a0b2e694c4eb2b4f98fb13b8daf9ee97ca604301c8",
+    "master_excel": {
+      "version_recorded": 21,
+      "sha256_recorded": "e78b90dc1b3046606ac1d8fbd524f8a9e88e5b41b45ceb9cbec4c38859b38976",
+      "status": "recorded_in_existing_GitHub_tracker_not_rehashed_or_modified_in_this_run"
+    },
+    "primary_refs": [
+      "https://android.googlesource.com/kernel/common/%2B/7c81f0a25a48727a477de3d712155535cca92728/Documentation/ABI/testing/sysfs-class-power",
+      "https://github.com/LineageOS/android_kernel_xiaomi_sm8250/tree/6b34d24765327d746074c8e53b5ad0d24a51acc7",
+      "https://en.nohon.cn/"
+    ],
+    "secondary_bn61_limit_ref": "https://manuals.plus/ae/1005005950829288",
+    "manufacturer_specific_bn61_spec_found": false
+  },
+  "validation_run": {
+    "host_only": true,
+    "unit_tests_passed": 14,
+    "case_count": 12,
+    "case_outcomes_matching_expected": 12,
+    "raw_zip_or_image_rehashed_this_run": false,
+    "decision": "STOP_NO_PROFILE_NO_CHARGE"
+  },
+  "gate_inputs": {
+    "manufacturer_spec_authenticated": false,
+    "physical_cell_voltage_lab_confirmed": false,
+    "exact_bn61_gen4_payload_authenticated": false,
+    "butterflies_runtime_property_mapping_authenticated": false
+  },
+  "observations": [
+    {
+      "id": "OBS-191145-VBAT",
+      "timestamp_local": "2026-11-08T19:11:45+01:00",
+      "source": "user-provided read-only Termux sysfs transcript",
+      "path": "/sys/class/power_supply/battery/voltage_now",
+      "raw": 4498523,
+      "unit": "uV",
+      "classification": "kernel_reported_instantaneous_supply_value",
+      "physical_cell_terminal_measurement": false
+    },
+    {
+      "id": "OBS-191145-BMS-CCV",
+      "timestamp_local": "2026-11-08T19:11:45+01:00",
+      "source": "user-provided read-only Termux sysfs transcript",
+      "path": "/sys/class/power_supply/bms/constant_charge_voltage",
+      "raw": 4489997,
+      "unit": "uV",
+      "classification": "reported_BMS_property_mapping_not_independently_authenticated"
+    },
+    {
+      "id": "OBS-191614-VBAT",
+      "timestamp_local": "2026-11-08T19:16:14+01:00",
+      "source": "user-provided read-only Termux sysfs transcript after unplugging",
+      "path": "/sys/class/power_supply/battery/voltage_now",
+      "raw": 4228993,
+      "unit": "uV",
+      "physical_cell_terminal_measurement": false
+    },
+    {
+      "id": "OBS-191614-STATUS",
+      "timestamp_local": "2026-11-08T19:16:14+01:00",
+      "source": "user-provided read-only Termux sysfs transcript after unplugging",
+      "battery_status": "Discharging",
+      "usb_online": 0,
+      "current_now_raw": 353027,
+      "current_now_unit": "uA",
+      "temperature_raw": 367,
+      "temperature_unit": "0.1 C per Linux ABI; device sensor calibration unknown"
+    }
+  ],
+  "test_cases": [
+    {
+      "id": "C01_NO_CANDIDATE",
+      "kind": "profile",
+      "input": {
+        "format": "missing",
+        "bn61_specific": false,
+        "manufacturer_authenticated": false,
+        "byte_length": null,
+        "checksum_verified": false
+      },
+      "expected": "BLOCKED_NO_CANDIDATE"
+    },
+    {
+      "id": "C02_M703_QG",
+      "kind": "profile",
+      "input": {
+        "format": "QG",
+        "bn61_specific": false,
+        "manufacturer_authenticated": false,
+        "byte_length": null,
+        "checksum_verified": false
+      },
+      "expected": "BLOCKED_FORMAT_MISMATCH"
+    },
+    {
+      "id": "C03_J3S_REFERENCE",
+      "kind": "profile",
+      "input": {
+        "format": "Gen4",
+        "bn61_specific": false,
+        "manufacturer_authenticated": false,
+        "byte_length": 416,
+        "checksum_verified": true
+      },
+      "expected": "REFERENCE_ONLY"
+    },
+    {
+      "id": "C04_K11A_REFERENCES",
+      "kind": "profile",
+      "input": {
+        "format": "Gen4",
+        "bn61_specific": false,
+        "manufacturer_authenticated": false,
+        "byte_length": 416,
+        "checksum_verified": true
+      },
+      "expected": "REFERENCE_ONLY"
+    },
+    {
+      "id": "C05_HIGH_REPORTED_VBAT",
+      "kind": "voltage",
+      "input": {
+        "reported_uv": 4498523,
+        "limit_uv": 4450000,
+        "limit_source_class": "secondary_claim",
+        "physical_measurement": false
+      },
+      "expected": "SAFETY_HOLD_REPORTED_ONLY"
+    },
+    {
+      "id": "C06_CONTEXT_CHANGED_VBAT",
+      "kind": "voltage_pair",
+      "input": {
+        "first_uv": 4498523,
+        "second_uv": 4228993,
+        "elapsed_seconds": 269,
+        "same_charge_and_load_context": false
+      },
+      "expected": "UNRESOLVED_DIFFERENT_CONTEXT"
+    },
+    {
+      "id": "C07_STATIC_SIX_PIN_STEPS",
+      "kind": "six_pin",
+      "input": {
+        "params_uv_ua": [4250000, 6000000, 4450000, 5400000, 4460000, 3536000],
+        "soc_threshold": 22,
+        "runtime_stage_observed": false
+      },
+      "expected": "STATIC_CONFIG_ONLY_STAGE_UNKNOWN"
+    },
+    {
+      "id": "C08_WORD23_REFERENCE_MATH",
+      "kind": "word23",
+      "input": {
+        "normal_mv": 4440,
+        "ffc_mv": 4490,
+        "expected_normal_bytes": "0A 47",
+        "expected_ffc_bytes": "D7 47"
+      },
+      "expected": "SOURCE_MATH_MATCH_ONLY"
+    },
+    {
+      "id": "C09_PROPERTY_MAP_UNRESOLVED",
+      "kind": "property_map",
+      "input": {
+        "fastcharge_mode_raw": 4440,
+        "vbatt_full_vol_raw": 1,
+        "exact_running_source_mapping_verified": false
+      },
+      "expected": "UNRESOLVED_NO_WRITE"
+    },
+    {
+      "id": "C10_CURRENT_SIGN_CONFLICT",
+      "kind": "current_status",
+      "input": {
+        "current_now_ua": 353027,
+        "status": "Discharging",
+        "standard_abi_sign_verified_for_running_driver": false
+      },
+      "expected": "UNRESOLVED_ABI_DRIVER_CONFLICT"
+    },
+    {
+      "id": "C11_BN61_EXPORT_WITHOUT_LAB",
+      "kind": "profile",
+      "input": {
+        "format": "Gen4",
+        "bn61_specific": true,
+        "manufacturer_authenticated": true,
+        "byte_length": 416,
+        "checksum_verified": true,
+        "physical_cell_voltage_lab_confirmed": false
+      },
+      "expected": "OFFLINE_REVIEW_ONLY_LAB_BLOCKED"
+    },
+    {
+      "id": "C12_COMPLETE_OFFLINE_EVIDENCE",
+      "kind": "profile",
+      "input": {
+        "format": "Gen4",
+        "bn61_specific": true,
+        "manufacturer_authenticated": true,
+        "byte_length": 416,
+        "checksum_verified": true,
+        "physical_cell_voltage_lab_confirmed": true
+      },
+      "expected": "OFFLINE_REVIEW_ONLY_NOT_FLASHABLE"
+    }
+  ]
+}
