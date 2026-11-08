@@ -1,0 +1,2 @@
+8a8475a08eceea8198784db0785c98d2bc393cd6a557de239566f4b326121662  tools/bn61_readonly_capture.sh
+628c451a9c9b7e2a2fda75baebeef1996cf395aaccb52b016e11fcae3a4215b9  research/battery/BN61-READONLY-CAPTURE-2026-11-08.md
