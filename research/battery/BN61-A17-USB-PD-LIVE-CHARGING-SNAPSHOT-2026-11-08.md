@@ -41,3 +41,38 @@ In alioth *selected* FDT overlay, `qcom,fv-max-uv=4460000`, `qcom,non-fcc-fv-max
 Capture only when naturally convenient; no need to force to 100%, intentionally enable FFC, stress-test fast charging or change charging current. Show available charger interfaces in `/sys/class/power_supply/` rather than assuming `battery/fastcharge_mode` exists; where readable inspect `battery/charge_type`, `battery/voltage_max`, `battery/constant_charge_voltage_max`, `main/voltage_max`, and `usb/pd_active`, with clear labeling that USB voltage is *not* battery voltage.
 
 No phone changes were made, and none should be made without separate user authorization. Keep the NOHON `-6K` profile **non-flashable**, authentic PM855GUI 416B/NTC/Rslow/FCC/OCV still unknown.
+
+
+## Second live snapshot: PD-PPS and three *different* `voltage_max` interfaces (2026-11-08, later observation)
+
+User repeated read-only `/sys/class/power_supply` interrogation on the same Android17 Butterflies phone:
+
+```text
+battery/charge_type: Fast
+battery/voltage_max: 4480000
+main/voltage_max: 4250000
+usb/voltage_max: 9186000
+usb/pd_active: 2
+```
+
+These are **read-only, separate-supply values, not simultaneous independent measurements of battery terminal voltage**. The earlier `battery/voltage_now=4085927` is from a **prior capture**, not concurrently sampled.
+
+### Source-confirmed interpretations, with explicit provenance boundaries
+
+Reference kernel `LineageOS/android_kernel_xiaomi_sm8250`, commit `6b34d24765327d746074c8e53b5ad0d24a51acc7`, not a verified decompilation of the actual user's Butterflies `Image`:
+
+1. **`usb/pd_active=2` means `POWER_SUPPLY_PD_PPS_ACTIVE`**: `include/linux/power_supply.h` blob `6f508a759be6d68145e7a3ead2e7696e3467789c` explicitly enumerates INACTIVE=0, ACTIVE=1, PPS_ACTIVE=2. The `usb` getter in `drivers/power/supply/qcom/qpnp-smb5.c` returns `chg->pd_active` at ~line1560. On PPS the code **prefers** a secondary charge pump if present; this **does not prove** the pump is engaged at this exact instant.
+2. **`battery/charge_type=Fast`** uses `smblib_get_prop_batt_charge_type`: maps the hardware charger `FULLON_CHARGE` phase to `POWER_SUPPLY_CHARGE_TYPE_FAST`, with another pump-related override in source. It is **not equivalent** to the `FASTCHARGE_MODE` flag that removes the NON-FFC voltage vote.
+3. **`battery/voltage_max=4.480000V`** is a battery psy property computed by `qpnp-smb5.c` getter ~line3101: it returns `get_client_vote(fv_votable, QNOVO_VOTER)`, **or**, if negative, `get_client_vote(fv_votable, BATT_PROFILE_VOTER)`. It is **not** `get_effective_result(fv_votable)` and **not** measured battery voltage. 4.48V exactly matches `qcom,max-voltage-uv=4480000` of J3S in the user's actual ZIP, but that match alone doesn't prove which voter won or exact live DTBO hash. It is **30mV above** the user-installed NOHON BN61 declared max 4.45V, as *profile metadata*, not observed overcharge.
+4. **`main/voltage_max=4.250000V`** is the main charger's real-time **programmed FV charge-parameter register** read by `smblib_get_charge_param(chg,&chg->param.fv,..)` in `qpnp-smb5.c` ~line2015. This is stronger evidence than a static profile value for that *main charger* register, but **PPS/charge-pump paths and other votes can mean it does not represent the effective max at the physical cell**. Do not claim either safe limiting at 4.25V or an error merely from this read.
+5. **`usb/voltage_max=9.186000V`** comes from USB source `smblib_get_prop_usb_voltage_max`: for `POWER_SUPPLY_TYPE_USB_PD`, the code reads `chg->voltage_max_uv`. This belongs to the **USB negotiation/input side**, not the battery voltage.
+6. **Read-only correct location for FFC:** `POWER_SUPPLY_PROP_FASTCHARGE_MODE` appears in the **USB psy**, `qpnp-smb5.c` ~line1465, whose getter ~line1646 invokes `smblib_get_fastcharge_mode(chg)` and returns the BMS property. The Gen4 **BMS psy** `qpnp-fg-gen4.c` also lists `POWER_SUPPLY_PROP_FASTCHARGE_MODE`; getter ~line5360 returns `chip->fastcharge_mode_enabled`. The previous command checked **`battery/fastcharge_mode`**, which the reference `smb5_batt_props[]` does not declare. Therefore its absence does **not** imply FFC off. Proper **read-only** next query checks `/sys/class/power_supply/usb/fastcharge_mode` and `/sys/class/power_supply/bms/fastcharge_mode`.
+7. Source `smb5-lib.c` ~line975 changes `NON_FFC_VFLOAT_VOTER` to `!enable` during `smblib_set_fastcharge_mode`; potential upper configuration 4.46V from separately verified user DTBO remains. **Actual runtime** FV voting and battery voltage near top-of-charge are not yet established.
+
+### Recommended next observations and safety boundary
+
+No `echo > /sys`, no `setprop`, no fastcharge activation, no forced PD negotiation. If convenient while using the phone normally, capture the `usb/fastcharge_mode` and `bms/fastcharge_mode` read-only values, BMS battery type/voltage max design, current `main/voltage_max`, `battery/voltage_now` and temperature, and retain both USB/PD and battery supply distinctions. Never intentionally run the installed cell to 4.45V or enable FFC just to investigate. The NOHON 416-byte model, NTC and Rslow remain unauthenticated, so no flashable 6K package.
+
+Pinned driver sources: [header enum](https://github.com/LineageOS/android_kernel_xiaomi_sm8250/blob/6b34d24765327d746074c8e53b5ad0d24a51acc7/include/linux/power_supply.h), [SMB5 power_supply properties](https://github.com/LineageOS/android_kernel_xiaomi_sm8250/blob/6b34d24765327d746074c8e53b5ad0d24a51acc7/drivers/power/supply/qcom/qpnp-smb5.c), [SMB5 FFC/charger library](https://github.com/LineageOS/android_kernel_xiaomi_sm8250/blob/6b34d24765327d746074c8e53b5ad0d24a51acc7/drivers/power/supply/qcom/smb5-lib.c), [Gen4 BMS fastcharge_mode](https://github.com/LineageOS/android_kernel_xiaomi_sm8250/blob/6b34d24765327d746074c8e53b5ad0d24a51acc7/drivers/power/supply/qcom/qpnp-fg-gen4.c).
+
+**Research log only:** no read/write action on the actual phone by the assistant, no charger mode test or code flash.
