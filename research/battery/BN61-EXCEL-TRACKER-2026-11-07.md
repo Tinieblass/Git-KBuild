@@ -1,15 +1,18 @@
 # BN61 QG→Gen4 research workbook — canonical tracker
 
-Updated: 2026-11-08 (actual 5K six-pin three-step FV/FCC data, Image ABI typo and health-reporting caveat)
+Updated: 2026-11-08 (FIRST EXECUTED OFFLINE BN61 PILOT; 9/9 tests, 5/9 safety gates blocked; anti-412B clone and 6K installer renaming)
 
-## Current master workbook (version 21)
+## Current master workbook (version 22)
 - Filename: `BN61_Investigacion_QG_Gen4.xlsx`
 - Saved to user's ChatGPT Library: `/Investigacion BN61/BN61_Investigacion_QG_Gen4.xlsx`
-- Verified SHA-256: `e78b90dc1b3046606ac1d8fbd524f8a9e88e5b41b45ceb9cbec4c38859b38976`
-- Size: 129,286 bytes. Valid XLSX ZIP container, no missing compressed entries.
-- **28 sheets:** prior 27 plus `SixPin ABI 5K` (3 exact alioth battery charge step FV/FCC entries, 6-pin health-reporting gate, actual Image ASCII offsets and source ABI index controls).
-- 161 findings, 63 research/progress items, 91 source records. Exact 5K DTBO alioth 3-stage FV/FCC: (4.25V,6A), (4.45V,5.4A), (4.46V,3.536A); main FV 4.25/4.46V observations match two steps but step selection is unproven. Actual Image includes sysfs `fcc_vbatt_full_vol` typo. Source 6-pin health threshold tolerances show 4.498523V fuel-gauge report is NOT proof of true chemical-cell voltage. **Do not recharge to reproduce; physical assessment still advised.**
+- Verified SHA-256: `e9315774747f7803c608ffc2531986fec15b8a351cb341152780f482e7421355`
+- Size: 135,341 bytes. Valid XLSX ZIP container, no missing compressed entries.
+- **29 sheets:** previous 28 plus `Piloto BN61 offline` (9 regression tests, 9 safety approval gates with 5 failures, 412B donor-prefix detection and real filename chooser).
+- 168 findings, 67 research/progress items, 96 source records. Real source ZIP+Image hashes verified; 9/9 offline regression tests passed while 5/9 approval gates block NOHON. Original 5K J3S active payload integrity verified (0xBE8D checksum and matching Rslow), but electrical model remains J3S and violates preliminary NOHON voltage gates. Fake nominal 5037→5850mAh edit changes hash yet leaves first 412 electrical bytes identical; permanent 412B donor rejection added. Real AnyKernel picks default NORMAL if ZIP simply renamed -6K. **No flashable pilot; no charging experiments.**
 - Workbook source is kept in ChatGPT Library, not as a GitHub binary. GitHub is used for the audit notes and checksum provenance; **do not claim XLSX bytes are in this repo**.
+
+## Previous v21 master audit state
+- v21 SHA-256 `e78b90dc1b3046606ac1d8fbd524f8a9e88e5b41b45ceb9cbec4c38859b38976`, size 129,286 bytes, 28 sheets; overwritten in canonical Library by v22.
 
 ## Previous v20 master audit state
 - v20 SHA-256 `8ecf62d3e8f04e80693efe772ec63f3de3b3e2779dfe54f3469af2cdf5a767d7`, size 122,876 bytes, 27 sheets; canonical Library now overwritten by v21.
@@ -138,6 +141,9 @@ Source links: [NOHON official site](https://www.nohon.cn/), [NOHON anti-counterf
 
 
 - **New Step62 safety refinement:** An exact offline parse of actual user ZIP 5K alioth (board0x2c) confirms `mi,six-pin-step-chg`, 3 FV/FCC pairs `4250mV/6000mA`, `4450mV/5400mA`, `4460mV/3536mA`, SOC threshold22 and selected J3S `mi,six-pin-battery`. Earlier `main/voltage_max` live snapshots 4250 and 4460mV match the endpoints, but neither proves a selected stage. Public SMB5 source notes six-pin sensed VBAT may exceed physical cell voltage and `HEALTH_OVERVOLTAGE` is conditionally reported with a larger buffer; **the reported FG 4.498523V is not direct chemical-cell metrology or proof of physical overcharge**. Actual Butterflies Image strings contain `fcc_vbatt_full_vol` typo, with `fastcharge_mode` and `vbatt_full_vol` present; actual enum mismatch remains unproved. Detailed [Step62 report](BN61-BUTTERFLIES-SIX-PIN-PD-ABI-SAFETY-2026-11-08.md), updated [offline auditor](../../tools/audit_butterflies_alioth_charge_policy.py). Avoid further charging tests and preserve NOHON 4.45V cell-label ceiling.
+
+
+- **Step63 pilot (actually executed):** Python 3 read-only [pilot script](../../tools/pilot_bn61_offline.py) and [machine JSON report](models/BN61_PILOT_OFFLINE_RESULT_2026-11-08.json). **9/9 harness tests PASS; 5/9 safety/identity gates FAIL.** Root cause includes alioth 5K J3S 416B donor, configuration above 4450mV in several charging paths, missing NOHON specific cell calibration and physical cell voltage evidence. Original J3S internal word271=5037mAh differs from DTSI nominal5000mAh; both copied. Changing only capacity to5850 and recomputing checksum changes full hash but keeps all **412 pre-capacity bytes** identical; strengthened [validator](../../tools/validate_nohon_bn61_gen4_candidate.py) uses a second SHA256(0:412) donor guard. Actual AnyKernel `*5k*` name switch **silently chooses normal DTBO for a renamed -6K ZIP**. Technical note [Step63](BN61-PILOT-EXECUTED-412B-CLONE-AND-6K-RENAME-2026-11-08.md). Nothing flashable; 4.45V ceiling is third-party/manual specification, not manufacturer lot data.
 
 ## Continuous updating
 Add new evidence to the canonical XLSX using unique IDs, date, provenance, exact kernel/source version, and confidence/limitations. Update this SHA-256 and GitHub note after each verified workbook save. Do not duplicate previous interpolations, Z/Y mappings, RC pairings, checksum research, or profile-to-SRAM addressing results without an explicit new question.
