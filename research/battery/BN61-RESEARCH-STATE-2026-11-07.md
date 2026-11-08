@@ -1,7 +1,7 @@
 # BN61 reverse-engineering — consolidated research state
 
 **Date:** 2026-11-07  
-**Scope:** NOHON BN61 6000 mAh replacement pack, POCO F3 / alioth, SM8250, PM855B / QPNP FG Gen4.  
+**Scope:** NOHON BN61 6000 mAh replacement pack, POCO F3 / alioth, SM8250, PM8150B / QPNP FG Gen4 (PM855B is a register-family name).  
 **Status:** research consolidation only. **No authenticated BN61 Gen4 profile exists; no `-6K` DTBO/profile is generated or flashable.**
 
 This document is a navigation and state-of-evidence record. Detailed raw captures, source excerpts, hashes and step-by-step derivations remain in the linked research notes; this file does not replace them.
@@ -308,3 +308,12 @@ Source: [Live Android17 runtime identity note](BN61-A17-RUNNING-BUTTERFLIES-IDEN
 - **Despite identical profile payloads**, Alium metadata calls it a 3600mAh battery with 107kΩ ID and 4.35V max, OP calls it a 4300mAh battery with 200kΩ ID and 4.42V max. A structured source property comparison found 12 external differences / 10 matching external properties. The OP commercial label exceeds its blob's nominal capacity by **712mAh**. Vendor intent is not established; source reuse, copy or fallback cannot be distinguished without provenance.
 - **New evidence rule:** full 416-byte identity, correct checksum and a nominal battery-type label do not authenticate a particular physical battery cell. Deduplicate QG–Gen4 pairs by actual **profile content identity** and independently documented cell measurement, not by file count or apparent OEM labels. In particular OP4300 is **not a third independent Gen4 electrochemical characterization**.
 - Real user NOHON BN61 max charge voltage 4.45V remains a safety ceiling input; no code, charging thresholds, DTBO, live SRAM, boot or 6K flashable package was changed/created. Source note: [Gen4 416B alias audit](BN61-GEN4-REUSED-416B-ACROSS-3600-4300-2026-11-08.md); workbook **v13** has a new `Alias Gen4 416B` worksheet and hash recorded in tracker.
+
+
+## 2026-11-08 — Third named QG-to-Gen4 family and live-ZIP candidate gate
+
+- The third same-named-family cross-format pair **Ascent** from `LineageOS/android_kernel_xiaomi_sm8250` pinned source has **FCC2 25°C = 3492mAh** and separate **Gen4 SRAM word271 = 3492mAh**, while FCC1 is 3481mAh. Gen4 416-byte checksum `C0ED` independently recalculated, normal Rslow match in payload bytes26–29. This now gives three named families (Alium 3588, MLP466076 3314, Ascent 3492), each with **different Gen4 payload bytes**; dates/same cell specimen still unverified. This establishes a *candidate scalar capacity anchor*, NOT the 416-byte transfer algorithm or a NOHON datum.
+- A narrow numerical negative-control applying simple `u16`, `u16/10` and live-state OCV voltage scaling `u16*0.244141mV` to static Gen4 profile words in three matched families **does not recover both 100% and 50% 25°C QG OCV values**. Thus simple direct mapping tested is unsupported; compressed/translated mappings remain possible. Do not turn the nearest word from a search into a physical OCV parameter without external validation.
+- The user's real Butterflies 5K DTBO includes identical J3S Sun 416B profile under **alioth #3 and apollo #4**. The new source-only [candidate gate](../../tools/validate_nohon_bn61_gen4_candidate.py) applied to those bytes rejects the J3S donor on five identity / charge-voltage policy tests (despite a valid checksum), which proves why renaming or capacity-only edits cannot make a genuine BN61.
+- The manufacturer-specific BN61 user manual affirms **5850mAh rated / 6000 typical / 3.87V / 4.45V max charging**. These are label/specification facts, NOT pack-specific lab curves or PM855GUI model. Official NOHON support/contact route is https://www.nohon.cn/lianxi.html ; no authenticated battery characterization was found in the research. Community capacity estimates of other units vary and are not substitutes.
+- New report: [third pair, source checks and ZIP rejection](BN61-THIRD-QG-GEN4-MATCH-AND-REAL-ZIP-REJECTION-2026-11-08.md); [three-pair source manifest](models/THREE-QG-GEN4-FCC2-25C-ANCHORS-NOT-BN61.json); [R2 pack evidence manifest](models/NOHON_BN61_RECONSTRUCTION_R2_NOT_FLASHABLE.json); workbook **v14**, new tabs `Tres pares FCC2` and `Filtro BN61 6K`. **No -6K DTBO or boot is flashable. No kernel, phone, SELinux, SRAM or charger changes**.
