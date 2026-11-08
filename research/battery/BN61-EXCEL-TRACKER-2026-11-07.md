@@ -1,15 +1,18 @@
 # BN61 QG→Gen4 research workbook — canonical tracker
 
-Updated: 2026-11-08 (first A17 NOHON real USB-PD charging snapshot: 4.085927V, 38°C)
+Updated: 2026-11-08 (second A17 live measurement, PPS=2 and 3 distinct voltage_max properties)
 
-## Current master workbook (version 16)
+## Current master workbook (version 17)
 - Filename: `BN61_Investigacion_QG_Gen4.xlsx`
 - Saved to user's ChatGPT Library: `/Investigacion BN61/BN61_Investigacion_QG_Gen4.xlsx`
-- Verified SHA-256: `7db2e68d2c1ad814ba0fdb140799e52c6b5851f88bfdcaa3c70767a60f2f340b`
-- Size: 105,192 bytes. Valid XLSX ZIP container, no missing compressed entries.
-- **24 sheets:** previous 23 plus `BN61 PD vivo` (first actual live A17 voltage/current/temperature/USB-PD readings, source values, unit-conversion formulas, reported 4.45V delta, explicit FFC uncertainty).
-- 132 findings, 49 research/progress items, 68 source records. First user-confirmed live A17 NOHON BN61 USB-PD charging snapshot: 4.085927V, -1.987303A, 38.0°C; 0.364073V below declared 4.45V in this instant only. Does NOT establish FFC setting or charger maximum.
+- Verified SHA-256: `a634a3f685ad48ba5eb5100897fa80ece91eaeea97b1803d41f37968a1632e18`
+- Size: 108,530 bytes. Valid XLSX ZIP container, no missing compressed entries.
+- **24 sheets:** `BN61 PD vivo` expanded with *second* real A17 observation (PPS=2, battery 4.48V vote vs main 4.25V FV register vs USB 9.186V PD negotiated max) and formula-linked 4.45V comparisons.
+- 137 findings, 51 research/progress items, 72 source records. Two sequential live user observations: earlier actual battery 4.085927V/-1.987303A/38°C; later PD-PPS=2 and Fast charge *stage*, battery voltage_max 4.48V is QNOVO/profile vote, main 4.25V is FV hardware register, USB 9.186V is USB-side max. FFC state unknown.
 - Workbook source is kept in ChatGPT Library, not as a GitHub binary. GitHub is used for the audit notes and checksum provenance; **do not claim XLSX bytes are in this repo**.
+
+## Previous v16 master audit state
+- v16 SHA-256 `7db2e68d2c1ad814ba0fdb140799e52c6b5851f88bfdcaa3c70767a60f2f340b`, 105,192 bytes, 24 sheets; Library overwritten by v17.
 
 ## Previous v15 master audit state
 - v15 SHA-256 `43b75b8e64ef144636329ce17e05521df3b98203f0888adb38e46626a7e2dc8d`, 101,588 bytes, 23 sheets; canonical Library file overwritten by v16.
@@ -99,6 +102,9 @@ Updated: 2026-11-08 (first A17 NOHON real USB-PD charging snapshot: 4.085927V, 3
 - **Step59 correction/safety:** This alioth FDT contains **two distinct battery-data nodes**: FG `qcom,battery-data=<0x07>` selects the Xiaomi-specific node at fragment127 (5K only J3S), whereas generic Alium/Ascent live under fragment77 phandle `0x12B` and are not selected by this FG reference. FDT __local_fixups__ must be excluded from runtime property scans. Selected charger `mi,support-ffc` has a 4450mV non-FFC and 4460mV HW FV ceiling; PD 4450/4460mV, QC3 4420mV. Pinned Qualcomm source removes NON_FFC_VFLOAT_VOTER on FFC enable. **Not proof of live terminal voltage or actual FFC state.** Exact forensic note [Step59](BN61-BUTTERFLIES-A17-FG-PHANDLE-FFC-AND-SIX-ALIASES-STEP59-2026-11-08.md), reproducible [FDT auditor](../../tools/audit_butterflies_alioth_charge_policy.py).
 
 - **Actual user read-only A17 sample:** [USB-PD live charging snapshot](BN61-A17-USB-PD-LIVE-CHARGING-SNAPSHOT-2026-11-08.md) reports `Charging`, `voltage_now=4085927µV`, `current_now=-1987303µA`, `temp=380` tenths°C, `usb/real_type=USB_PD`. At 4.085927V this is 364073µV below the user-declared 4.45V NOHON limit, but does **not** distinguish FFC active vs inactive or future ceiling 4.45 vs 4.46V. The `fastcharge_mode` file emitted nothing so it is not evidence of disabled fast charging. No change to device, battery or charger.
+
+
+- **Second live A17/PPS snapshot:** `battery/charge_type=Fast` is the charger phase, **not** necessarily FFC. `usb/pd_active=2` is `POWER_SUPPLY_PD_PPS_ACTIVE`. `battery/voltage_max=4480000` is a **QNOVO/BATT_PROFILE vote** (profile metadata, not actual voltage), `main/voltage_max=4250000` reads the **main FV charger register**, and `usb/voltage_max=9186000` is **PD USB voltage**, not cell voltage. These snapshots are sequential rather than simultaneous. The source-backed appropriate FFC read-only paths are `usb/fastcharge_mode` and `bms/fastcharge_mode`, not `battery/fastcharge_mode`. See [amended live evidence](BN61-A17-USB-PD-LIVE-CHARGING-SNAPSHOT-2026-11-08.md). NOHON declared max 4.45V: profile vote4.48V is +30mV **configuration discrepancy**, not an observed overcharge.
 
 ## Continuous updating
 Add new evidence to the canonical XLSX using unique IDs, date, provenance, exact kernel/source version, and confidence/limitations. Update this SHA-256 and GitHub note after each verified workbook save. Do not duplicate previous interpolations, Z/Y mappings, RC pairings, checksum research, or profile-to-SRAM addressing results without an explicit new question.
