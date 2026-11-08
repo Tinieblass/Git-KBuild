@@ -1458,3 +1458,43 @@ The audit workflow now includes the `hvdcp_opti` binary and vendor
 init/permissions files in its artifact paths for the next run. No
 battery profile, capacity value, thermal limit, DTB/DTBO or flashable
 artifact was modified.
+
+## Follow-up 25: Gen4 PM8150B Rslow revision workarounds (2026-11-08)
+
+Primary code inspected: `raystef66/InfiniR_kernel_alioth`,
+`drivers/power/supply/qcom/qpnp-fg-gen4.c`, pinned commit
+`020d4f36260801c92bcfa20ffc6f7d0a8805e1bd`, function
+`fg_gen4_bp_params_config` (approximately lines 2269–2360).
+
+**Verified code behavior**:
+
+- The driver reads four Rslow bytes from SRAM word 78 and compares them
+  against `fg->bp.rslow_low_coeffs` to infer whether the low-coefficient
+  bank is currently active. This is a **state check**, not a method to
+  derive normal/low coefficients from QG Z/Y tables.
+- Under `PM8150B_V1_RSLOW_COMP_WA`, it clears bit 1 at SRAM word 241
+  after loading the battery profile.
+- Under `PM8150B_V2_RSLOW_SCALE_FN_WA`, it writes `0x4000` to the
+  separate charging and discharging Rslow scale-function SRAM words.
+  The code does not imply that `0x4000` is a resistance in mΩ.
+- Both operations are hardware-revision-conditioned workarounds.
+  Neither should be transplanted into Flash Kernel v1.7 without
+  verifying the actual PMIC revision and active workaround flags.
+
+**Engineering consequence**: an inferred BN61 Rslow profile must not
+be validated by comparing only static DTS coefficients. The actual
+PM8150B revision, revision-specific workaround flags, runtime SRAM
+state and loaded profile integrity are independent prerequisites.
+For the present investigation this is a read-only code finding;
+no device SRAM or charging settings were written.
+
+**Evidence caution**: the earlier Z1 0.01 mΩ convention comes from an
+independent *community shim implementation*, not from an OEM calibration
+manual or a traced proprietary Qualcomm consumer. It is a useful
+testable hypothesis and a reproducible numeric interpretation of M703
+data, but **not yet a vendor-verified universal QG Z1 unit**. The
+proprietary `hvdcp_opti` consumer identified in follow-up 22 is a
+higher-value target for independent verification. Do not use the
+community shim's scale alone to generate a flashable BN61 profile.
+
+No kernel source, DTBO, battery safety limit, release or ZIP was changed.
