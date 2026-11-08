@@ -1,15 +1,18 @@
 # BN61 QG→Gen4 research workbook — canonical tracker
 
-Updated: 2026-11-08 (BN61 Reconstruction R1: complete external M703 16-LUT benchmark)
+Updated: 2026-11-08 (Gen4 416B alias across Alium3600 / OP4300 OEM definitions)
 
-## Current master workbook (version 12)
+## Current master workbook (version 13)
 - Filename: `BN61_Investigacion_QG_Gen4.xlsx`
 - Saved to user's ChatGPT Library: `/Investigacion BN61/BN61_Investigacion_QG_Gen4.xlsx`
-- Verified SHA-256: `a3d6068ff56ff07db887aab9c80f64d3d493f17034f8f31a18f9244a108e5137`
-- Size: 80,688 bytes. Valid XLSX ZIP container, no missing compressed entries.
-- **18 sheets:** previous 16 plus `M703 OCV 25C` (56 source points, formulas and chart) and `BN61 Recon R1` (16-tabular source dataset inventory, verified 4,323 values and 12 explicitly unknown NOHON calibration fields).
-- 107 findings, 37 research/progress items, 50 source records. Exact 16 OEM QG LUTs have been normalized to JSON with 4,323 source entries; NOHON manifest blocks any 416B/Gen4 extrapolation or flash.
+- Verified SHA-256: `ddc3a0a6f609dd7ec35a0b20469ffe56e9a71ae4f33879ddcec4fcdb7f1b1e7a`
+- Size: 86,252 bytes. Valid XLSX ZIP container, no missing compressed entries.
+- **19 sheets:** previous 18 plus `Alias Gen4 416B` (416-byte exact identity control, 12 differing / 10 matching metadata properties, formula-driven 712mAh label-versus-Gen4 internal gap).
+- 113 findings, 39 research/progress items, 53 source records. Newly establishes that Alium 3600 and OnePlus OP 4300 reuse identical 416-byte Gen4 payload while specifying different external battery identities and charging metadata; deduplicate future cross-format training evidence.
 - Workbook source is kept in ChatGPT Library, not as a GitHub binary. GitHub is used for the audit notes and checksum provenance; **do not claim XLSX bytes are in this repo**.
+
+## Previous v12 master audit state
+- v12 SHA-256 `a3d6068ff56ff07db887aab9c80f64d3d493f17034f8f31a18f9244a108e5137`, size 80,688 bytes, 18 sheets; canonical Library file overwritten by v13.
 
 ## Previous v11 master audit state
 - v11 SHA-256 `f3d63a3996c497c3e37e055ccea377d903d757577995f2434e1141216e9a17ce`, size 67,039 bytes, 16 sheets, canonical Library file overwritten by v12.
@@ -74,6 +77,9 @@ Updated: 2026-11-08 (BN61 Reconstruction R1: complete external M703 16-LUT bench
 - **New OCV matched-family audit:** exact QG charging/discharging surfaces for Alium and MLP466076 disagree: at 25°C/50% SOC their V1–V2 deltas are 19.4mV and 25.2mV; over 55 nonterminal SOC grid points the unweighted means are 22.747 and 27.195mV. Both still have `FCC2(25°C)=Gen4 word271`. This confirms that the capacity match does not determine charge/discharge OCV or a conversion for 414 remaining bytes. The QG surface is source calibration, not independent cell measurements. No evidence has authenticated a 416-byte NOHON BN61 Gen4 electrical calibration. The `-6K` battery profile and DTBO remain non-flashable.
 
 - **R1 reconstruction evidence limit:** the 4,323 recovered source values are **OEM M703-ATL QG**, not NOHON BN61 calibration. At 50%/25°C they encode charging/discharging OCV 3897.1/3875.4 mV. The QG data are not directly serializable into PM855B Gen4's 416-byte opaque payload, nor are M703's 4.48V FFC metadata transferable. The NOHON target retains 12 missing gates and remains NOT FLASHABLE.
+
+
+- **Gen4 negative control (v13):** byte-exact 416B equality from `OnePlusOSS/android_kernel_oneplus_sm8150` Alium 3600 and `OnePlusOSS/android_kernel_oneplus_sm8250` OP4300; both use the same internal 3588mAh, normal/cold Rslow and checksum `0x1538`, while battery strings, ID resistor (107→200kΩ) and float-voltage metadata (4.35→4.42V) differ. There are 12 external property differences, 10 matching source properties. This is a proven OEM source reuse, **not evidence the two physical cells are identical** or that a 4300mAh nominal cell was profiled. It is a critical negative control against accepting a NOHON profile by its label or checksum. See [full source audit](BN61-GEN4-REUSED-416B-ACROSS-3600-4300-2026-11-08.md).
 
 ## Continuous updating
 Add new evidence to the canonical XLSX using unique IDs, date, provenance, exact kernel/source version, and confidence/limitations. Update this SHA-256 and GitHub note after each verified workbook save. Do not duplicate previous interpolations, Z/Y mappings, RC pairings, checksum research, or profile-to-SRAM addressing results without an explicit new question.
