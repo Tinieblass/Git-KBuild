@@ -1,0 +1,104 @@
+{
+  "artifact_kind": "CROSS_FORMAT_REFERENCE_ONLY__NOT_NOHON_BN61__NOT_FLASHABLE",
+  "created_on": "2026-11-08",
+  "discovery": "QG fcc2-temp-lut at exactly 25 C matches Gen4 internal SRAM word271 (little-endian payload bytes412-413) in three distinct NAMED FAMILY source pairs; NOT a validated full QG-to-Gen4 conversion",
+  "field_map": {
+    "qg": "qcom,fcc2-temp-lut, temperature column 25C, integer mAh",
+    "gen4": "little-endian u16 at payload offsets 412/413 = SRAM word271"
+  },
+  "pairs": [
+    {
+      "family": "Alium",
+      "qg_fcc1_25C_mAh": 3581,
+      "qg_fcc2_25C_mAh": 3588,
+      "gen4_capacity_word271_mAh": 3588,
+      "qg_source": {
+        "repo": "OnePlusOSS/android_kernel_oneplus_sm8150",
+        "ref": "1dd473abda05a72f6978c47b2a7d80828db6b426",
+        "path": "arch/arm64/boot/dts/qcom/qg-batterydata-alium-3600mah.dtsi",
+        "git_blob_sha1": "7c18fc182bdc541069647a924955658c66816324",
+        "profile_date": "2018-06-15"
+      },
+      "gen4_source": {
+        "repo": "OnePlusOSS/android_kernel_oneplus_sm8150",
+        "ref": "1dd473abda05a72f6978c47b2a7d80828db6b426",
+        "path": "arch/arm64/boot/dts/qcom/fg-gen4-batterydata-alium-3600mah.dtsi",
+        "git_blob_sha1": "e8a8417c5c8b23d482d75cd58020cd3fb2152472",
+        "profile_date": "2018-09-24"
+      }
+    },
+    {
+      "family": "MLP466076",
+      "qg_fcc1_25C_mAh": 3306,
+      "qg_fcc2_25C_mAh": 3314,
+      "gen4_capacity_word271_mAh": 3314,
+      "qg_source": {
+        "repo": "OnePlusOSS/android_kernel_oneplus_sm8150",
+        "ref": "1dd473abda05a72f6978c47b2a7d80828db6b426",
+        "path": "arch/arm64/boot/dts/qcom/qg-batterydata-mlp466076-3200mah.dtsi",
+        "git_blob_sha1": "ce65243a20aebbe1deb08d56885b0b4e0f06c9dc",
+        "profile_date": "2018-09-28"
+      },
+      "gen4_source": {
+        "repo": "OnePlusOSS/android_kernel_oneplus_sm8150",
+        "ref": "1dd473abda05a72f6978c47b2a7d80828db6b426",
+        "path": "arch/arm64/boot/dts/qcom/fg-gen4-batterydata-mlp466076-3250mah.dtsi",
+        "git_blob_sha1": "2664336da9c8c4a8366f3b62dae16d840fca4af6",
+        "profile_date": "2018-09-24"
+      }
+    },
+    {
+      "family": "Ascent",
+      "qg_fcc1_25C_mAh": 3481,
+      "qg_fcc2_25C_mAh": 3492,
+      "gen4_capacity_word271_mAh": 3492,
+      "qg_source": {
+        "repo": "LineageOS/android_kernel_xiaomi_sm8250",
+        "ref": "6b34d24765327d746074c8e53b5ad0d24a51acc7",
+        "path": "arch/arm64/boot/dts/vendor/qcom/qg-batterydata-ascent-3450mah.dtsi",
+        "git_blob_sha1": "ee06816b27ade1d9e84ea1e3540a15e60021b083",
+        "profile_date": "2018-02-07"
+      },
+      "gen4_source": {
+        "repo": "LineageOS/android_kernel_xiaomi_sm8250",
+        "ref": "6b34d24765327d746074c8e53b5ad0d24a51acc7",
+        "path": "arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-ascent-3450mah.dtsi",
+        "git_blob_sha1": "5c8618c9dc9c1a2a1f2849730affb446b564675b",
+        "profile_date": "2019-02-28",
+        "checksum_provision": "0xC0ED",
+        "checksum_recalculated": "0xC0ED",
+        "rslow_normal": "43 0A 7B 1A",
+        "rslow_low": "D0 13 18 22",
+        "byte_length": 416,
+        "normal_rslow_in_payload_offsets26_to29": true
+      }
+    }
+  ],
+  "pairwise_differences_of_gen4_416_payloads": [
+    {
+      "a": "Alium",
+      "b": "MLP466076",
+      "changed_bytes": 292
+    },
+    {
+      "a": "Alium",
+      "b": "Ascent",
+      "changed_bytes": 285
+    },
+    {
+      "a": "MLP466076",
+      "b": "Ascent",
+      "changed_bytes": 283
+    }
+  ],
+  "bytes_identical_across_all_three": 99,
+  "limitations": {
+    "same_cell_specimen_confirmed": false,
+    "dates_aligned": false,
+    "conversion_to_full_416_byte_model_validated": false,
+    "nohon_cell_profile_present": false,
+    "qg_data_for_nomon_proven": false,
+    "safe_to_flash": false
+  },
+  "security": "Reference-only evidence to help decode; a named-family pair is not an independent same-specimen metrology match."
+}
