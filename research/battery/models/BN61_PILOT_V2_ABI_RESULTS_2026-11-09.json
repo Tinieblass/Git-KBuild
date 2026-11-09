@@ -1,0 +1,214 @@
+{
+  "title": "NOHON BN61 OFFLINE PILOT v2: ABI mismatch + clone mutation controls",
+  "source_zip_sha256": "17d0d5c37e2007e5b33b57b174c2b7eb87b01a0f5bd1fb514ac63830d702a434",
+  "source_image_sha256": "afaf89070a8d57f7057e09a0b2e694c4eb2b4f98fb13b8daf9ee97ca604301c8",
+  "source_pins": {
+    "source_author_public_link": "https://t.me/s/PocoF3IDUpdate?before=5856",
+    "published_butterflies_dev_repository": "starscroch/kernel_xiaomi_sm8250",
+    "fork_commit": "f9263ab88f1b328fab2b34d159a87c63cd45ae56",
+    "fork_power_supply_header_git_sha1": "00d8aa9f561e54c9cdb24e1875daf638cbbabfc5",
+    "fork_power_supply_sysfs_git_sha1": "a56d42382191abf90ba665f550e46971b988b844",
+    "fork_fg_gen4_driver_git_sha1": "0d6197be75647e5250e74ec6b681681e46ac00e9",
+    "parent_repository": "PocoF3Releases/kernel_xiaomi_sm8250",
+    "parent_commit": "7e4f13a152140d8220ad9905e281904873653576",
+    "parent_power_supply_header_git_sha1": "00d8aa9f561e54c9cdb24e1875daf638cbbabfc5",
+    "parent_power_supply_sysfs_git_sha1": "c5b831863c0e6d83a982723b46b4a86e3a7b7049"
+  },
+  "source_to_runtime_relation": "Official Butterflies public source link points to starscroch fork. Direct binary Image compiled commit not independently authenticated.",
+  "published_fork_property_mapping": {
+    "fastcharge_mode": {
+      "sysfs_index": 267,
+      "compiled_enum_meaning": "vbatt_full_vol"
+    },
+    "vbatt_full_vol": {
+      "sysfs_index": 276,
+      "compiled_enum_meaning": "fastcharge_mode"
+    }
+  },
+  "published_parent_sysfs_alignment": {
+    "267": "vbatt_full_vol",
+    "276": "fastcharge_mode"
+  },
+  "actual_Image_rodata_name_order": {
+    "near_rodata_start_offset": 38882496,
+    "order": [
+      "fastcharge_mode",
+      "vbatt_full_vol",
+      "fcc_vbatt_full_vol"
+    ],
+    "offsets_in_window": {
+      "fastcharge_mode": 4,
+      "vbatt_full_vol": 180,
+      "fcc_vbatt_full_vol": 196
+    },
+    "supports_pinned_fork_sysfs_name_order": true
+  },
+  "user_observed_values": {
+    "fastcharge_mode": 4440,
+    "vbatt_full_vol": 1
+  },
+  "abi_explanation": "A source-level enum/sysfs swap at indexes 267/276 predicts 4440 under fastcharge_mode and 1 under vbatt_full_vol; highly consistent with user observations.",
+  "actual_Butterflies_enum_mapping_status": "NOT CRYPTOGRAPHICALLY PROVEN FROM 47MB IMAGE; needs direct compiled enum analysis or exact build source",
+  "mutation_cases": [
+    {
+      "test": "original_J3S_412B",
+      "pass": true,
+      "classification": {
+        "class": "COPIED_ELECTRICAL_412B",
+        "reject": true,
+        "nearest_donor": "j3ssun_5000mah",
+        "different_bytes_0_to_411": 0,
+        "method": "Hamming byte distance in 0:412; heuristic does not authenticate anything"
+      },
+      "candidate_generated_in_memory_only": true
+    },
+    {
+      "test": "capacity_only_5850",
+      "pass": true,
+      "classification": {
+        "class": "COPIED_ELECTRICAL_412B",
+        "reject": true,
+        "nearest_donor": "j3ssun_5000mah",
+        "different_bytes_0_to_411": 0,
+        "method": "Hamming byte distance in 0:412; heuristic does not authenticate anything"
+      },
+      "candidate_generated_in_memory_only": true
+    },
+    {
+      "test": "capacity_plus_1_electrical_bytes",
+      "pass": true,
+      "classification": {
+        "class": "NEAR_COPIED_ELECTRICAL",
+        "reject": true,
+        "nearest_donor": "j3ssun_5000mah",
+        "different_bytes_0_to_411": 1,
+        "method": "Hamming byte distance in 0:412; heuristic does not authenticate anything"
+      },
+      "candidate_generated_in_memory_only": true
+    },
+    {
+      "test": "capacity_plus_4_electrical_bytes",
+      "pass": true,
+      "classification": {
+        "class": "NEAR_COPIED_ELECTRICAL",
+        "reject": true,
+        "nearest_donor": "j3ssun_5000mah",
+        "different_bytes_0_to_411": 4,
+        "method": "Hamming byte distance in 0:412; heuristic does not authenticate anything"
+      },
+      "candidate_generated_in_memory_only": true
+    },
+    {
+      "test": "capacity_plus_8_electrical_bytes",
+      "pass": true,
+      "classification": {
+        "class": "NEAR_COPIED_ELECTRICAL",
+        "reject": true,
+        "nearest_donor": "j3ssun_5000mah",
+        "different_bytes_0_to_411": 8,
+        "method": "Hamming byte distance in 0:412; heuristic does not authenticate anything"
+      },
+      "candidate_generated_in_memory_only": true
+    },
+    {
+      "test": "capacity_plus_9_electrical_bytes",
+      "pass": true,
+      "classification": {
+        "class": "UNKNOWN_ELECTRICAL_DATA",
+        "reject": true,
+        "nearest_donor": "j3ssun_5000mah",
+        "different_bytes_0_to_411": 9,
+        "method": "Hamming byte distance in 0:412; heuristic does not authenticate anything"
+      },
+      "candidate_generated_in_memory_only": true
+    },
+    {
+      "test": "independent_oem_is_not_near_clone_of_other_K11A_FMT_4520mah",
+      "pass": true,
+      "classification": {
+        "class": "UNKNOWN_ELECTRICAL_DATA",
+        "reject": true,
+        "nearest_donor": "j3ssun_5000mah",
+        "different_bytes_0_to_411": 279,
+        "method": "Hamming byte distance in 0:412; heuristic does not authenticate anything"
+      },
+      "candidate_generated_in_memory_only": false
+    },
+    {
+      "test": "independent_oem_is_not_near_clone_of_other_K11A_GY_4520mah",
+      "pass": true,
+      "classification": {
+        "class": "UNKNOWN_ELECTRICAL_DATA",
+        "reject": true,
+        "nearest_donor": "j3ssun_5000mah",
+        "different_bytes_0_to_411": 261,
+        "method": "Hamming byte distance in 0:412; heuristic does not authenticate anything"
+      },
+      "candidate_generated_in_memory_only": false
+    },
+    {
+      "test": "independent_oem_is_not_near_clone_of_other_alium_860_89032_0000_3600mah_sept24th2018",
+      "pass": true,
+      "classification": {
+        "class": "UNKNOWN_ELECTRICAL_DATA",
+        "reject": true,
+        "nearest_donor": "ascent_3450mah_averaged_masterslave_feb28th2019",
+        "different_bytes_0_to_411": 283,
+        "method": "Hamming byte distance in 0:412; heuristic does not authenticate anything"
+      },
+      "candidate_generated_in_memory_only": false
+    },
+    {
+      "test": "independent_oem_is_not_near_clone_of_other_ascent_3450mah_averaged_masterslave_feb28th2019",
+      "pass": true,
+      "classification": {
+        "class": "UNKNOWN_ELECTRICAL_DATA",
+        "reject": true,
+        "nearest_donor": "alium_860_89032_0000_3600mah_sept24th2018",
+        "different_bytes_0_to_411": 283,
+        "method": "Hamming byte distance in 0:412; heuristic does not authenticate anything"
+      },
+      "candidate_generated_in_memory_only": false
+    },
+    {
+      "test": "independent_oem_is_not_near_clone_of_other_j3ssun_5000mah",
+      "pass": true,
+      "classification": {
+        "class": "UNKNOWN_ELECTRICAL_DATA",
+        "reject": true,
+        "nearest_donor": "K11A_GY_4520mah",
+        "different_bytes_0_to_411": 261,
+        "method": "Hamming byte distance in 0:412; heuristic does not authenticate anything"
+      },
+      "candidate_generated_in_memory_only": false
+    }
+  ],
+  "mutation_tests_total": 11,
+  "mutation_tests_passed": 11,
+  "offline_checks": {
+    "source_index_pins_known": true,
+    "original_Image_string_order_matches_fork": true,
+    "observed_values_explained_by_swapped_names": true,
+    "FFC_Gen4_readback_matches_4490mV": true,
+    "mutation_and_control_tests": true,
+    "original_pilot_retains_five_safety_failures": true
+  },
+  "offline_checks_passed": 6,
+  "original_pilot_safety_blockers": 5,
+  "near_clone_heuristic_max_electrical_differences": 8,
+  "nearest_clone_not_authentication": true,
+  "source_pack_lot_authenticated": false,
+  "cell_level_voltage_independently_measured": false,
+  "pilot_result": "REJECT_NOT_FLASHABLE__ELECTRICAL_PACK_SOURCE_MISSING_AND_CHARGER_POLICY_UNPROVEN",
+  "never_write_sysfs_controls": [
+    "fastcharge_mode",
+    "vbatt_full_vol",
+    "fcc_vbatt_full_vol",
+    "voltage_max",
+    "constant_charge_voltage"
+  ],
+  "flashable": false,
+  "writes_phone": false,
+  "writes_input_zip": false,
+  "generates_anykernel_zip": false
+}
