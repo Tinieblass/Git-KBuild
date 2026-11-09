@@ -1,14 +1,14 @@
 # BN61 QG→Gen4 research workbook — canonical tracker
 
-Updated: 2026-11-08 (FIRST EXECUTED OFFLINE BN61 PILOT; 9/9 tests, 5/9 safety gates blocked; anti-412B clone and 6K installer renaming)
+Updated: 2026-11-09 (Step64: published Butterflies developer sysfs/header ABI swap; offline pilot v2; 11/11 mutation tests)
 
-## Current master workbook (version 22)
+## Current master workbook (version 23)
 - Filename: `BN61_Investigacion_QG_Gen4.xlsx`
 - Saved to user's ChatGPT Library: `/Investigacion BN61/BN61_Investigacion_QG_Gen4.xlsx`
-- Verified SHA-256: `e9315774747f7803c608ffc2531986fec15b8a351cb341152780f482e7421355`
-- Size: 135,341 bytes. Valid XLSX ZIP container, no missing compressed entries.
-- **29 sheets:** previous 28 plus `Piloto BN61 offline` (9 regression tests, 9 safety approval gates with 5 failures, 412B donor-prefix detection and real filename chooser).
-- 168 findings, 67 research/progress items, 96 source records. Real source ZIP+Image hashes verified; 9/9 offline regression tests passed while 5/9 approval gates block NOHON. Original 5K J3S active payload integrity verified (0xBE8D checksum and matching Rslow), but electrical model remains J3S and violates preliminary NOHON voltage gates. Fake nominal 5037→5850mAh edit changes hash yet leaves first 412 electrical bytes identical; permanent 412B donor rejection added. Real AnyKernel picks default NORMAL if ZIP simply renamed -6K. **No flashable pilot; no charging experiments.**
+- Verified SHA-256: `33b1dbcf7ad782534113735265c6b88b206cf393c4aa26902652b3354d755ff0`
+- Size: 142,012 bytes. Valid XLSX ZIP container, no missing compressed entries.
+- **30 sheets:** previous 29 plus `ABI 267-276 Piloto v2` (indexed 267/276 published-source name swap; actual Image string corroboration; 11 mutation/control tests).
+- 175 findings, 71 research/progress items, 102 source records. Real source ZIP+Image hashes verified; 9/9 offline regression tests passed while 5/9 approval gates block NOHON. Original 5K J3S active payload integrity verified (0xBE8D checksum and matching Rslow), but electrical model remains J3S and violates preliminary NOHON voltage gates. Fake nominal 5037→5850mAh edit changes hash yet leaves first 412 electrical bytes identical; permanent 412B donor rejection added. Real AnyKernel picks default NORMAL if ZIP simply renamed -6K. **No flashable pilot; no charging experiments.**
 - Workbook source is kept in ChatGPT Library, not as a GitHub binary. GitHub is used for the audit notes and checksum provenance; **do not claim XLSX bytes are in this repo**.
 
 ## Previous v21 master audit state
@@ -166,3 +166,12 @@ Add new evidence to the canonical XLSX using unique IDs, date, provenance, exact
 - Audited the executed ZIP pilot against the independent candidate validator and found the Ascent donor SHA-256 entry truncated to 58 hex characters. Corrected it to the verified 64-character hash already pinned by the validator; no calibration bytes or safety settings changed.
 - Added regression checks for donor-registry parity, the real J3S source hash/checksum, 5850-only capacity-clone detection through the 412-byte prefix, filename-based installer selection, unknown-installer fail-closed behavior, and the validator's non-flashable result.
 - Wired both offline pilot suites into the research validation workflow and its path filters. The package-specific end-to-end pilot still requires the user ZIP as input; CI exercises tracked sources and fail-closed regression cases without creating a ZIP or profile.
+
+
+## 2026-11-09 — Step64 Butterflies developer source ABI mismatch and pilot v2
+
+- Public release note by `@kukuwcing` links source to `starscroch/kernel_xiaomi_sm8250`. Pinned commit `f9263ab88f1b328fab2b34d159a87c63cd45ae56`: header `power_supply.h` Git blob `00d8aa9f...` (enum **VBATT_FULL=267, FASTCHARGE=276**), but `power_supply_sysfs.c` Git blob `a56d4238...` has **sysfs name fastcharge_mode at 267, vbatt_full_vol at 276**. This is an actual source-level misalignment; parent `PocoF3Releases` sysfs has those names in their correct positions with the *same* header.
+- Original ZIP `Image` ordered strings `fastcharge_mode`, `vbatt_full_vol` as the fork; published source maps the user's `bms/fastcharge_mode=4440` to **VBATT_FULL 4440mV** and `bms/vbatt_full_vol=1` to **FFC-enabled boolean**. Exact compiled binary enum path not independently proven; NEVER write either path. Detailed [Step64 audit](BN61-BUTTERFLIES-PUBLISHED-ABI-267-276-SWAP-PILOT-V2-2026-11-09.md).
+- New [pilot v2](../../tools/pilot_bn61_abi_mutation_v2.py) and [JSON](models/BN61_PILOT_V2_ABI_RESULTS_2026-11-09.json): 6/6 ABI/source checks (some static evidence fixtures, not six independent dynamic measurements), 11/11 donor/near-clone mutations and controls; ≤8 byte differences on 412B electrical data treated as suspicious clones, ≥9 unknown not authenticated. Five existing v1 safety gates still failed, **no flashable 6K**.
+- Excel v23 SHA256 `33b1dbcf7ad782534113735265c6b88b206cf393c4aa26902652b3354d755ff0`, 142,012 bytes, 30 sheets, 175 findings, 102 sources, canonical Library uploaded successfully. No phone modifications or charging tests.
+
