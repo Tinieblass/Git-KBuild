@@ -142,6 +142,12 @@ A public ASUS kernel tree contains [`fg-gen4-batterydata-5800mah_4p35V.dtsi`](ht
 
 This is the closest-capacity Gen4 comparator found so far, not a BN61 donor: its 51 kΩ battery-ID differs from the approximately 100.5 kΩ reading recorded for the target pack, its stated voltage fields differ from the BN61's 4.45 V claim, and its battery model is C11P1901. Do not transplant or scale its 416-byte payload.
 
+### Profile selection and spoofing boundary
+
+The pinned alioth [Gen4 driver](https://github.com/PocoF3Releases/kernel_xiaomi_sm8250/blob/e26284f541876a3f3f9611740db500f00c7f3aea/drivers/power/supply/qcom/qpnp-fg-gen4.c) under `CONFIG_BATT_VERIFY_BY_DS28E16` selects a profile using the measured battery-ID resistance together with the authenticated DS28E16 ROM/page-0 identity. It then reads `qcom,fg-profile-data`, rejects any payload whose length is not exactly 416 bytes, and copies the payload to the gauge SRAM as-is; the metadata is parsed separately.
+
+That path cannot blend QG OCV/FCC/Z/Y tables into a Gen4 payload or turn a donor identity into BN61 characterization. Spoofing the resistance or authenticated page value would only steer selection toward another pack's existing model; it would not correct the donor curves or validate the target cell. Keep identity and profile selection unchanged during offline research.
+
 ## Official POCO X3 India firmware: M703 profile confirmed in stock DTBO
 
 A primary-source audit of Xiaomi's official India fastboot package was completed on 2026-11-02:
