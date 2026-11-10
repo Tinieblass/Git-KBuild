@@ -125,6 +125,17 @@ The shared 100 kΩ ID and thermistor metadata do not make the profiles interchan
 
 For the alioth charger node, the same source sets `qcom,fv-max-uv = <4460000>` and `qcom,non-fcc-fv-max-uv = <4450000>`. These are observations about that alioth configuration, not authorization to raise the BN61 limit. The M703 QG source itself has a 4.45 V profile maximum alongside higher FFC/JEITA entries; those higher entries must not be copied into a BN61 profile based on capacity or ID alone.
 
+### QG ↔ Gen4 Rosetta feasibility
+
+A read-only bridge is feasible as a research tool; a profile-generating converter is not established by the available sources.
+
+1. **QG ingest:** the existing `tools/extract_qg_battery_luts.py` extracts named LUTs and checks their declared dimensions. A common representation can preserve source hash, table name, axes, raw values and units. Keep unknown Z/Y units explicitly unknown.
+2. **Gen4 ingest:** parse the visible metadata and preserve the exact 416-byte `qcom,fg-profile-data` payload with its hash. The pinned [Gen4 driver](https://github.com/PocoF3Releases/kernel_xiaomi_sm8250/blob/e26284f541876a3f3f9611740db500f00c7f3aea/drivers/power/supply/qcom/qpnp-fg-gen4.c) validates the length and copies the payload as bytes; its source does not document a QG-table decoder or converter.
+3. **Comparison:** compare only explicit shared fields (capacity, voltage limits, battery-ID resistance, thermistor metadata) and label mismatches. Do not fill absent Gen4 fields by copying QG values, or infer QG LUTs from an opaque Gen4 payload.
+4. **Conversion gate:** QG→Gen4 needs an authoritative mapping or documented PM855GUI generation workflow plus characterization for the exact cell. Gen4→QG needs a documented payload decoder and verified semantics. No such validated bidirectional path has been found.
+
+Any first Rosetta output should be normalized CSV/JSON for offline inspection only, with `gen4_profile_emitted=false` and `safe_to_flash=false`. It can help compare references and expose missing BN61 measurements; it cannot make a donor profile represent BN61.
+
 ### Transformation decision
 
 There is still no validated transformation from the M703 QG OCV/FCC/Z/Y tables to the PM855B Gen4 416-byte profile. QG and Gen4 use different profile formats; the alioth Gen4 driver loads the profile body as opaque bytes. Even two alioth profiles with the same stated capacity and nominal ID have substantially different payloads. Therefore no `-6K` Gen4 block, DTBO, or kernel profile is generated from M703, FMT/GY, or J3S. The safe next input is an authentic BN61-specific Gen4/PM855GUI export or a documented Qualcomm characterization workflow and measurements for the exact pack.
