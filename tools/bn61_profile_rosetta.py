@@ -170,18 +170,28 @@ def parse_qg_luts(text):
             values[i:i + len(columns)]
             for i in range(0, len(values), len(columns))
         ]
+        if name.startswith("fcc"):
+            row_unit = "not present; single-row LUT"
+            values_unit = "mAh; QG consumer returns fcc_mah"
+        elif name.startswith("pc-temp-v"):
+            row_unit = "QG SOC integer coordinate; source defines QG_SOC_FULL=10000"
+            values_unit = "10^-4 V (100 uV) per integer; QG consumer calls this deci-uV"
+        else:
+            row_unit = "QG SOC integer coordinate; source defines QG_SOC_FULL=10000"
+            values_unit = "unknown raw VAR output; no per-table Z/Y unit mapping in inspected driver"
+
         tables.append({
             "name": name,
             "row_axis": {
                 "values": rows if row_groups else None,
-                "unit": "unverified raw source coordinates",
+                "unit": row_unit,
             },
             "column_axis": {
                 "values": columns,
-                "unit": "unverified raw source coordinates",
+                "unit": "temperature in degC; QG consumer scales legend by 10 for deci-degC input",
             },
             "values": matrix,
-            "values_unit": "unverified raw QG integers",
+            "values_unit": values_unit,
             "dimensions": {"rows": row_count, "columns": len(columns)},
             "scalar_count": len(values),
         })
@@ -274,13 +284,13 @@ def main():
         parser.error(str(exc))
 
     report = {
-        "schema": "bn61-profile-rosetta-readonly-v0.1",
+        "schema": "bn61-profile-rosetta-readonly-v0.2",
         "purpose": "offline normalization and declared-metadata comparison",
         "qg": qg,
         "gen4": gen4,
         "shared_metadata_comparison": compare_metadata(qg, gen4),
         "limits": [
-            "QG LUT axes and values remain raw; Z/Y electrical units are not inferred.",
+            "QG temperature, SOC, OCV, and FCC scales are annotated from the pinned QG driver; Z/Y output units remain unknown.",
             "Gen4 payload is preserved by source and SHA-256 but is not decoded.",
             "No OCV, capacity, impedance, thermistor, or charging curve is synthesized.",
             "A battery model label or six-pin marker does not authenticate a physical pack.",
