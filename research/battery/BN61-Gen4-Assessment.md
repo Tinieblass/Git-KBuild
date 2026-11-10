@@ -131,6 +131,17 @@ There is still no validated transformation from the M703 QG OCV/FCC/Z/Y tables t
 
 
 
+## Additional 5800 mAh Gen4 reference: ASUS C11P1901 / ZS660KL
+
+A public ASUS kernel tree contains [`fg-gen4-batterydata-5800mah_4p35V.dtsi`](https://github.com/AOSiP-Devices/kernel_asus_I001/blob/78a648c20d065ab1285bc9a205cd6f58d4aaea50/arch/arm64/boot/dts/qcom/fg-gen4-batterydata-5800mah_4p35V.dtsi), and its [ZS660KL overlay includes it](https://github.com/AOSiP-Devices/kernel_asus_I001/blob/78a648c20d065ab1285bc9a205cd6f58d4aaea50/arch/arm64/boot/dts/qcom/zs660kl-er1-asus-overlay.dts). The profile is corroborated by an identical Git blob in [Kirisakura_Yoda](https://github.com/freak07/Kirisakura_Yoda/blob/1a5c0de543309c813f01a9ab6cedeb92a1142459/arch/arm64/boot/dts/qcom/fg-gen4-batterydata-5800mah_4p35V.dtsi).
+
+- Git blob SHA-1: `dd45f64ecc2d06945798ce4d737d768c2c37ce1f`.
+- Profile payload: 416 bytes; SHA-256 `f8bbfa46f2587c9f25fea3e058b0c3e08619131bad8070a66459dc93ab442e66`.
+- Metadata: PM855GUI 1.0.0.13, profile revision 24, nominal capacity 5800 mAh, battery type `c11p1901_5800mah_apr29th2019_4p35v`, battery ID 51 kΩ, checksum `0x468F`; the profile DTSI does not set `mi,six-pin-battery`.
+- The source names the file/type as 4.35 V, while `qcom,max-voltage-uv` is 4.36 V and `qcom,fg-cc-cv-threshold-mv` is 4.38 V. These are distinct source fields and are not a BN61 charge-voltage authorization. ASUS lists the ZS660KL ROG Phone II battery as 6000 mAh typical, so the 5800 mAh Gen4 nominal profile is capacity-close to the NOHON manual's 5850 mAh rated / 6000 mAh typical claim.
+
+This is the closest-capacity Gen4 comparator found so far, not a BN61 donor: its 51 kΩ battery-ID differs from the approximately 100.5 kΩ reading recorded for the target pack, its stated voltage fields differ from the BN61's 4.45 V claim, and its battery model is C11P1901. Do not transplant or scale its 416-byte payload.
+
 ## Official POCO X3 India firmware: M703 profile confirmed in stock DTBO
 
 A primary-source audit of Xiaomi's official India fastboot package was completed on 2026-11-02:
