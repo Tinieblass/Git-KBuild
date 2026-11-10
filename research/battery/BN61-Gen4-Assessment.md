@@ -115,6 +115,12 @@ Xiaomi's official [EU Declaration of Conformity for POCO F3 model M2012K11AG](ht
 | Alioth K11A FMT / GY | Two separate 416-byte PM855GUI Gen4 profiles, each 4520 mAh | Both 100 kΩ; beta 4250; same thermistor coefficient set | Profile max 4.46 V; JEITA float ranges include 4.45/4.46 V; source also has FFC CC/CV thresholds of 4.47 V (FMT) and 4.48 V (GY) |
 | Alioth J3S Sun | PM855GUI Gen4 reference, 416 bytes, 5000 mAh, checksum `0xBE8D` | 100 kΩ; beta 4250; same thermistor coefficient set | Profile max 4.48 V |
 
+### Project 113 / E404 source cross-check
+
+The archived E404 kernel source contains [`fg-gen4-batterydata-alioth-sun-5000mah.dtsi`](https://github.com/kvsnr113/xiaomi_sm8250_kernel/blob/main/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-sun-5000mah.dtsi). Git blob SHA `d95cfc436fd4667d106bd03de6150bf3faf5ca57` is identical to the pinned J3S Sun 5000 mAh reference above. The recovered header says profile revision 24, `j3ssun_5000mah`, PM855GUI 1.0.0.14, checksum `0xBE8D`, 416-byte payload, `mi,six-pin-battery`, 100 kΩ battery ID, 5000 mAh and 4.48 V profile maximum. The R12 E404 release note advertises a 5000 mAh Alioth profile, so this is a strong source candidate for that feature; no release-to-source commit or exact ZIP build manifest has been tied to it.
+
+This gives us a concrete six-pin Gen4 comparison profile, but it is a 5 Ah J3S Sun pack, not the NOHON BN61. Its 4.48 V maximum also exceeds the NOHON manual's stated 4.45 V limit, and its 6 A fast-charge-current setting is not transferable. The six-pin flag does not document the user's FFC pin mapping. Do not copy this profile or its payload into the BN61 target.
+
 The shared 100 kΩ ID and thermistor metadata do not make the profiles interchangeable. The FMT and GY Gen4 byte arrays differ at 285 of 416 byte positions despite their shared 4520 mAh capacity, battery-ID value, and thermistor coefficient set. Byte differences are measured directly from the pinned source arrays; they do not decode the payload semantics. J3S also remains a format reference, not BN61 characterization.
 
 For the alioth charger node, the same source sets `qcom,fv-max-uv = <4460000>` and `qcom,non-fcc-fv-max-uv = <4450000>`. These are observations about that alioth configuration, not authorization to raise the BN61 limit. The M703 QG source itself has a 4.45 V profile maximum alongside higher FFC/JEITA entries; those higher entries must not be copied into a BN61 profile based on capacity or ID alone.
