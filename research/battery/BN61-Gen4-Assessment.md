@@ -418,3 +418,16 @@ inspect the QG/QBG consumer binaries for table-index semantics and scale
 factors. The current firmware audit extracted only `/etc` and
 `/firmware` directories from ext filesystems; its empty battery-path list
 does not rule out useful data or symbols in vendor libraries.
+
+
+### Rosetta v0.1 implementation (2026-11-10)
+
+The read-only normalizer is available at [tools/bn61_profile_rosetta.py](https://github.com/Tinieblass/Git-KBuild/blob/Flash-Kernel/tools/bn61_profile_rosetta.py). Run it offline with two source files:
+
+```sh
+python3 tools/bn61_profile_rosetta.py path/to/qg-profile.dtsi path/to/gen4-profile.dtsi
+```
+
+It prints JSON to stdout, hashes both inputs and the 416-byte Gen4 payload, preserves supported QG LUT axes and values as raw integers, checks each table's dimensions, and compares only explicitly shared declarations. Z/Y units remain unverified. It does not include Gen4 payload bytes, write an output file, access a device, or emit a profile; its report states `gen4_profile_emitted=false` and `safe_to_flash=false`.
+
+This implementation is a structural bridge, not a verified converter. No target BN61 QG or Gen4 source pair has been authenticated, and the script has not been run against device data. A real conversion would still require the Gen4 encoder/decoder semantics and independent characterization of the exact physical pack. Identical BN61 model labels across brands or lots do not establish identical cell chemistry, OCV, impedance, thermistor response, or authenticated pack identity.
