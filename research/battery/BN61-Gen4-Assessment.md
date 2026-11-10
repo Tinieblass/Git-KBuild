@@ -420,7 +420,7 @@ factors. The current firmware audit extracted only `/etc` and
 does not rule out useful data or symbols in vendor libraries.
 
 
-### Rosetta v0.1 implementation (2026-11-10)
+### Rosetta v0.2 implementation (2026-11-10)
 
 The read-only normalizer is available at [tools/bn61_profile_rosetta.py](https://github.com/Tinieblass/Git-KBuild/blob/Flash-Kernel/tools/bn61_profile_rosetta.py). Run it offline with two source files:
 
