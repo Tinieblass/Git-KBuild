@@ -286,6 +286,11 @@ def main():
     report = {
         "schema": "bn61-profile-rosetta-readonly-v0.2",
         "purpose": "offline normalization and declared-metadata comparison",
+        "qg_interpretation_sources": [
+            "https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/21aca2e848f6697311ad801176e4c4aa4ddc52c7/drivers/power/supply/qcom/qg-battery-profile.c",
+            "https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/21aca2e848f6697311ad801176e4c4aa4ddc52c7/drivers/power/supply/qcom/qg-profile-lib.c",
+            "https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/21aca2e848f6697311ad801176e4c4aa4ddc52c7/drivers/power/supply/qcom/qg-defs.h",
+        ],
         "qg": qg,
         "gen4": gen4,
         "shared_metadata_comparison": compare_metadata(qg, gen4),
