@@ -428,6 +428,19 @@ The read-only normalizer is available at [tools/bn61_profile_rosetta.py](https:/
 python3 tools/bn61_profile_rosetta.py path/to/qg-profile.dtsi path/to/gen4-profile.dtsi
 ```
 
-It prints JSON to stdout, hashes both inputs and the 416-byte Gen4 payload, preserves supported QG LUT axes and values as raw integers, checks each table's dimensions, and compares only explicitly shared declarations. Z/Y units remain unverified. It does not include Gen4 payload bytes, write an output file, access a device, or emit a profile; its report states `gen4_profile_emitted=false` and `safe_to_flash=false`.
+It prints JSON to stdout, hashes both inputs and the 416-byte Gen4 payload, preserves QG LUT values as raw integers, checks dimensions, and compares explicitly shared declarations. It annotates temperature coordinates, the QG SOC integer scale, OCV values in the source's 10^-4 V (deci-uV) convention, and FCC values in mAh. The Z/Y tables are returned as generic raw VAR values with no inferred physical units. It does not include Gen4 payload bytes, write an output file, access a device, or emit a profile; its report states `gen4_profile_emitted=false` and `safe_to_flash=false`.
 
 This implementation is a structural bridge, not a verified converter. No target BN61 QG or Gen4 source pair has been authenticated, and the script has not been run against device data. A real conversion would still require the Gen4 encoder/decoder semantics and independent characterization of the exact physical pack. Identical BN61 model labels across brands or lots do not establish identical cell chemistry, OCV, impedance, thermistor response, or authenticated pack identity.
+
+
+### QG lookup semantics from the pinned consumer source
+
+Inspection of the pinned Surya QG implementation narrows the QG side of the Rosetta:
+
+- `qg-battery-profile.c` maps V1/V2 to SOC/OCV lookups, FCC1/FCC2 to capacity lookups that return mAh, and Z1-Z6/Y1-Y6 to a generic `VAR` ioctl path. The OCV path converts microvolts to the source's deci-uV representation (10^-4 V) before table lookup and multiplies by 100 to return microvolts.
+- `qg-profile-lib.c` interpolates VAR tables over the supplied SOC and battery-temperature coordinates. It returns an integer VAR and contains no per-Z/Y table unit mapping.
+- `qg-defs.h` defines `DEGC_SCALE=10` and `QG_SOC_FULL=10000`. Therefore the Rosetta can preserve the temperature and SOC coordinate conventions, and can label V/FCC values from their consumer paths, but it must leave Z/Y output units unresolved.
+
+Sources: [QG profile consumer](https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/21aca2e848f6697311ad801176e4c4aa4ddc52c7/drivers/power/supply/qcom/qg-battery-profile.c), [QG interpolation library](https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/21aca2e848f6697311ad801176e4c4aa4ddc52c7/drivers/power/supply/qcom/qg-profile-lib.c), [QG scale definitions](https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/21aca2e848f6697311ad801176e4c4aa4ddc52c7/drivers/power/supply/qcom/qg-defs.h).
+
+These findings make QG LUTs more interpretable; they still do not disclose a Gen4 payload encoding, so no bidirectional conversion follows from them.
