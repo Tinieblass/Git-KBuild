@@ -17,7 +17,7 @@ LUT_RE = re.compile(
     re.S,
 )
 CELL_RE = re.compile(r"<([^<>]*)>")
-INT_RE = re.compile(r"0[xX][0-9a-fA-F]+|-?\d+")
+INT_RE = re.compile(r"-?0[xX][0-9a-fA-F]+|-?\d+")
 
 UNITS = {
     "max-voltage-uv": "uV",
@@ -93,7 +93,13 @@ def strip_comments(text):
 
 
 def parse_ints(text):
-    return [int(token, 0) for token in INT_RE.findall(text)]
+    values = []
+    for token in INT_RE.findall(text):
+        if token.lower().lstrip("-").startswith("0x"):
+            values.append(int(token, 0))
+        else:
+            values.append(int(token, 10))
+    return values
 
 
 def property_value(text, name):
@@ -107,6 +113,10 @@ def property_value(text, name):
     raw = match.group(1)
     if raw.startswith('"'):
         return bytes(raw[1:-1], "utf-8").decode("unicode_escape")
+    if raw.startswith("["):
+        tokens = raw[1:-1].split()
+        if all(re.fullmatch(r"[0-9a-fA-F]{2}", token) for token in tokens):
+            return [int(token, 16) for token in tokens]
     values = parse_ints(raw)
     if raw.startswith("<") and len(values) == 1:
         return values[0]
