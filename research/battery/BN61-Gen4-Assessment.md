@@ -67,9 +67,12 @@ A new reproducible audit now targets the official India fastboot ROM `V13.0.1.0.
 
 ## BN61 data currently known
 
-- User-supplied pack label/specification: NOHON BN61, 5850 mAh rated / 6000 mAh typical, 3.87 V nominal, 4.45 V stated charge limit. The Prom.ua seller listing separately claims 5850 mAh, 3.87 V and 4.45 V. No first-party BN61 specification or independent electrical characterization has been located.
-- Prior project notes specify a nominal target of 5850 mAh and a measured/observed battery-ID resistance around 100.5 kOhm. This is not sufficient to identify the cell chemistry or reconstruct its dynamic response.
-- The M703 file supplies OCV, six impedance tables and temperature-dependent capacity data for the authenticated `61` battery identity. What remains missing is a PM855GUI/Gen4-generated payload for this same model, or the generator and documented mapping needed to produce one safely.
+- User-supplied pack label/specification: NOHON BN61, 5850 mAh rated / 6000 mAh typical, 3.87 V nominal, 4.45 V stated charge limit. The Prom.ua seller listing separately claims 5850 mAh, 3.87 V and 4.45 V. No first-party BN61 technical sheet or independent electrical characterization has been located.
+- A third-party mirror of a NOHON replacement-battery manual lists BN61 for the regular POCO X3 (6000 mAh), BN57 for POCO X3 NFC / X3 Pro (5160 mAh), and BM4Y for POCO F3 (4520 mAh). The same mirror gives BN61 values of 3.87 V nominal, 4.45 V stated charge limit, 6000 mAh typical and 5850 mAh rated. Treat these as product-level claims from a secondary mirror, not lot-authenticated cell data: https://manuals.plus/ae/1005005950829288.
+- Xiaomi's EU Declaration for POCO X3 Pro model M2102J20SG lists BN57, 3.87 V and 5060 mAh; POCO's official page gives 5160 mAh typical. Some aftermarket listings cross-list BN61 as compatible with X3 Pro, but this does not change the OEM designation or establish electrical compatibility: https://miuiturkiye.net/wp-content/uploads/2022/09/poco-x3-pro.pdf, https://www.po.co/global/product/poco-x3-pro/specs/.
+- Prior project notes specify a nominal target of 5850 mAh and an observed battery-ID resistance around 100.5 kOhm. This is not enough to identify cell chemistry or reconstruct dynamic response.
+- The M703 file supplies OCV, six impedance tables and temperature-dependent capacity data for a QG profile selected by authenticated DS28E16 page-0 identifier `61`. That authenticated token is not established by the printed aftermarket part name `BN61` or by a 100 kOhm-class resistance measurement. The M703 LUTs are a 6 Ah comparison lead only; they are not a Gen4 conversion source.
+- The manual and M703 donor provide useful screening values and a comparison target. Neither provides BN61-specific OCV-vs-SOC, DCIR-vs-SOC/temperature, charge-acceptance curves, verified NTC/ID mapping, or a PM855GUI-generated 416-byte payload for the exact pack/lot.
 
 
 
