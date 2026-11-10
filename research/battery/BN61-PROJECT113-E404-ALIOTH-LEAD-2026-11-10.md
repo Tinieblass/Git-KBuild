@@ -21,7 +21,7 @@ It is not evidence for a NOHON BN61 6 Ah profile, and it does not authenticate a
 | --- | --- | --- |
 | E404 release advertised a 5 Ah Alioth profile | Verified release-note text; underlying table not yet inspected | Candidate comparison lead only |
 | Project 113 README lists Alioth | Verified project metadata | Establishes intended device support, not pack identity |
-| Two named POCO X3 Pro archives | User-provided filenames only | Not an Alioth donor; do not infer hardware or profile equivalence |
+| Two named POCO X3 Pro archives | Names and listed sizes verified in public Telegram preview; ZIP bytes not inspected | Not an Alioth donor; do not infer hardware or profile equivalence |
 | “Charging shutdowns on Munch” changelog item | User-provided pasted text; not independently tied to a source commit | Different named target; no BN61 voltage evidence |
 | Project 113 six-pin / FFC mapping or physical cell voltage | No evidence found in the reviewed pages | Remains unknown |
 
