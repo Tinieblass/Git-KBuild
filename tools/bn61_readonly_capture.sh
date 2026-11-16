@@ -7,12 +7,6 @@ set -u
 echo "BN61_READONLY_CAPTURE=1"
 echo "capture_timestamp=$(date '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null)"
 echo "kernel_release=$(uname -r 2>/dev/null)"
-if [ -r /proc/version ]; then
-  printf 'proc_version='
-  cat /proc/version
-else
-  echo "proc_version=UNAVAILABLE"
-fi
 if command -v getprop >/dev/null 2>&1; then
   echo "android_release=$(getprop ro.build.version.release 2>/dev/null)"
 else
