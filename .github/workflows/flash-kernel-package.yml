@@ -190,6 +190,10 @@ jobs:
             ROM_LABEL='not detected'
           fi
           ui_print "ROM: $ROM_LABEL";
+          # Fail closed if recovery does not expose the actual installer filename.
+          if [ -z "${ZIPFILE:-}" ]; then
+            abort 'Cannot determine installer ZIP filename; refusing to select a battery DTBO.';
+          fi
           ZIP_BASENAME="$(basename "$ZIPFILE" .zip)";
           case "$ZIP_BASENAME" in
             *-MIUI5K|*-miui5k)
@@ -202,9 +206,12 @@ jobs:
               DTBO_IMAGE=dtbo-5k.img;
               ui_print 'Bateria: J3S Sun 5000mAh';
               ;;
-            *)
+            FlashKernel[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])
               DTBO_IMAGE=dtbo.img;
               ui_print 'Bateria: stock';
+              ;;
+            *)
+              abort 'Unrecognized Flash Kernel ZIP filename; refusing implicit stock DTBO selection.';
               ;;
           esac;
 
