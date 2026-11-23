@@ -202,7 +202,7 @@ jobs:
             *-6K|*-6k)
               abort 'BN61 5850mAh (-6K) is reserved and is not available in this build.';
               ;;
-            *-5k|*-5K)
+            FlashKernel[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-5k|FlashKernel[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-5K)
               DTBO_IMAGE=dtbo-5k.img;
               ui_print 'Bateria: J3S Sun 5000mAh';
               ;;
@@ -268,6 +268,12 @@ jobs:
           unzip -p "$ZIP" anykernel.sh | grep -q 'BN61 5850mAh (-6K) is reserved'
           unzip -p "$ZIP" anykernel.sh | grep -q 'Suffix -MIUI5K is invalid'
           unzip -p "$ZIP" anykernel.sh | grep -q 'Bateria: stock'
+          # Reject renamed or unrelated archives even when they end in -5k.
+          unzip -p "$ZIP" anykernel.sh | grep -Fq 'FlashKernel[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-5k'
+          if unzip -p "$ZIP" anykernel.sh | grep -Eq '^            \\*-5k\\|\\*-5K\\)'; then
+            echo 'ERROR: unsafe wildcard J3S ZIP selector detected' >&2
+            exit 1
+          fi
           unzip -p "$ZIP" anykernel.sh | grep -q 'flash_boot'
           if unzip -p "$ZIP" anykernel.sh | grep -Eq 'write_boot|flash_generic (vendor_dlkm|system_dlkm)'; then
             echo 'ERROR: wrong battery branch or unrelated partition write detected' >&2
