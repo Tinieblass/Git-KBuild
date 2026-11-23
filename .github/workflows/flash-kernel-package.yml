@@ -270,7 +270,7 @@ jobs:
           unzip -p "$ZIP" anykernel.sh | grep -q 'Bateria: stock'
           # Reject renamed or unrelated archives even when they end in -5k.
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'FlashKernel[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-5k'
-          if unzip -p "$ZIP" anykernel.sh | grep -Eq '^            \\*-5k\\|\\*-5K\\)'; then
+          if unzip -p "$ZIP" anykernel.sh | grep -Fq '            *-5k|*-5K)'; then
             echo 'ERROR: unsafe wildcard J3S ZIP selector detected' >&2
             exit 1
           fi
