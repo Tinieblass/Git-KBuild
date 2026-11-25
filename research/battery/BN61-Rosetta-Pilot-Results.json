@@ -1,0 +1,72 @@
+{
+  "python": "3.11.9",
+  "sources": {
+    "bn61_profile_rosetta.py": {
+      "git_blob": "540e4c9892b4bdc4b21f77fd4d7986a9ad94692a",
+      "sha256": "fd3ed25500feee55d6e10b3e032d2c1195e6e4d7763c035fd19bbd40fc1722a4"
+    },
+    "M703.dtsi": {
+      "git_blob": "03bbe29811956896b42bbef75a5edad28b99c48d",
+      "sha256": "070c6699d1b79d8ac95dc8e58e0eadb10c11b505166b285b51712863d4af5df5"
+    },
+    "Nabu.dtsi": {
+      "git_blob": "c152f8ed1934eaadf91def2c2d170329808bfa66",
+      "sha256": "7b586a82e9324a15ddecfbbd26c43d34de8ec7a4d41ecb9ffc0e704aa5607693"
+    },
+    "J3S.dtsi": {
+      "git_blob": "d95cfc436fd4667d106bd03de6150bf3faf5ca57",
+      "sha256": "405ee4670ee4418671fdd39f9a23006906f62fc3665721584be60bb74e8eb74c"
+    }
+  },
+  "results": {
+    "Nabu": {
+      "declared_mAh": 8720,
+      "word_412_413": 8688,
+      "payload_sha256": "f393cf0efb21ad1cf01045cc10985e1ecb34c883668fcfe35f1b9dda653cd016",
+      "report_sha256": "04a07d248e3a1ff005b1cc8a3b31b06b683d9121c7feaefe61fb4b853a22b021",
+      "comparison": {
+        "max-voltage-uv": "different_declared_value",
+        "fastchg-current-ma": "different_declared_value",
+        "batt-id-kohm": "different_declared_value",
+        "battery-beta": "different_declared_value",
+        "battery-therm-kohm": "not_comparable_missing_declaration",
+        "nom-batt-capacity-mah": "not_comparable_missing_declaration",
+        "six-pin-battery": "same_declared_value"
+      }
+    },
+    "J3S": {
+      "declared_mAh": 5000,
+      "word_412_413": 5037,
+      "payload_sha256": "433cf6279d867be89b08ddb10a7fff0460c42c944cd253f702733033eef603dd",
+      "report_sha256": "c7a8fca2ffa9e095ff21d3e57320e21acead9fce219388d6c0a7b4f9e83e22b3",
+      "comparison": {
+        "max-voltage-uv": "different_declared_value",
+        "fastchg-current-ma": "same_declared_value",
+        "batt-id-kohm": "same_declared_value",
+        "battery-beta": "same_declared_value",
+        "battery-therm-kohm": "not_comparable_missing_declaration",
+        "nom-batt-capacity-mah": "not_comparable_missing_declaration",
+        "six-pin-battery": "same_declared_value"
+      }
+    }
+  },
+  "qg_tables": 16,
+  "qg_values": 4323,
+  "safe_to_flash": false,
+  "gen4_profile_emitted": false,
+  "physical_voltage_verified": false,
+  "source_urls": [
+    "https://github.com/Tinieblass/Git-KBuild/blob/Flash-Kernel/tools/bn61_profile_rosetta.py",
+    "https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/21aca2e848f6697311ad801176e4c4aa4ddc52c7/arch/arm64/boot/dts/qcom/batterydata-M703-ATL-6000mah.dtsi",
+    "https://github.com/LineageOS/android_kernel_xiaomi_sm8150/blob/59220a048d04516e7fe1dfc094507930166a1e60/arch/arm64/boot/dts/qcom/xiaomi/overlay/common/battery/fg-gen4-batterydata-nabu-sunwoda-8720mah.dtsi",
+    "https://github.com/PocoF3Releases/kernel_xiaomi_sm8250/blob/e26284f541876a3f3f9611740db500f00c7f3aea/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-sun-5000mah.dtsi"
+  ],
+  "method": "Run Rosetta twice for each M703/Gen4 pair with inputs named M703.dtsi, Nabu.dtsi and J3S.dtsi. Compare stdout byte for byte and hash it. Independently read bytes 412:414 as unsigned little-endian. This word is an observation, not proof of measured capacity.",
+  "voltage_audit": {
+    "sysfs_uV": 4498523,
+    "claimed_limit_uV": 4450000,
+    "delta_uV": 48523,
+    "later_discharging_uV": 4228993,
+    "gate": "pending calibrated physical measurement and lot specification"
+  }
+}
