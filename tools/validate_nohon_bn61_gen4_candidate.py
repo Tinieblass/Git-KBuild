@@ -23,6 +23,7 @@ KNOWN_DONORS = {
     "3e9f93ea6a0166282f14d2fb14b2c143cd73dd7928083084cbb2f3271bbc153a": "Xiaomi K11A GY 4520mAh (NOT NOHON)",
     "06a76fffa9b71e9fea3a5d7f9762e586dd565159163c5134b6fbeb1430091b8a": "Qualcomm Alium 3600mAh / OnePlus 3700, 3800, 4000, 4085, 4300mAh same Gen4 payload (NOT NOHON)",
     "3229e498e41775a010758b7f17b787be6d9d425d19345b3e330f1eafcc60ac4d": "Qualcomm Ascent 3450mAh (NOT NOHON)",
+    "f393cf0efb21ad1cf01045cc10985e1ecb34c883668fcfe35f1b9dda653cd016": "Xiaomi Pad 5 Nabu K82 Sunwoda 8720mAh (NOT NOHON)",
 }
 
 
@@ -36,6 +37,7 @@ KNOWN_DONOR_ELECTRICAL_412 = {
     "43c8d0a20f13ed43b550b8927dca63d31b0013a5ecaaff37af961780735d37b5": "Xiaomi FMT4520 copied electrical payload",
     "2c1fa38d8e84bdf0b3bc2aa248f1b50b5b7391370f64138b10d28172e0653f90": "Xiaomi GY4520 copied electrical payload",
     "6abd76b33465b4cfb7ca52b640602d2261df4ad53e372f9ff8c9a85fb533da6a": "Xiaomi J3S5000 copied electrical payload",
+    "1dd29d5b7bb66cafc6533a9b4c8fc4c2813e91cb2ad1b12609f4b75582693998": "Nabu K82 Sunwoda 8720mAh copied electrical payload prefix",
 }
 
 
