@@ -479,3 +479,11 @@ The [pilot results](BN61-Rosetta-Pilot-Results.json) record the exact source URL
 The J3S control also differs from its DTSI declaration, in the opposite direction to Nabu. The word is recorded separately from declared nominal capacity. These observations give no basis for a universal correction or an estimate of BN61 model error.
 
 The physical gate remains unmet. Obtain the manufacturer limit for the exact NOHON pack revision or lot and a laboratory record of calibrated terminal voltage with instrument uncertainty, pack identification, current, temperature, timestamp and operating state. When available, pair it with software telemetry recorded under the same conditions. The readings 4.498523 V and 4.228993 V came from different operating states. The latter cannot establish the accuracy of the former. Any measurements that require charging should be determined and conducted by the laboratory under the confirmed pack limits. For an eventual model comparison, keep independent pack measurements outside the calibration dataset and report voltage, capacity and resistance errors with their temperature and SOC ranges.
+
+### Historical module state for the 4.498523 V sample
+
+The user recalls running a module that modified BMS behavior before the audit. The module identity, revision and active state at the capture timestamp remain unverified. Label the capture as historical telemetry with unknown module state and keep it out of the clean baseline.
+
+The recovered local BN61 UI module has a service script with SHA-256 `a9308b95c9e6834e0adcd09ebe6b0e9411f194966ede9d001a97949fba351e78`. It invalidates an Android Settings cache timestamp and its accompanying files supply display metadata and a resource overlay. No direct battery sysfs writes were found in that copy. It cannot account for the reported historical BMS changes without matching the exact module that was active.
+
+Inspect the historical package or logs for changes to charger setpoints, gauge configuration or the path serving `voltage_now`. A setpoint change could affect actual voltage, while a reporting change could affect only the value exposed to software. Preserve these as separate hypotheses. Any future clean baseline should document kernel and module versions, active configuration, operating state and instrument conditions.
