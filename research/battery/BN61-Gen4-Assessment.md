@@ -444,3 +444,25 @@ Inspection of the pinned Surya QG implementation narrows the QG side of the Rose
 Sources: [QG profile consumer](https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/21aca2e848f6697311ad801176e4c4aa4ddc52c7/drivers/power/supply/qcom/qg-battery-profile.c), [QG interpolation library](https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/21aca2e848f6697311ad801176e4c4aa4ddc52c7/drivers/power/supply/qcom/qg-profile-lib.c), [QG scale definitions](https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/21aca2e848f6697311ad801176e4c4aa4ddc52c7/drivers/power/supply/qcom/qg-defs.h).
 
 These findings make QG LUTs more interpretable; they still do not disclose a Gen4 payload encoding, so no bidirectional conversion follows from them.
+
+
+## New comparison: Zorn and Xiaomi Pad 5 / Nabu (2026-11-25)
+
+### Zorn is a capacity clue, not a Gen4 donor
+
+A public zorn device tree identifies the shared codename with Redmi K80 / POCO F7 Pro: https://github.com/Little-Zorn-ID/android_device_xiaomi_zorn. The official POCO F7 Pro specification lists 6000 mAh typical, close to the BN61's marketed 6000 mAh typical. The official China Redmi K80 page instead lists 6550 mAh typical / 6410 mAh minimum and names Xiaomi Surge G1 as its fuel-gauge chip: https://www.po.co/global/product/poco-f7-pro/specs/, https://www.mi.com/prod/redmi-k80/specs.
+
+Thus the codename spans regional/device variants with different published capacities, and capacity similarity does not show the same cell curves. The Redmi K80's declared G1 fuel gauge is not evidence of a Qualcomm FG Gen4 profile. The POCO F7 Pro page does not publish a Gen4 battery profile, battery-ID resistance, or cell characterization. No zorn Gen4 donor was confirmed in the public sources checked.
+
+### Mi Pad 5 / Nabu is a real Gen4 format reference
+
+Xiaomi's official kernel source lists the `nabu-r-oss` branch for Xiaomi Pad 5: https://github.com/MiCode/Xiaomi_Kernel_OpenSource/tree/nabu-r-oss. In the LineageOS and crDroid source trees, the Nabu overlay selects `fg-gen4-batterydata-nabu-sunwoda-8720mah.dtsi`; both copies have the same Git blob SHA-1 `c152f8ed1934eaadf91def2c2d170329808bfa66`. These are source-tree references, not a physical-pack teardown.
+
+Pinned profile: https://github.com/LineageOS/android_kernel_xiaomi_sm8150/blob/59220a048d04516e7fe1dfc094507930166a1e60/arch/arm64/boot/dts/qcom/xiaomi/overlay/common/battery/fg-gen4-batterydata-nabu-sunwoda-8720mah.dtsi
+
+- Metadata: K82 Sunwoda, profile revision 24, PM855GUI 1.0.0.14, declared 8720 mAh, battery ID 10 kOhm, beta 3800, max-voltage 4.48 V, fast-charge current 5.9 A, CC/CV thresholds 4.45/4.48 V.
+- The Gen4 payload is 416 bytes. SHA-256: `f393cf0efb21ad1cf01045cc10985e1ecb34c883668fcfe35f1b9dda653cd016`. SHA-256 of bytes 0:412: `1dd29d5b7bb66cafc6533a9b4c8fc4c2813e91cb2ad1b12609f4b75582693998`. The existing PM855GUI checksum algorithm recalculates to the declared `0xBEEA`.
+- Bytes 412-413 read as little-endian 8688, while the DTSI declares 8720 mAh. This 32 mAh difference is recorded as an unresolved byte/metadata relationship; it is not treated as a corrected capacity or conversion rule.
+- The battery profile contains `mi,six-pin-battery`; the separate PM8150B FG node also declares `qcom,five-pin-battery`. The binding describes the latter as an FG time-to-full/Rbatt behavior flag. These are separate properties and do not establish connector pinout equivalence with BN61.
+
+This Nabu example is useful to fingerprint and compare a second PM855GUI Gen4 payload. It is not a BN61 donor: its 8720 mAh / 10 kOhm / beta-3800 / 4.48 V declarations differ materially from the target's 6000 mAh-class / approximately 100 kOhm / claimed 4.45 V pack. The full payload and first-412-byte hashes have been added to the offline rejection validator as known non-NOHON donor fingerprints. The QG↔Gen4 conversion gate remains closed.
