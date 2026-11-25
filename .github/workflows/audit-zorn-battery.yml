@@ -1,0 +1,45 @@
+name: Audit ZORN battery device trees
+on:
+  push:
+    branches: [Flash-Kernel]
+    paths: ['.github/workflows/audit-zorn-battery.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retrieve and inspect upstream device trees
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y device-tree-compiler
+          git clone --depth 1 --branch 16.2 https://github.com/Sakura-Devices/device_xiaomi_zorn-kernel.git upstream
+          mkdir -p audit
+          git -C upstream rev-parse HEAD > audit/source-commit.txt
+          find upstream/dtb -type f -name '*.dtb' -print0 | while IFS= read -r -d '' f; do
+            sha256sum "$f" >> audit/sha256.txt
+            dtc -I dtb -O dts -o "audit/$(basename "$f").dts" "$f" 2>>audit/dtc.log || true
+          done
+          sha256sum upstream/dtbo.img >> audit/sha256.txt
+          python3 - <<'PY'
+          import struct, pathlib
+          b=pathlib.Path('upstream/dtbo.img').read_bytes()
+          magic,total,hs,es,n,off,page,ver=struct.unpack_from('>8I',b)
+          assert magic==0xd7b7ab1e and total<=len(b) and es>=32 and off+n*es<=total
+          for i in range(n):
+              size,start,*meta=struct.unpack_from('>8I',b,off+i*es)
+              assert start+size<=total
+              pathlib.Path(f'audit/overlay-{i}.dtb').write_bytes(b[start:start+size])
+              print(i,size,start,meta)
+          PY
+          for f in audit/overlay-*.dtb; do dtc -I dtb -O dts -o "$f.dts" "$f" 2>>audit/dtc.log || true; done
+          grep -inE 'batterydata|battery-data|batt-id|battery-type|nom-batt-capacity|fg-profile|pc-temp|fcc.*lut|qbg|rslow|ocv-lut|6000mah|6550mah' audit/*.dts > audit/matches.txt || true
+          cat audit/source-commit.txt audit/sha256.txt
+          head -n 200 audit/matches.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zorn-device-tree-audit
+          path: audit/
