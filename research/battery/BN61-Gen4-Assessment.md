@@ -495,3 +495,15 @@ The owner distinguishes the older BMS-changing module from the later Settings ca
 In the [pinned SMB5 reference](https://github.com/PocoF3Releases/kernel_xiaomi_sm8250/blob/e26284f541876a3f3f9611740db500f00c7f3aea/drivers/power/supply/qcom/qpnp-smb5.c), battery VOLTAGE_NOW delegates to the BMS. The [pinned Gen4 reference](https://github.com/PocoF3Releases/kernel_xiaomi_sm8250/blob/e26284f541876a3f3f9611740db500f00c7f3aea/drivers/power/supply/qcom/qpnp-fg-gen4.c#L5603) uses fg_get_battery_voltage for the ordinary voltage read, exposes the SRAM VBATT_FULL field as CONSTANT_CHARGE_VOLTAGE, and returns a boolean for FASTCHARGE_MODE. The historical bms/fastcharge_mode reading of 4440 is inconsistent with that boolean getter. It cannot establish the FFC state or be reinterpreted as millivolts from that property alone. A running kernel with different semantics or a modified reporting path remains possible. The pinned reference does not identify the exact running build.
 
 The 4.489997 V SRAM-derived value under the reference mapping and the 4.498523 V reported voltage are distinct readings. Their 8.526 mV separation is not a calibration offset. The historical capture remains outside the clean baseline pending source or module provenance and calibrated terminal measurements.
+
+### Gen4 payload field mapping
+
+The pinned [profile loader](https://github.com/PocoF3Releases/kernel_xiaomi_sm8250/blob/e26284f541876a3f3f9611740db500f00c7f3aea/drivers/power/supply/qcom/qpnp-fg-gen4.c#L2664) writes 416 bytes from SRAM word 65. With the Gen4 two-byte word addressing, the payload covers words 65 through 272 inclusive.
+
+| SRAM field | Payload byte offsets | Evidence |
+|---|---|---|
+| `NOM_CAP_WORD` (271) | 412–413 | [Driver](https://github.com/PocoF3Releases/kernel_xiaomi_sm8250/blob/e26284f541876a3f3f9611740db500f00c7f3aea/drivers/power/supply/qcom/qpnp-fg-gen4.c#L769) reads unsigned little-endian mAh and multiplies by 1000 for µAh. The Nabu and J3S controls give 8688 and 5037 mAh. This resolves the field encoding. The reason these values differ from the DTSI nominal declarations remains open. |
+| `RSLOW_COEFF_DISCHG_WORD` (78) | 26–29 | [Driver](https://github.com/PocoF3Releases/kernel_xiaomi_sm8250/blob/e26284f541876a3f3f9611740db500f00c7f3aea/drivers/power/supply/qcom/qpnp-fg-gen4.c#L2445) reads four bytes. They match the DTSI normal Rslow coefficient sequence in both controls (Nabu `33 fc e8 12`, J3S `2d fc ba 0b`). This establishes byte placement in these exports. The fitting algorithm and mapping from QG Z/Y remain unknown. |
+| Runtime OCV (417 or 425) | Outside payload | The OCV parameter descriptor addresses a runtime value outside the loaded profile. Its scale offers no mapping for the stored OCV curve. |
+
+A search for a published PM855GUI encoder or QG-to-Gen4 conversion did not identify a usable source. To establish the curve encoding, the highest-value reference would be paired source characterization and matching PM855GUI exports for one pack, or controlled exports with one input curve changed at a time. Two unrelated exports cannot isolate the effect of an individual curve.
