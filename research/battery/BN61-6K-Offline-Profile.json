@@ -48,6 +48,15 @@
     "gen4_controls": [
       "Alioth J3S Sun",
       "Nabu K82 Sunwoda"
-    ]
+    ],
+    "ifixit_reference": {
+      "url": "https://www.ifixit.com/en-eu/products/xiaomi-poco-x3-battery",
+      "part": "IF400-016-1",
+      "model": "BN61",
+      "capacity_mAh": 5850,
+      "energy_Wh": 22.6,
+      "nominal_voltage_uV": 3870000,
+      "evidence": "Product listing with photograph; confirms BN61 reference and corroborates published rated specifications."
+    }
   }
 }
