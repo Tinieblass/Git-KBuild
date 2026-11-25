@@ -1,0 +1,53 @@
+{
+  "schema": "bn61-6k-offline-profile-v1",
+  "profile": "-6K",
+  "target": {
+    "device": "alioth",
+    "kernel": "Butterflies",
+    "pack": "NOHON BN61",
+    "gauge_family": "Qualcomm FG Gen4",
+    "pack_lot": null
+  },
+  "declared_pack": {
+    "typical_capacity_mAh": 6000,
+    "rated_capacity_mAh": 5850,
+    "nominal_voltage_uV": 3870000,
+    "charge_limit_uV": 4450000,
+    "source": "https://manuals.plus/ae/1005005950829288",
+    "status": "public manual mirror; exact lot unverified"
+  },
+  "historical": {
+    "battery_id_kohm": 100.5,
+    "voltage_now_uV": 4498523,
+    "clean_baseline": false,
+    "physical_voltage_uV": null,
+    "older_bms_module_active_at_capture": null
+  },
+  "calibration": {
+    "ocv_by_soc_temperature": null,
+    "capacity_by_temperature": null,
+    "resistance_by_soc_temperature": null,
+    "ntc_curve": null,
+    "gen4_export_sha256": null
+  },
+  "validation": {
+    "status": "STOP_NO_PROFILE_NO_CHARGE",
+    "safe_to_flash": false,
+    "gen4_profile_emitted": false,
+    "missing": [
+      "Manufacturer limit for exact pack revision or lot",
+      "Calibrated terminal voltage and measurement uncertainty",
+      "Characterization of exact pack and validated Gen4 export",
+      "Confirmed target kernel and charger/FFC configuration"
+    ]
+  },
+  "provenance": {
+    "pilot": "BN61-Rosetta-Pilot-Results.json",
+    "audit": "BN61-Gen4-Assessment.md",
+    "qg_reference": "M703 ATL 6000 mAh",
+    "gen4_controls": [
+      "Alioth J3S Sun",
+      "Nabu K82 Sunwoda"
+    ]
+  }
+}
