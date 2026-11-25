@@ -97,7 +97,6 @@ jobs:
           set -euo pipefail
           cp raw/Image.gz anykernel/Image.gz
           cp raw/dtbo.img anykernel/dtbo.img
-          cp raw/dtbo-5k.img anykernel/dtbo-5k.img
           BUILD_DATE="$(date -u +%Y%m%d)"
           STOCK_ZIP="FlashKernel${BUILD_DATE}.zip"
           FIVEK_ZIP="FlashKernel${BUILD_DATE}-5k.zip"
@@ -190,30 +189,16 @@ jobs:
             ROM_LABEL='not detected'
           fi
           ui_print "ROM: $ROM_LABEL";
-          # Fail closed if recovery does not expose the actual installer filename.
-          if [ -z "${ZIPFILE:-}" ]; then
-            abort 'Cannot determine installer ZIP filename; refusing to select a battery DTBO.';
-          fi
-          ZIP_BASENAME="$(basename "$ZIPFILE" .zip)";
-          case "$ZIP_BASENAME" in
-            *-MIUI5K|*-miui5k)
-              abort 'Suffix -MIUI5K is invalid; use -5K for the 5000mAh profile.';
-              ;;
-            *-6K|*-6k)
-              abort 'BN61 5850mAh (-6K) is reserved and is not available in this build.';
-              ;;
-            FlashKernel[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-5k|FlashKernel[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-5K)
-              DTBO_IMAGE=dtbo-5k.img;
-              ui_print 'Bateria: J3S Sun 5000mAh';
-              ;;
-            FlashKernel[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])
-              DTBO_IMAGE=dtbo.img;
-              ui_print 'Bateria: stock';
-              ;;
-            *)
-              abort 'Unrecognized Flash Kernel ZIP filename; refusing implicit stock DTBO selection.';
-              ;;
+          # The package contains exactly one DTBO; its external filename is irrelevant.
+          [ -s dtbo.img ] || abort 'Missing packaged DTBO.';
+          [ ! -e dtbo-5k.img ] || abort 'Unexpected second DTBO.';
+          PROFILE="$(cat battery-profile.txt 2>/dev/null)";
+          case "$PROFILE" in
+            stock) ui_print 'Bateria: stock'; ;;
+            j3s) ui_print 'Bateria: J3S Sun 5000mAh'; ;;
+            *) abort 'Unknown or reserved battery profile.'; ;;
           esac;
+          DTBO_IMAGE=dtbo.img;
 
           # Preserve the installed boot ramdisk and replace only the kernel.
           dump_boot;
@@ -223,8 +208,11 @@ jobs:
           repack_ramdisk;
           flash_boot;
           AK3
+          printf '%s\n' stock > anykernel/battery-profile.txt
           (cd anykernel && zip -qr9 "../$STOCK_ZIP" . -x '.git/*' '.github/*' 'README.md')
-          cp "$STOCK_ZIP" "$FIVEK_ZIP"
+          cp raw/dtbo-5k.img anykernel/dtbo.img
+          printf '%s\n' j3s > anykernel/battery-profile.txt
+          (cd anykernel && zip -qr9 "../$FIVEK_ZIP" . -x '.git/*' '.github/*' 'README.md')
 
       - name: Validate installer structure and embedded binaries
         run: |
@@ -240,9 +228,19 @@ jobs:
           unzip -p "$ZIP" dtbo.img | sha256sum | awk '{print $1}' > packaged-dtbo.sha
           sha256sum raw/dtbo.img | awk '{print $1}' > raw-dtbo.sha
           diff -u raw-dtbo.sha packaged-dtbo.sha
-          unzip -p "$ZIP" dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-dtbo.sha
+          unzip -p "$FIVEK_ZIP" dtbo.img | sha256sum | awk '{print $1}' > packaged-5k-dtbo.sha
           sha256sum raw/dtbo-5k.img | awk '{print $1}' > raw-5k-dtbo.sha
           diff -u raw-5k-dtbo.sha packaged-5k-dtbo.sha
+          unzip -p "$FIVEK_ZIP" Image.gz | sha256sum | awk '{print $1}' > packaged-5k-image.sha
+          diff -u raw-image.sha packaged-5k-image.sha
+          test "$(unzip -p "$ZIP" battery-profile.txt)" = stock
+          test "$(unzip -p "$FIVEK_ZIP" battery-profile.txt)" = j3s
+          for archive in "$ZIP" "$FIVEK_ZIP"; do
+            test "$(unzip -Z1 "$archive" | grep -c '^dtbo.img$')" = 1
+            if unzip -Z1 "$archive" | grep -Fxq dtbo-5k.img; then
+              exit 1
+            fi
+          done
           unzip -p "$ZIP" anykernel.sh | grep -q 'ui_print "Device:'
           unzip -p "$ZIP" anykernel.sh | grep -q 'ui_print "ROM:'
           unzip -p "$ZIP" anykernel.sh | grep -q 'ro.product.vendor.device'
@@ -262,24 +260,16 @@ jobs:
             exit 1
           fi
           unzip -p "$ZIP" anykernel.sh | grep -Fq 'flash_generic dtbo$SLOT'
-          unzip -p "$ZIP" anykernel.sh | grep -Fq 'ZIP_BASENAME'
-          unzip -p "$ZIP" anykernel.sh | grep -Fq 'dtbo-5k.img'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'Bateria: J3S Sun 5000mAh'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'BN61 5850mAh (-6K) is reserved'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'Suffix -MIUI5K is invalid'
-          unzip -p "$ZIP" anykernel.sh | grep -q 'Bateria: stock'
-          # Reject renamed or unrelated archives even when they end in -5k.
-          unzip -p "$ZIP" anykernel.sh | grep -Fq 'FlashKernel[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-5k'
-          if unzip -p "$ZIP" anykernel.sh | grep -Fq '            *-5k|*-5K)'; then
-            echo 'ERROR: unsafe wildcard J3S ZIP selector detected' >&2
+          unzip -p "$ZIP" anykernel.sh | grep -Fq 'battery-profile.txt'
+          if unzip -p "$ZIP" anykernel.sh | grep -Eq 'ZIP_BASENAME|ZIPFILE'; then
+            echo 'ERROR: filename-dependent battery selection' >&2
             exit 1
           fi
+          diff -u <(unzip -p "$ZIP" anykernel.sh) <(unzip -p "$FIVEK_ZIP" anykernel.sh)
           unzip -p "$ZIP" anykernel.sh | grep -q 'flash_boot'
           if unzip -p "$ZIP" anykernel.sh | grep -Eq 'write_boot|flash_generic (vendor_dlkm|system_dlkm)'; then
             echo 'ERROR: wrong battery branch or unrelated partition write detected' >&2
             exit 1
           fi
           unzip -l "$ZIP" | grep -E 'anykernel.sh|tools/ak3-core.sh|tools/magiskboot|Image.gz|dtbo.img|META-INF/com/google/android/update-binary|LICENSE'
-          unzip -p "$FIVEK_ZIP" dtbo-5k.img | sha256sum | awk '{print $1}' > packaged-5k-named-dtbo.sha
-          diff -u packaged-5k-dtbo.sha packaged-5k-named-dtbo.sha
           sha256sum "$ZIP" "$FIVEK_ZIP"
