@@ -58,5 +58,37 @@
       "nominal_voltage_uV": 3870000,
       "evidence": "Product listing with photograph; confirms BN61 reference and corroborates published rated specifications."
     }
+  },
+  "m703_offline_comparison_baseline": {
+    "temperature_C": 25,
+    "source": "https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/21aca2e848f6697311ad801176e4c4aa4ddc52c7/arch/arm64/boot/dts/qcom/batterydata-M703-ATL-6000mah.dtsi",
+    "source_sha256": "070c6699d1b79d8ac95dc8e58e0eadb10c11b505166b285b51712863d4af5df5",
+    "fcc_mAh": {
+      "fcc1": 5956,
+      "fcc2": 5955
+    },
+    "ocv_uV_at_soc_percent": [
+      {
+        "soc": 100,
+        "v1": 4430500,
+        "v2": 4428000
+      },
+      {
+        "soc": 50,
+        "v1": 3897100,
+        "v2": 3875400
+      },
+      {
+        "soc": 10,
+        "v1": 3709800,
+        "v2": 3688000
+      },
+      {
+        "soc": 0,
+        "v1": 3000000,
+        "v2": 2828300
+      }
+    ],
+    "use": "Compare with matched laboratory data for NOHON BN61. QG reference values do not define charging or discharge limits."
   }
 }
