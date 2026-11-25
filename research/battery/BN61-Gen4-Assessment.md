@@ -466,3 +466,16 @@ Pinned profile: https://github.com/LineageOS/android_kernel_xiaomi_sm8150/blob/5
 - The battery profile contains `mi,six-pin-battery`; the separate PM8150B FG node also declares `qcom,five-pin-battery`. The binding describes the latter as an FG time-to-full/Rbatt behavior flag. These are separate properties and do not establish connector pinout equivalence with BN61.
 
 This Nabu example is useful to fingerprint and compare a second PM855GUI Gen4 payload. It is not a BN61 donor: its 8720 mAh / 10 kOhm / beta-3800 / 4.48 V declarations differ materially from the target's 6000 mAh-class / approximately 100 kOhm / claimed 4.45 V pack. The full payload and first-412-byte hashes have been added to the offline rejection validator as known non-NOHON donor fingerprints. The QG↔Gen4 conversion gate remains closed.
+
+## Rosetta pilot results and physical validation
+
+The [pilot results](BN61-Rosetta-Pilot-Results.json) record the exact source URLs, Git blob IDs, SHA-256 hashes and report hashes. Rosetta v0.2 compared M703 with each of the Nabu and J3S profiles twice under Python 3.11.9. Each pair produced identical stdout across runs. Both runs read 16 M703 tables with 4323 values. Reproduce from the pinned inputs with `python tools/bn61_profile_rosetta.py M703.dtsi Nabu.dtsi`, then repeat with `J3S.dtsi`. Preserve source bytes and input base names when comparing report hashes.
+
+| Gen4 reference | DTSI nominal capacity | Unsigned little-endian word at offsets 412–413 |
+| --- | ---: | ---: |
+| Nabu | 8720 mAh | 8688 |
+| J3S | 5000 mAh | 5037 |
+
+The J3S control also differs from its DTSI declaration, in the opposite direction to Nabu. The word is recorded separately from declared nominal capacity. These observations give no basis for a universal correction or an estimate of BN61 model error.
+
+The physical gate remains unmet. Obtain the manufacturer limit for the exact NOHON pack revision or lot and a laboratory record of calibrated terminal voltage with instrument uncertainty, pack identification, current, temperature, timestamp and operating state. When available, pair it with software telemetry recorded under the same conditions. The readings 4.498523 V and 4.228993 V came from different operating states. The latter cannot establish the accuracy of the former. Any measurements that require charging should be determined and conducted by the laboratory under the confirmed pack limits. For an eventual model comparison, keep independent pack measurements outside the calibration dataset and report voltage, capacity and resistance errors with their temperature and SOC ranges.
