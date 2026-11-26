@@ -1,0 +1,150 @@
+{
+  "schema": "gen4-ocv-layout-experiment-v1",
+  "date": "2026-11-26",
+  "tool": "tools/probe_gen4_ocv_layout.py",
+  "tool_sha256": "fbd963f6340830e9a324a58cfc8d0001c8a2eb50c1ffc297718ff740dfbb36d4",
+  "method": "197 aligned contiguous24-byte windows,12 packed16-bit coefficients as3cubics,32 combinations of float encoding/byte order/coefficient layout/group order,2freely optimized SOC boundaries",
+  "pairs": {
+    "alium": {
+      "qg_sha256": "bce1026060c18a71c3afb474ec35923cb628cb57d3b7dfa219375ef9cebc644a",
+      "gen4_source_sha256": "329cc9435d7fd89cbb4e34f0440c2b22513ab87b51094e8e964b5d2efeeabe92",
+      "payload_sha256": "05744475a7110e695d68a4fac2d9675dbd4cd472856b2fd16eac08b5cbc4f13e",
+      "full_report_sha256": "12131b7da7fa0acb93c3dbbe840d121ef1033fa9be8ad8d76f4a073d6bb3d934",
+      "variant_count": 32,
+      "windows_per_variant": 197,
+      "curve_count": 11,
+      "points_per_curve": [
+        56
+      ],
+      "best": {
+        "rmse_mV": 784.4388548567042,
+        "max_abs_error_mV": 3824.39075,
+        "optimized_soc_boundaries": [
+          0.22,
+          0.26
+        ],
+        "predicted_min_V": -0.08229074999999997,
+        "predicted_max_V": 4.775390625,
+        "table": "pc-temp-v2-lut",
+        "temperature_C": -10,
+        "offset_bytes": 224,
+        "encoding": "gen4_signed_mantissa",
+        "byteorder": "little",
+        "layout": "coefficient_major",
+        "reverse_coefficients": false,
+        "reverse_groups": false
+      }
+    },
+    "mlp": {
+      "qg_sha256": "b944209546a61332993ec2be2c62ff8f8e8c2da91446a67eb58a4d1e2313ae4f",
+      "gen4_source_sha256": "49b22065bbe37d765f164c9d8fe8269a53e7731b6ea95147e1fa2a0555c1afc8",
+      "payload_sha256": "8591509835b587821d03545e3a0642616068b27fb7988ed4f755ec34123de95e",
+      "full_report_sha256": "cdaae48b0b635939e41a72aef53b93bcfdbacbbe81af0cd7845a4142d1c71789",
+      "variant_count": 32,
+      "windows_per_variant": 197,
+      "curve_count": 11,
+      "points_per_curve": [
+        56
+      ],
+      "best": {
+        "rmse_mV": 666.826087172034,
+        "max_abs_error_mV": 1257.0578671874996,
+        "optimized_soc_boundaries": [
+          0.04,
+          0.32
+        ],
+        "predicted_min_V": 2.24609375,
+        "predicted_max_V": 4.944577375,
+        "table": "pc-temp-v1-lut",
+        "temperature_C": 10,
+        "offset_bytes": 348,
+        "encoding": "gen4_signed_mantissa",
+        "byteorder": "little",
+        "layout": "coefficient_major",
+        "reverse_coefficients": false,
+        "reverse_groups": false
+      }
+    }
+  },
+  "scope": "Numerical reconstruction of published QG tables under explicitly tested layouts",
+  "gen4_profile_emitted": false,
+  "safe_to_flash": false,
+  "legacy_decoder_control": {
+    "profile": "legacy-itech-3000mah.dtsi",
+    "sha256": "0a7c5522d06951271eef983c7eba5e65a53d5b7c2becacb64851e63c1b5c8fc3",
+    "profile_bytes": 128,
+    "coefficients": [
+      3.96875,
+      -1.3544921875,
+      2.69921875,
+      -0.990234375,
+      3.630859375,
+      0.10760498046875,
+      2.7421875,
+      -5.19921875,
+      2.939453125,
+      19.6875,
+      -175.375,
+      510
+    ],
+    "junctions_soc_fraction": [
+      0.35,
+      0.07
+    ],
+    "values": [
+      {
+        "soc_percent": 0,
+        "ocv_V": 2.939453125
+      },
+      {
+        "soc_percent": 5,
+        "ocv_V": 3.549140625
+      },
+      {
+        "soc_percent": 10,
+        "ocv_V": 3.663842529296875
+      },
+      {
+        "soc_percent": 25,
+        "ocv_V": 3.7479095458984375
+      },
+      {
+        "soc_percent": 50,
+        "ocv_V": 3.842529296875
+      },
+      {
+        "soc_percent": 75,
+        "ocv_V": 4.053436279296875
+      },
+      {
+        "soc_percent": 100,
+        "ocv_V": 4.3232421875
+      }
+    ],
+    "range_2_5_to_4_5_V": true,
+    "polynomial_evaluation_self_fit_rmse_mV": 0,
+    "integer_source_differential": {
+      "soc_points": 1001,
+      "soc_integer_range": [
+        0,
+        1000
+      ],
+      "max_absolute_difference_uV": 2.392437499947846,
+      "interpretation": "Integer source rounding versus real-valued coefficient evaluation"
+    }
+  },
+  "algorithm_sources": [
+    "https://github.com/OnePlusOSS/android_kernel_oneplus_msm8996/blob/93238877f9e8fbbbf801f2deeebc18f54d4bdc1b/drivers/power/qpnp-fg.c#L2295",
+    "https://github.com/OnePlusOSS/android_kernel_oneplus_msm8996/blob/93238877f9e8fbbbf801f2deeebc18f54d4bdc1b/drivers/power/qpnp-fg.c#L2936",
+    "https://github.com/OnePlusOSS/android_kernel_oneplus_msm8996/blob/93238877f9e8fbbbf801f2deeebc18f54d4bdc1b/drivers/power/qpnp-fg.c#L4808",
+    "https://github.com/OnePlusOSS/android_kernel_oneplus_msm8996/blob/93238877f9e8fbbbf801f2deeebc18f54d4bdc1b/arch/arm/boot/dts/qcom/batterydata-itech-3000mah.dtsi",
+    "https://github.com/PocoF3Releases/kernel_xiaomi_sm8250/blob/e26284f541876a3f3f9611740db500f00c7f3aea/drivers/power/supply/qcom/fg-util.c#L474"
+  ],
+  "pair_sources": {
+    "alium_qg": "https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/7455841d61dc4601b1c6f37deea90c881d785d72/arch/arm64/boot/dts/qcom/qg-batterydata-alium-3600mah.dtsi",
+    "alium_gen4": "https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/4f30ff4bf5c6f2c4ff58347cea083249f15ef721/arch/arm64/boot/dts/qcom/fg-gen4-batterydata-alium-3600mah.dtsi",
+    "mlp_qg": "https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/27aea4a8373b3443b70bc9f2ed26adaa57dfbb3d/arch/arm64/boot/dts/qcom/qg-batterydata-mlp466076-3200mah.dtsi",
+    "mlp_gen4": "https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/1b0169fd008131dbc4c1c7fffb488ef269812602/arch/arm64/boot/dts/qcom/fg-gen4-batterydata-mlp466076-3250mah.dtsi"
+  },
+  "interpretation": "The tested contiguous three-cubic layouts fail to reproduce the published curves. Other Gen4 addresses, coefficient counts, scales and compression remain unresolved. These residuals characterize candidate-layout failure, not a BN61 calibration error."
+}
