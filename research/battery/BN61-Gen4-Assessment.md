@@ -507,3 +507,23 @@ The pinned [profile loader](https://github.com/PocoF3Releases/kernel_xiaomi_sm82
 | Runtime OCV (417 or 425) | Outside payload | The OCV parameter descriptor addresses a runtime value outside the loaded profile. Its scale offers no mapping for the stored OCV curve. |
 
 A search for a published PM855GUI encoder or QG-to-Gen4 conversion did not identify a usable source. To establish the curve encoding, the highest-value reference would be paired source characterization and matching PM855GUI exports for one pack, or controlled exports with one input curve changed at a time. Two unrelated exports cannot isolate the effect of an individual curve.
+
+## Executable Gen4 encoding audit (2026-11-26)
+
+The [Gen4 inspector](../../tools/gen4_profile_inspect.py) parses one DTSI or one addressed UEFI export, decodes the documented fields, re-encodes them in memory and checks the PM855GUI checksum. To compare representations, run `python tools/gen4_profile_inspect.py profile.dtsi --compare BATTERY.PROVISION2`. The [audit JSON](GEN4-ENCODING-AUDIT.json) contains pinned URLs, Git blobs, SHA-256 hashes and detailed outputs for four controls.
+
+The Qualcomm [UEFI header](https://github.com/SwedMlite/BOOT.XF.3.3/blob/55ff7c1920ccf084951b2770d46ffcbe8917864f/QcomPkg/Drivers/PmicDxe/Fg/PmicFgSram.h) defines profile words 65 through 271, or 414 bytes. The [UEFI checksum implementation](https://github.com/SwedMlite/BOOT.XF.3.3/blob/55ff7c1920ccf084951b2770d46ffcbe8917864f/QcomPkg/Drivers/PmicDxe/Fg/PmicFgSram.c#L3108) processes those 207 words. Linux loads 416 bytes, and all four controls end with two zero bytes. The J3S UEFI export matches the complete first 414 Linux bytes.
+
+The UEFI rev1 Rslow-shape function additionally identifies bit 1 of SRAM word 241, corresponding to payload byte 352. Linux applies a rev1 workaround to this bit after loading the profile. The inspector labels the bit's scope explicitly. It maps six full field bytes plus that bit. The OCV curve and QG dynamic-model conversion remain unresolved.
+
+### Same-date Alium QG and Gen4 reference
+
+The [QG profile](https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/7455841d61dc4601b1c6f37deea90c881d785d72/arch/arm64/boot/dts/qcom/qg-batterydata-alium-3600mah.dtsi) and [Gen4 profile](https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/4f30ff4bf5c6f2c4ff58347cea083249f15ef721/arch/arm64/boot/dts/qcom/fg-gen4-batterydata-alium-3600mah.dtsi) both identify Alium 860_89032_0000, averaged MasterSlave, Jun15th2018. This improves on comparisons between different characterization dates. Their raw laboratory dataset identity has not been independently established.
+
+The Gen4 internal nominal value is 3588 mAh. At 25 degrees Celsius QG FCC1 is 3581 mAh and FCC2 is 3588 mAh. This is one observed cross-format correspondence. It supplies a control for further reconstruction, while evidence from additional exact pairs is needed to generalize.
+
+### Validation results
+
+Six offline test methods passed. They exercise four genuine 416-byte exports, checksum validation, capacity and Rslow field roundtrips, exact J3S UEFI/Linux correspondence, malformed or duplicate input rejection, range rejection and CLI reproducibility. Tested nominal values are 5037 mAh (J3S), 8688 mAh (Nabu), 3588 mAh (Alium) and 6489 mAh (Goertek).
+
+A genuine PM855GUI 1.0.0.14 [Goertek 6100 mAh export](https://github.com/LineageOS/android_kernel_sony_sm8250/blob/13be394703f92866a699cd8e83b60ef03b4e8786/arch/arm64/boot/dts/qcom/fg-gen4-batterydata-goertek-6100mah.dtsi) expands the comparison corpus. It declares 4.35 V and a 35 kOhm battery ID. Its 6489 mAh internal value also demonstrates why declared and internal capacity must be recorded separately. These offline checks establish file-format consistency. BN61 electrical characterization and curve encoding remain pending.
