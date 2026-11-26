@@ -3,7 +3,7 @@
   "date": "2026-11-26",
   "tool": "tools/probe_gen4_ocv_layout.py",
   "tool_sha256": "fbd963f6340830e9a324a58cfc8d0001c8a2eb50c1ffc297718ff740dfbb36d4",
-  "method": "197 aligned contiguous24-byte windows,12 packed16-bit coefficients as3cubics,32 combinations of float encoding/byte order/coefficient layout/group order,2freely optimized SOC boundaries",
+  "method": "197 aligned 24-byte windows, 12 packed 16-bit coefficients as three cubics, 32 combinations of float encoding, byte order, coefficient layout and group order, with two freely optimized SOC boundaries",
   "pairs": {
     "alium": {
       "qg_sha256": "bce1026060c18a71c3afb474ec35923cb628cb57d3b7dfa219375ef9cebc644a",
@@ -146,5 +146,10 @@
     "mlp_qg": "https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/27aea4a8373b3443b70bc9f2ed26adaa57dfbb3d/arch/arm64/boot/dts/qcom/qg-batterydata-mlp466076-3200mah.dtsi",
     "mlp_gen4": "https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/1b0169fd008131dbc4c1c7fffb488ef269812602/arch/arm64/boot/dts/qcom/fg-gen4-batterydata-mlp466076-3250mah.dtsi"
   },
-  "interpretation": "The tested contiguous three-cubic layouts fail to reproduce the published curves. Other Gen4 addresses, coefficient counts, scales and compression remain unresolved. These residuals characterize candidate-layout failure, not a BN61 calibration error."
+  "interpretation": "The tested contiguous three-cubic layouts fail to reproduce the published curves. Other Gen4 addresses, coefficient counts, scales and compression remain unresolved. These residuals characterize candidate-layout failure, not a BN61 calibration error.",
+  "reproduction_command": "python tools/probe_gen4_ocv_layout.py alium-qg-jun15.dtsi alium-gen4-jun15.dtsi result.json --legacy-control batterydata-itech-3000mah.dtsi",
+  "source_pair_scope": {
+    "alium": "Matching characterization name and date; original raw laboratory dataset identity unverified",
+    "mlp": "Matching cell family; QG and Gen4 characterization dates differ by four days"
+  }
 }
