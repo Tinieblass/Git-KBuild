@@ -1,0 +1,578 @@
+{
+  "schema": "gen4-encoding-audit-v1",
+  "date": "2026-11-26",
+  "tool": {
+    "file": "gen4_profile_inspect.py",
+    "git_blob": "c3db7d1ee38945c362f1ccf67a897dc44b600763",
+    "sha256": "87b0d07ecd6e6b7d0a45672b234e467904a34bfbb03185d7669bfc85b04ca38a"
+  },
+  "dependencies": [
+    {
+      "file": "bn61_profile_rosetta.py",
+      "git_blob": "540e4c9892b4bdc4b21f77fd4d7986a9ad94692a",
+      "sha256": "fd3ed25500feee55d6e10b3e032d2c1195e6e4d7763c035fd19bbd40fc1722a4"
+    },
+    {
+      "file": "validate_nohon_bn61_gen4_candidate.py",
+      "git_blob": "9fd6967d9736fbeb8004365cc52d801a029d9db6",
+      "sha256": "10ac366a68435decfb5511571b10674a3d39b7086f1af1cf562cdfe004365c3f"
+    }
+  ],
+  "controls": {
+    "J3S": {
+      "source": {
+        "file": "J3S.dtsi",
+        "git_blob": "d95cfc436fd4667d106bd03de6150bf3faf5ca57",
+        "sha256": "405ee4670ee4418671fdd39f9a23006906f62fc3665721584be60bb74e8eb74c",
+        "url": "https://github.com/PocoF3Releases/kernel_xiaomi_sm8250/blob/e26284f541876a3f3f9611740db500f00c7f3aea/arch/arm64/boot/dts/vendor/qcom/fg-gen4-batterydata-alioth-sun-5000mah.dtsi"
+      },
+      "report_sha256": "cacce867bd567d46a69f6029745f0754599181ebe363303daa4a74f1635d0c26",
+      "report": {
+        "schema": "gen4-profile-inspection-v1",
+        "primary": {
+          "source": {
+            "name": "J3S.dtsi",
+            "format": "Linux Gen4 DTSI",
+            "source_sha256": "405ee4670ee4418671fdd39f9a23006906f62fc3665721584be60bb74e8eb74c"
+          },
+          "payload_sha256": "433cf6279d867be89b08ddb10a7fff0460c42c944cd253f702733033eef603dd",
+          "profile_414_sha256": "769386443aaaafd1d7bc1ef880e212925cb1ffb3fccae584d9a0655757952051",
+          "payload_length": 416,
+          "addressing": {
+            "start_word": 65,
+            "end_word": 271,
+            "bytes_per_word": 2
+          },
+          "decoded_fields": {
+            "nominal_capacity": {
+              "sram_word": 271,
+              "byte_offset": 412,
+              "length": 2,
+              "value_mAh": 5037,
+              "declared_metadata_mAh": 5000,
+              "payload_minus_metadata_mAh": 37,
+              "field_roundtrip_exact": true
+            },
+            "rslow_coefficients": {
+              "sram_word": 78,
+              "byte_offset": 26,
+              "length": 4,
+              "raw_values": [
+                45,
+                252,
+                186,
+                11
+              ],
+              "declared_normal_values": [
+                45,
+                252,
+                186,
+                11
+              ],
+              "matches_declared_normal": true,
+              "field_roundtrip_exact": true,
+              "physical_coefficient_scaling": "unresolved"
+            },
+            "rslow_shape_control": {
+              "sram_word": 241,
+              "byte_offset": 352,
+              "bit_mask": 2,
+              "enabled_bit": true,
+              "scope": "UEFI rev1 behavior and Linux rev1 workaround; runtime may change this bit"
+            }
+          },
+          "checksum": {
+            "algorithm": "rotate-left-16 and XOR, 207 words, four iterations per word",
+            "calculated": 48781,
+            "declared": 48781,
+            "matches": true,
+            "processed_bytes": 414
+          },
+          "linux_trailing_bytes_hex": "0000",
+          "coverage": {
+            "fully_placed_field_bytes": 6,
+            "additional_identified_bits": 1,
+            "unresolved_byte_ranges_inclusive": [
+              [
+                0,
+                25
+              ],
+              [
+                30,
+                351
+              ],
+              [
+                353,
+                411
+              ]
+            ],
+            "partially_interpreted_byte_offsets": [
+              352
+            ],
+            "ocv_curve_encoding": "unresolved",
+            "qg_zy_to_gen4_fitting": "unresolved"
+          }
+        },
+        "sources": [
+          "https://github.com/PocoF3Releases/kernel_xiaomi_sm8250/blob/e26284f541876a3f3f9611740db500f00c7f3aea/drivers/power/supply/qcom/qpnp-fg-gen4.c",
+          "https://github.com/SwedMlite/BOOT.XF.3.3/blob/55ff7c1920ccf084951b2770d46ffcbe8917864f/QcomPkg/Drivers/PmicDxe/Fg/PmicFgSram.c",
+          "https://github.com/SwedMlite/BOOT.XF.3.3/blob/55ff7c1920ccf084951b2770d46ffcbe8917864f/QcomPkg/Drivers/PmicDxe/Fg/PmicFgBattProfile.c"
+        ],
+        "gen4_profile_emitted": false,
+        "safe_to_flash": false,
+        "electrical_validation": "pending exact-pack measurements",
+        "comparison": {
+          "source": {
+            "name": "BATTERY.PROVISION2",
+            "format": "PM855GUI addressed profile",
+            "source_sha256": "5f05cd9a6d16d22b7de5171955fec3304ddc57ae56b4dd7b58532c9ad8830cbb"
+          },
+          "payload_sha256": "769386443aaaafd1d7bc1ef880e212925cb1ffb3fccae584d9a0655757952051",
+          "profile_414_sha256": "769386443aaaafd1d7bc1ef880e212925cb1ffb3fccae584d9a0655757952051",
+          "payload_length": 414,
+          "addressing": {
+            "start_word": 65,
+            "end_word": 271,
+            "bytes_per_word": 2
+          },
+          "decoded_fields": {
+            "nominal_capacity": {
+              "sram_word": 271,
+              "byte_offset": 412,
+              "length": 2,
+              "value_mAh": 5037,
+              "declared_metadata_mAh": 5000,
+              "payload_minus_metadata_mAh": 37,
+              "field_roundtrip_exact": true
+            },
+            "rslow_coefficients": {
+              "sram_word": 78,
+              "byte_offset": 26,
+              "length": 4,
+              "raw_values": [
+                45,
+                252,
+                186,
+                11
+              ],
+              "declared_normal_values": [
+                45,
+                252,
+                186,
+                11
+              ],
+              "matches_declared_normal": true,
+              "field_roundtrip_exact": true,
+              "physical_coefficient_scaling": "unresolved"
+            },
+            "rslow_shape_control": {
+              "sram_word": 241,
+              "byte_offset": 352,
+              "bit_mask": 2,
+              "enabled_bit": true,
+              "scope": "UEFI rev1 behavior and Linux rev1 workaround; runtime may change this bit"
+            }
+          },
+          "checksum": {
+            "algorithm": "rotate-left-16 and XOR, 207 words, four iterations per word",
+            "calculated": 48781,
+            "declared": 48781,
+            "matches": true,
+            "processed_bytes": 414
+          },
+          "linux_trailing_bytes_hex": null,
+          "coverage": {
+            "fully_placed_field_bytes": 6,
+            "additional_identified_bits": 1,
+            "unresolved_byte_ranges_inclusive": [
+              [
+                0,
+                25
+              ],
+              [
+                30,
+                351
+              ],
+              [
+                353,
+                411
+              ]
+            ],
+            "partially_interpreted_byte_offsets": [
+              352
+            ],
+            "ocv_curve_encoding": "unresolved",
+            "qg_zy_to_gen4_fitting": "unresolved"
+          }
+        },
+        "comparison_414": {
+          "byte_identical": true,
+          "different_byte_count": 0,
+          "different_offsets": []
+        }
+      }
+    },
+    "Nabu": {
+      "source": {
+        "file": "Nabu.dtsi",
+        "git_blob": "c152f8ed1934eaadf91def2c2d170329808bfa66",
+        "sha256": "7b586a82e9324a15ddecfbbd26c43d34de8ec7a4d41ecb9ffc0e704aa5607693",
+        "url": "https://github.com/LineageOS/android_kernel_xiaomi_sm8150/blob/59220a048d04516e7fe1dfc094507930166a1e60/arch/arm64/boot/dts/qcom/xiaomi/overlay/common/battery/fg-gen4-batterydata-nabu-sunwoda-8720mah.dtsi"
+      },
+      "report_sha256": "24313cbeb4da09a48c996a431b843ee620c2b3f4dc00416071d3da7ce628a4ec",
+      "report": {
+        "schema": "gen4-profile-inspection-v1",
+        "primary": {
+          "source": {
+            "name": "Nabu.dtsi",
+            "format": "Linux Gen4 DTSI",
+            "source_sha256": "7b586a82e9324a15ddecfbbd26c43d34de8ec7a4d41ecb9ffc0e704aa5607693"
+          },
+          "payload_sha256": "f393cf0efb21ad1cf01045cc10985e1ecb34c883668fcfe35f1b9dda653cd016",
+          "profile_414_sha256": "ef032f4e7dc9aaf699debd37278064d5d5ccb05189152ea029f6512f912d3379",
+          "payload_length": 416,
+          "addressing": {
+            "start_word": 65,
+            "end_word": 271,
+            "bytes_per_word": 2
+          },
+          "decoded_fields": {
+            "nominal_capacity": {
+              "sram_word": 271,
+              "byte_offset": 412,
+              "length": 2,
+              "value_mAh": 8688,
+              "declared_metadata_mAh": 8720,
+              "payload_minus_metadata_mAh": -32,
+              "field_roundtrip_exact": true
+            },
+            "rslow_coefficients": {
+              "sram_word": 78,
+              "byte_offset": 26,
+              "length": 4,
+              "raw_values": [
+                51,
+                252,
+                232,
+                18
+              ],
+              "declared_normal_values": [
+                51,
+                252,
+                232,
+                18
+              ],
+              "matches_declared_normal": true,
+              "field_roundtrip_exact": true,
+              "physical_coefficient_scaling": "unresolved"
+            },
+            "rslow_shape_control": {
+              "sram_word": 241,
+              "byte_offset": 352,
+              "bit_mask": 2,
+              "enabled_bit": true,
+              "scope": "UEFI rev1 behavior and Linux rev1 workaround; runtime may change this bit"
+            }
+          },
+          "checksum": {
+            "algorithm": "rotate-left-16 and XOR, 207 words, four iterations per word",
+            "calculated": 48874,
+            "declared": 48874,
+            "matches": true,
+            "processed_bytes": 414
+          },
+          "linux_trailing_bytes_hex": "0000",
+          "coverage": {
+            "fully_placed_field_bytes": 6,
+            "additional_identified_bits": 1,
+            "unresolved_byte_ranges_inclusive": [
+              [
+                0,
+                25
+              ],
+              [
+                30,
+                351
+              ],
+              [
+                353,
+                411
+              ]
+            ],
+            "partially_interpreted_byte_offsets": [
+              352
+            ],
+            "ocv_curve_encoding": "unresolved",
+            "qg_zy_to_gen4_fitting": "unresolved"
+          }
+        },
+        "sources": [
+          "https://github.com/PocoF3Releases/kernel_xiaomi_sm8250/blob/e26284f541876a3f3f9611740db500f00c7f3aea/drivers/power/supply/qcom/qpnp-fg-gen4.c",
+          "https://github.com/SwedMlite/BOOT.XF.3.3/blob/55ff7c1920ccf084951b2770d46ffcbe8917864f/QcomPkg/Drivers/PmicDxe/Fg/PmicFgSram.c",
+          "https://github.com/SwedMlite/BOOT.XF.3.3/blob/55ff7c1920ccf084951b2770d46ffcbe8917864f/QcomPkg/Drivers/PmicDxe/Fg/PmicFgBattProfile.c"
+        ],
+        "gen4_profile_emitted": false,
+        "safe_to_flash": false,
+        "electrical_validation": "pending exact-pack measurements"
+      }
+    },
+    "Alium-Jun15": {
+      "source": {
+        "file": "Alium-Gen4-Jun15.dtsi",
+        "git_blob": "22a8d112a783b6ebc59f2c1810adc4d04d6feef7",
+        "sha256": "329cc9435d7fd89cbb4e34f0440c2b22513ab87b51094e8e964b5d2efeeabe92",
+        "url": "https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/4f30ff4bf5c6f2c4ff58347cea083249f15ef721/arch/arm64/boot/dts/qcom/fg-gen4-batterydata-alium-3600mah.dtsi"
+      },
+      "report_sha256": "0e3775328a9d40666c01dfc88f87ddbdbf2a1aa019036f20cfda1015658f608d",
+      "report": {
+        "schema": "gen4-profile-inspection-v1",
+        "primary": {
+          "source": {
+            "name": "Alium-Gen4-Jun15.dtsi",
+            "format": "Linux Gen4 DTSI",
+            "source_sha256": "329cc9435d7fd89cbb4e34f0440c2b22513ab87b51094e8e964b5d2efeeabe92"
+          },
+          "payload_sha256": "05744475a7110e695d68a4fac2d9675dbd4cd472856b2fd16eac08b5cbc4f13e",
+          "profile_414_sha256": "23bae8e55ff12651879b9ea2b0f71ec44b27cfd7f9219bff7d6c66a134761cf2",
+          "payload_length": 416,
+          "addressing": {
+            "start_word": 65,
+            "end_word": 271,
+            "bytes_per_word": 2
+          },
+          "decoded_fields": {
+            "nominal_capacity": {
+              "sram_word": 271,
+              "byte_offset": 412,
+              "length": 2,
+              "value_mAh": 3588,
+              "declared_metadata_mAh": null,
+              "payload_minus_metadata_mAh": null,
+              "field_roundtrip_exact": true
+            },
+            "rslow_coefficients": {
+              "sram_word": 78,
+              "byte_offset": 26,
+              "length": 4,
+              "raw_values": [
+                164,
+                1,
+                36,
+                19
+              ],
+              "declared_normal_values": [
+                164,
+                1,
+                36,
+                19
+              ],
+              "matches_declared_normal": true,
+              "field_roundtrip_exact": true,
+              "physical_coefficient_scaling": "unresolved"
+            },
+            "rslow_shape_control": {
+              "sram_word": 241,
+              "byte_offset": 352,
+              "bit_mask": 2,
+              "enabled_bit": true,
+              "scope": "UEFI rev1 behavior and Linux rev1 workaround; runtime may change this bit"
+            }
+          },
+          "checksum": {
+            "algorithm": "rotate-left-16 and XOR, 207 words, four iterations per word",
+            "calculated": 52731,
+            "declared": 52731,
+            "matches": true,
+            "processed_bytes": 414
+          },
+          "linux_trailing_bytes_hex": "0000",
+          "coverage": {
+            "fully_placed_field_bytes": 6,
+            "additional_identified_bits": 1,
+            "unresolved_byte_ranges_inclusive": [
+              [
+                0,
+                25
+              ],
+              [
+                30,
+                351
+              ],
+              [
+                353,
+                411
+              ]
+            ],
+            "partially_interpreted_byte_offsets": [
+              352
+            ],
+            "ocv_curve_encoding": "unresolved",
+            "qg_zy_to_gen4_fitting": "unresolved"
+          }
+        },
+        "sources": [
+          "https://github.com/PocoF3Releases/kernel_xiaomi_sm8250/blob/e26284f541876a3f3f9611740db500f00c7f3aea/drivers/power/supply/qcom/qpnp-fg-gen4.c",
+          "https://github.com/SwedMlite/BOOT.XF.3.3/blob/55ff7c1920ccf084951b2770d46ffcbe8917864f/QcomPkg/Drivers/PmicDxe/Fg/PmicFgSram.c",
+          "https://github.com/SwedMlite/BOOT.XF.3.3/blob/55ff7c1920ccf084951b2770d46ffcbe8917864f/QcomPkg/Drivers/PmicDxe/Fg/PmicFgBattProfile.c"
+        ],
+        "gen4_profile_emitted": false,
+        "safe_to_flash": false,
+        "electrical_validation": "pending exact-pack measurements"
+      }
+    },
+    "Goertek6100": {
+      "source": {
+        "file": "Goertek6100.dtsi",
+        "git_blob": "42b67638317fa3f66e980e24d9847f0e7bc22e34",
+        "sha256": "8ddfcdf9622bdeed39668b6a6df2c5e57daae1361c7d605e3aa11525e225b483",
+        "url": "https://github.com/LineageOS/android_kernel_sony_sm8250/blob/13be394703f92866a699cd8e83b60ef03b4e8786/arch/arm64/boot/dts/qcom/fg-gen4-batterydata-goertek-6100mah.dtsi"
+      },
+      "report_sha256": "829520356c99ac30237412b27157a189dcd0b891e7c8373ece31e6c6cc43a1e0",
+      "report": {
+        "schema": "gen4-profile-inspection-v1",
+        "primary": {
+          "source": {
+            "name": "Goertek6100.dtsi",
+            "format": "Linux Gen4 DTSI",
+            "source_sha256": "8ddfcdf9622bdeed39668b6a6df2c5e57daae1361c7d605e3aa11525e225b483"
+          },
+          "payload_sha256": "878323684ed951bf57bec04af74b3eab8e5f7b57f07dd933fdf9bdfb90479feb",
+          "profile_414_sha256": "0e4145c140f253e304090d2d52c91c451c637c583fda4a012502bff7ed32f854",
+          "payload_length": 416,
+          "addressing": {
+            "start_word": 65,
+            "end_word": 271,
+            "bytes_per_word": 2
+          },
+          "decoded_fields": {
+            "nominal_capacity": {
+              "sram_word": 271,
+              "byte_offset": 412,
+              "length": 2,
+              "value_mAh": 6489,
+              "declared_metadata_mAh": 6100,
+              "payload_minus_metadata_mAh": 389,
+              "field_roundtrip_exact": true
+            },
+            "rslow_coefficients": {
+              "sram_word": 78,
+              "byte_offset": 26,
+              "length": 4,
+              "raw_values": [
+                77,
+                244,
+                209,
+                18
+              ],
+              "declared_normal_values": [
+                77,
+                244,
+                209,
+                18
+              ],
+              "matches_declared_normal": true,
+              "field_roundtrip_exact": true,
+              "physical_coefficient_scaling": "unresolved"
+            },
+            "rslow_shape_control": {
+              "sram_word": 241,
+              "byte_offset": 352,
+              "bit_mask": 2,
+              "enabled_bit": true,
+              "scope": "UEFI rev1 behavior and Linux rev1 workaround; runtime may change this bit"
+            }
+          },
+          "checksum": {
+            "algorithm": "rotate-left-16 and XOR, 207 words, four iterations per word",
+            "calculated": 62029,
+            "declared": 62029,
+            "matches": true,
+            "processed_bytes": 414
+          },
+          "linux_trailing_bytes_hex": "0000",
+          "coverage": {
+            "fully_placed_field_bytes": 6,
+            "additional_identified_bits": 1,
+            "unresolved_byte_ranges_inclusive": [
+              [
+                0,
+                25
+              ],
+              [
+                30,
+                351
+              ],
+              [
+                353,
+                411
+              ]
+            ],
+            "partially_interpreted_byte_offsets": [
+              352
+            ],
+            "ocv_curve_encoding": "unresolved",
+            "qg_zy_to_gen4_fitting": "unresolved"
+          }
+        },
+        "sources": [
+          "https://github.com/PocoF3Releases/kernel_xiaomi_sm8250/blob/e26284f541876a3f3f9611740db500f00c7f3aea/drivers/power/supply/qcom/qpnp-fg-gen4.c",
+          "https://github.com/SwedMlite/BOOT.XF.3.3/blob/55ff7c1920ccf084951b2770d46ffcbe8917864f/QcomPkg/Drivers/PmicDxe/Fg/PmicFgSram.c",
+          "https://github.com/SwedMlite/BOOT.XF.3.3/blob/55ff7c1920ccf084951b2770d46ffcbe8917864f/QcomPkg/Drivers/PmicDxe/Fg/PmicFgBattProfile.c"
+        ],
+        "gen4_profile_emitted": false,
+        "safe_to_flash": false,
+        "electrical_validation": "pending exact-pack measurements"
+      }
+    }
+  },
+  "j3s_provision_source": {
+    "file": "BATTERY.PROVISION2",
+    "git_blob": "e90c22941148f6cbc81aa1c9bf2695d1b673a44a",
+    "sha256": "5f05cd9a6d16d22b7de5171955fec3304ddc57ae56b4dd7b58532c9ad8830cbb",
+    "url": "https://github.com/Project-Aloha/mu_aloha_platforms/blob/ecac086b16e8f406e1629913e0f9ab9a7f6bb9d8/Platforms/KonaPkg/Device/xiaomi-umi/Binaries/RawFiles/BATTERY.PROVISION2"
+  },
+  "paired_alium_qg": {
+    "file": "Alium-QG-Jun15.dtsi",
+    "git_blob": "8435d48e6a06ee9ef057aac3efd257a206e6cd5e",
+    "sha256": "bce1026060c18a71c3afb474ec35923cb628cb57d3b7dfa219375ef9cebc644a",
+    "url": "https://github.com/LineageOS/android_kernel_xiaomi_surya/blob/7455841d61dc4601b1c6f37deea90c881d785d72/arch/arm64/boot/dts/qcom/qg-batterydata-alium-3600mah.dtsi",
+    "matching_characterization_name_and_date": true,
+    "raw_lab_dataset_identity_verified": false,
+    "qg_fcc_25C_mAh": {
+      "fcc1-temp-lut": 3581,
+      "fcc2-temp-lut": 3588
+    },
+    "gen4_internal_capacity_mAh": 3588,
+    "matches_fcc2_25C": true,
+    "general_conversion_rule_established": false
+  },
+  "parser_regression_checks": {
+    "run_command": "python work/gen4-research/check_gen4_inspector.py",
+    "passed_test_methods": 6,
+    "scope": "Real exports, field roundtrips, checksum, strict malformed and duplicate rejection, CLI reproducibility",
+    "test_script": {
+      "file": "check_gen4_inspector.py",
+      "git_blob": "7a93faf81f213116189f04dd00396ad225d8dda5",
+      "sha256": "b9b5533adf2fb67c05483d839b6d4797f2d2da94ae4b9a849afaab2e7d3cad66"
+    }
+  },
+  "profile_region": {
+    "uefi_words_inclusive": [
+      65,
+      271
+    ],
+    "uefi_bytes": 414,
+    "linux_bytes": 416,
+    "linux_trailing_bytes_in_all_four_controls": "0000",
+    "fully_placed_field_bytes": 6,
+    "additional_identified_bits": 1
+  },
+  "unresolved": [
+    "Gen4 OCV curve addresses, coefficient representation and fitting",
+    "QG Z/Y physical output units and relationship to Gen4 dynamic model",
+    "NOHON BN61 exact-pack characterization and error bounds"
+  ],
+  "gen4_profile_emitted": false,
+  "safe_to_flash": false,
+  "hardware_measurements_performed": false
+}
