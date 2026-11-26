@@ -28,7 +28,23 @@
     "capacity_by_temperature": null,
     "resistance_by_soc_temperature": null,
     "ntc_curve": null,
-    "gen4_export_sha256": null
+    "gen4_export_sha256": null,
+    "gen4_encoding_research": {
+      "tool": "tools/gen4_profile_inspect.py",
+      "tool_git_blob": "c3db7d1ee38945c362f1ccf67a897dc44b600763",
+      "audit": "GEN4-ENCODING-AUDIT.json",
+      "core_bytes": 414,
+      "linux_transport_bytes": 416,
+      "verified_fields": [
+        "nominal capacity unsigned little-endian16 mAh at bytes412-413",
+        "Rslow coefficient byte placement at bytes26-29",
+        "PMIC revision1 Rslow-shape control bit1 at byte352"
+      ],
+      "checksum": "UEFI207word rotate16 and XOR verified on4 reference profiles",
+      "ocv_curve_mapping": null,
+      "qg_dynamic_model_mapping": null,
+      "alium_same_date_qg_gen4_pair": "Jun15th2018, Gen4 nominal3588mAh equals QG FCC2 at25C"
+    }
   },
   "validation": {
     "status": "STOP_NO_PROFILE_NO_CHARGE",
